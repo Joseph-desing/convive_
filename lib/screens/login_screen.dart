@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
+import 'welcome_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -25,18 +26,18 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20), // Reducir padding
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  const SizedBox(height: 20), // Reducir espacio
+                  const SizedBox(height: 20),
                   
                   Container(
-                    width: 70, // Reducir tamaño
+                    width: 70,
                     height: 70,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -49,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Icon(
                       Icons.home_rounded,
                       size: 35,
-                      color: Colors.white,
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       'ConVive',
                       style: TextStyle(
-                        fontSize: 36, // Reducir tamaño
+                        fontSize: 36,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                       ),
@@ -339,7 +340,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo de Google personalizado (sin network)
             _buildGoogleLogo(),
             const SizedBox(width: 12),
             const Text(
@@ -356,7 +356,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Logo de Google creado con widgets (sin descargar nada)
   Widget _buildGoogleLogo() {
     return Container(
       width: 20,
@@ -373,10 +372,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _onSubmit() {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'),
-          backgroundColor: AppColors.accent,
+      // Obtener el nombre del usuario
+      String userName = _isLogin 
+        ? _emailController.text.split('@')[0] 
+        : _nameController.text;
+      
+      // Navegar a la pantalla de bienvenida
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => WelcomeScreen(userName: userName),
         ),
       );
     }
@@ -391,29 +395,23 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Clase para dibujar el logo de Google
 class GoogleLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
 
-    // Azul
     paint.color = const Color(0xFF4285F4);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width / 2, size.height / 2), paint);
 
-    // Rojo
     paint.color = const Color(0xFFDB4437);
     canvas.drawRect(Rect.fromLTWH(size.width / 2, 0, size.width / 2, size.height / 2), paint);
 
-    // Amarillo
     paint.color = const Color(0xFFF4B400);
     canvas.drawRect(Rect.fromLTWH(size.width / 2, size.height / 2, size.width / 2, size.height / 2), paint);
 
-    // Verde
     paint.color = const Color(0xFF0F9D58);
     canvas.drawRect(Rect.fromLTWH(0, size.height / 2, size.width / 2, size.height / 2), paint);
 
-    // G blanca en el centro
     final textPainter = TextPainter(
       text: const TextSpan(
         text: 'G',

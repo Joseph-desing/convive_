@@ -72,7 +72,7 @@ class _SplashScreenState extends State<SplashScreen>
             Positioned(
               bottom: 80,
               right: 40,
-              child: _buildDecorativeCircle(350, Colors.blue.withOpacity(0.2)),
+              child: _buildDecorativeCircle(350, const Color.fromARGB(255, 243, 33, 229).withOpacity(0.2)),
             ),
             
             Center(
