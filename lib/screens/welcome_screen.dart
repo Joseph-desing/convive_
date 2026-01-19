@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../utils/colors.dart';
+import 'home_screen.dart'; 
 
 class WelcomeScreen extends StatefulWidget {
   final String userName;
@@ -66,7 +67,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     // Navegar a home después de 3 segundos
     Timer(const Duration(seconds: 3), () {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreenPlaceholder()),
+        MaterialPageRoute(builder: (_) => HomeScreen(userName: widget.userName),),
       );
     });
   }
