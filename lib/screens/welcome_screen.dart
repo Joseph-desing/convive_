@@ -246,7 +246,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Widget _buildFloatingParticle(int index) {
-    final random = index * 0.1;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: Duration(milliseconds: 2000 + (index * 100)),

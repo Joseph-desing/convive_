@@ -1,0 +1,249 @@
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║                  📋 TABLAS PARA SUPABASE - LISTA COMPLETA               ║
+║                                                                           ║
+║                          ✅ TODO LISTO PARA COPIAR                       ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+🔴 PASO 1: COPIAR EL SQL
+═══════════════════════════════════════════════════════════════════════════════
+
+  📁 Abre el archivo: SQL_COMPLETO_SUPABASE.sql
+  📋 Copia TODO el contenido (Ctrl+A → Ctrl+C)
+
+
+🟠 PASO 2: PEGAR EN SUPABASE
+═══════════════════════════════════════════════════════════════════════════════
+
+  1. Ve a: https://supabase.com → Dashboard → Tu proyecto
+  2. Menú izquierdo → SQL Editor
+  3. New Query
+  4. Pega el SQL (Ctrl+V)
+  5. Haz click RUN (o Ctrl+Enter)
+
+
+🟡 PASO 3: VERIFICAR
+═══════════════════════════════════════════════════════════════════════════════
+
+  Deberías ver: "Query executed successfully"
+  
+  Significa: ✅ Las 10 tablas se crearon correctamente
+
+
+📋 LAS 10 TABLAS QUE SE CREAN
+═══════════════════════════════════════════════════════════════════════════════
+
+  1. ✅ users              - Usuarios del sistema
+  2. ✅ profiles           - Perfil de usuario
+  3. ✅ habits             - Hábitos y preferencias (14 campos)
+  4. ✅ properties         - Departamentos/habitaciones
+  5. ✅ property_images    - Imágenes de propiedades (múltiples)
+  6. ✅ swipes             - Registro de likes/dislikes
+  7. ✅ matches            - Matches entre usuarios (con IA score)
+  8. ✅ chats              - Conversaciones
+  9. ✅ messages           - Mensajes en chats (tiempo real)
+  10. ✅ subscriptions     - Suscripciones (free/premium)
+
+
+🔗 RELACIONES ENTRE TABLAS
+═══════════════════════════════════════════════════════════════════════════════
+
+  users (1)
+    ├─→ (1) profiles           [1 usuario = 1 perfil]
+    ├─→ (1) habits             [1 usuario = 1 conjunto de hábitos]
+    ├─→ (∞) properties         [1 usuario = ∞ propiedades]
+    ├─→ (∞) swipes             [1 usuario = ∞ swipes]
+    ├─→ (∞) matches            [1 usuario = ∞ matches]
+    └─→ (∞) subscriptions      [1 usuario = ∞ suscripciones]
+
+  properties (1)
+    ├─→ (∞) property_images    [1 propiedad = ∞ imágenes]
+    └─→ (1) users [owner]      [1 propiedad = 1 dueño]
+
+  matches (1)
+    └─→ (1) chats              [1 match = 1 chat]
+
+  chats (1)
+    └─→ (∞) messages           [1 chat = ∞ mensajes]
+
+
+📊 DETALLES DE CADA TABLA
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣ USERS
+   Campos: id (UUID), email (unique), role (student/non_student/admin),
+           subscription_type, created_at, updated_at
+   Índice: email (para búsqueda rápida)
+
+2️⃣ PROFILES
+   Campos: id, user_id (foreign key), full_name, birth_date, gender,
+           bio, profile_image_url, verified, created_at, updated_at
+   Relación: 1:1 con users
+
+3️⃣ HABITS (14 atributos)
+   Campos: id, user_id, sleep_start, sleep_end, cleanliness_level,
+           noise_tolerance, party_frequency, guests_tolerance, pets,
+           pet_tolerance, alcohol_frequency, work_mode, time_at_home,
+           communication_style, conflict_management, responsibility_level
+   Rango: Mayoría 1-10 para algoritmo IA
+
+4️⃣ PROPERTIES
+   Campos: id, owner_id (foreign key), title, description, price,
+           latitude, longitude, address, available_from, is_active
+   Índices: owner_id, is_active, available_from
+   Estado: is_active para filtrar propiedades activas
+
+5️⃣ PROPERTY_IMAGES
+   Campos: id, property_id (foreign key), image_url, validated
+   Relación: ∞:1 con properties (múltiples imágenes por propiedad)
+
+6️⃣ SWIPES
+   Campos: id, swiper_id (foreign key), target_user_id (foreign key),
+           direction (like/dislike), created_at
+   Uso: Registrar cada swipe del usuario
+
+7️⃣ MATCHES
+   Campos: id, user_a_id, user_b_id, compatibility_score (0-100),
+           matched_at, created_at
+   Constraint: user_a_id != user_b_id, UNIQUE(user_a_id, user_b_id)
+   Score: Calculado por algoritmo IA (>70% para crear match)
+
+8️⃣ CHATS
+   Campos: id, match_id (unique foreign key), created_at, updated_at
+   Relación: 1:1 con matches (1 chat por match)
+
+9️⃣ MESSAGES
+   Campos: id, chat_id (foreign key), sender_id (foreign key), content, created_at
+   Índice: chat_id (para obtener mensajes rápido)
+   Tiempo Real: Realtime via WebSocket
+
+🔟 SUBSCRIPTIONS
+   Campos: id, user_id (foreign key), price, is_student, start_date,
+           end_date, status (active/expired/cancelled), created_at, updated_at
+   Tipos: free, premium, student_discount
+
+
+🔒 SEGURIDAD RLS (Row Level Security)
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Autenticación requerida para:
+   - Ver/editar perfil propio
+   - Ver/editar hábitos propios
+   - Ver/editar propiedades propias
+   - Ver/enviar mensajes (solo en chats propio)
+
+✅ Pública (sin autenticación):
+   - Propiedades activas (para buscar)
+   - Perfiles (para matching)
+
+✅ Automatizado:
+   - Solo puedes modificar tus datos
+   - No puedes ver datos de otros (excepto público)
+
+
+🗄️ INDICES PARA OPTIMIZACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+Creados automáticamente (20+):
+- owner_id        → Buscar propiedades por dueño
+- is_active       → Filtrar propiedades activas
+- available_from  → Filtrar por fecha de disponibilidad
+- chat_id         → Obtener mensajes del chat
+- sender_id       → Buscar mensajes de un usuario
+- user_a_id/b_id  → Buscar matches de un usuario
+- status          → Filtrar suscripciones activas
+
+
+💾 ALMACENAMIENTO (Storage Buckets)
+═══════════════════════════════════════════════════════════════════════════════
+
+Crea 2 buckets públicos:
+
+1. profiles/
+   Uso: Imágenes de perfil de usuarios
+   Carpeta: {user_id}/profile.jpg
+   Tamaño: Max 5MB recomendado
+   Formato: JPG, PNG
+
+2. properties/
+   Uso: Imágenes de propiedades
+   Carpeta: {property_id}/imagen1.jpg, imagen2.jpg, ...
+   Tamaño: Max 10MB por imagen recomendado
+   Formato: JPG, PNG
+
+
+✨ CARACTERÍSTICAS IMPLEMENTADAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Autenticación JWT (Supabase Auth)
+✅ Perfiles de usuario con verificación
+✅ 14 atributos de hábitos para matching
+✅ Sistema de propiedades con múltiples imágenes
+✅ Algoritmo de compatibilidad IA (0-100%)
+✅ Swiping (like/dislike) con registro
+✅ Matching automático cuando es mutuo
+✅ Chat en tiempo real con WebSocket
+✅ Suscripciones (free/premium)
+✅ Row Level Security (RLS) habilitado
+
+
+⚙️ CONFIGURACIÓN NECESARIA
+═══════════════════════════════════════════════════════════════════════════════
+
+ANTES de ejecutar el SQL:
+  ✅ Proyecto Supabase creado
+  ✅ Credenciales copiadas
+  ✅ Región configurada
+
+DESPUÉS de ejecutar el SQL:
+  ✅ Crear 2 buckets de Storage
+  ✅ Copiar credenciales en app_config.dart
+  ✅ Ejecutar flutter pub run build_runner build
+  ✅ Ejecutar flutter run
+
+
+📝 PRUEBAS RECOMENDADAS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Ver tablas creadas:
+   SELECT table_name FROM information_schema.tables 
+   WHERE table_schema = 'public' ORDER BY table_name;
+
+2. Ver índices:
+   SELECT indexname FROM pg_indexes 
+   WHERE schemaname = 'public' ORDER BY tablename;
+
+3. Ver políticas RLS:
+   SELECT policyname FROM pg_policies 
+   WHERE schemaname = 'public' ORDER BY tablename;
+
+4. Probar conexión desde Flutter:
+   → Ir a LoginScreen
+   → Intentar registrarse
+   → Ver en Supabase → Authentication → Users
+
+
+🚀 PRÓXIMOS PASOS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ Ejecutar este SQL
+2. ✅ Crear Storage buckets
+3. ✅ Configurar credenciales en Flutter
+4. ✅ Ejecutar build_runner
+5. 📝 Actualizar Screens con Providers
+6. 📝 Desplegar microservicio IA
+7. 📝 Testing completo
+8. 📝 Deploy a PlayStore/AppStore
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                        ✅ ¡TODO ESTÁ LISTO!
+
+La arquitectura está completa. Solo falta ejecutar el SQL y ¡a programar! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════
+```

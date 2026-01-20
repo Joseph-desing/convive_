@@ -1,0 +1,350 @@
+// EJEMPLOS DE USO - ConVive
+
+// =====================================================
+// 1. REGISTRO DE NUEVO USUARIO
+// =====================================================
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'models/user.dart';
+import 'providers/auth_provider.dart';
+
+void signUpExample(BuildContext context) async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  await authProvider.signUp(
+    email: 'juan@example.com',
+    password: 'SecurePassword123',
+    fullName: 'Juan Pérez',
+    role: UserRole.student,
+  );
+
+  if (authProvider.isAuthenticated) {
+    // Navegar a home
+    Navigator.of(context).pushReplacementNamed('/home');
+  } else {
+    // Mostrar error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(authProvider.error ?? 'Error en registro')),
+    );
+  }
+}
+
+// =====================================================
+// 2. CARGAR PERFIL DEL USUARIO
+// =====================================================
+void loadUserProfileExample(BuildContext context) async {
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  if (authProvider.currentUser != null) {
+    await userProvider.loadUser(authProvider.currentUser!.id);
+    
+    // Acceder a los datos
+    print('Nombre: ${userProvider.profile?.fullName}');
+    print('Hábitos: ${userProvider.habits?.cleanlinessLevel}');
+  }
+}
+
+// =====================================================
+// 3. ACTUALIZAR PERFIL DEL USUARIO
+// =====================================================
+void updateProfileExample(BuildContext context) async {
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+  
+  await userProvider.updateProfile({
+    'full_name': 'Juan Carlos Pérez',
+    'bio': 'Soy ingeniero de software, me encanta programar',
+    'gender': 'male',
+  });
+}
+
+// =====================================================
+// 4. ACTUALIZAR HÁBITOS (importante para compatibilidad)
+// =====================================================
+void updateHabitsExample(BuildContext context) async {
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+  
+  await userProvider.updateHabits({
+    'sleep_start': 23,          // Se acuesta a las 11pm
+    'sleep_end': 7,             // Se despierta a las 7am
+    'cleanliness_level': 8,     // Limpio (1-10)
+    'noise_tolerance': 6,       // Tolera ruido moderado
+    'party_frequency': 3,       // Fiestas poco frecuentes (1-10)
+    'guests_tolerance': 7,      // Tolera invitados (1-10)
+    'pets': true,               // Tiene mascotas
+    'alcohol_frequency': 2,     // Pocas veces bebe
+    'work_mode': 'remote',      // Trabaja desde casa
+    'time_at_home': 70,         // Pasa 70% del tiempo en casa
+  });
+}
+
+// =====================================================
+// 5. CARGAR PROPIEDADES DISPONIBLES
+// =====================================================
+void loadPropertiesExample(BuildContext context) async {
+  final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
+  
+  // Cargar primeras 20 propiedades
+  await propertyProvider.loadProperties(limit: 20, offset: 0);
+  
+  // Acceder a las propiedades
+  for (var property in propertyProvider.properties) {
+    print('${property.title} - \$${property.price}/mes');
+    print('Ubicación: ${property.address}');
+  }
+}
+
+// =====================================================
+// 6. VER DETALLES DE UNA PROPIEDAD
+// =====================================================
+void getPropertyDetailsExample(BuildContext context, String propertyId) async {
+  final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
+  
+  await propertyProvider.getProperty(propertyId);
+  
+  final property = propertyProvider.selectedProperty;
+  if (property != null) {
+    print('Propiedad: ${property.title}');
+    print('Precio: \$${property.price}');
+    print('Disponible desde: ${property.availableFrom}');
+    print('Descripción: ${property.description}');
+  }
+}
+
+// =====================================================
+// 7. CREAR NUEVA PROPIEDAD (para landlord)
+// =====================================================
+void createPropertyExample(BuildContext context) async {
+  final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  final newProperty = Property(
+    ownerId: authProvider.currentUser!.id,
+    title: 'Departamento 2 habitaciones en La Mariscal',
+    description: 'Departamento amplio, amueblado, cocina equipada, WiFi incluido',
+    price: 450.0,
+    latitude: -0.2136,
+    longitude: -78.5068,
+    address: 'Calle La Mariscal, Quito',
+    availableFrom: DateTime.now().add(Duration(days: 30)),
+  );
+  
+  await propertyProvider.createProperty(newProperty);
+}
+
+// =====================================================
+// 8. HACER SWIPE (Like/Dislike)
+// =====================================================
+void swipeExample(BuildContext context) async {
+  final matchingProvider = Provider.of<MatchingProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  // Like a un usuario
+  await matchingProvider.swipe(
+    swiperId: authProvider.currentUser!.id,
+    targetUserId: 'user-id-123',
+    direction: SwipeDirection.like,
+  );
+  
+  print('✅ Like registrado!');
+}
+
+// =====================================================
+// 9. CREAR MATCH CON COMPATIBILIDAD
+// =====================================================
+void createMatchExample(BuildContext context) async {
+  final matchingProvider = Provider.of<MatchingProvider>(context, listen: false);
+  
+  // Supongamos que tenemos los hábitos de dos usuarios
+  final habits1 = {
+    'cleanliness_level': 8,
+    'noise_tolerance': 6,
+    'party_frequency': 3,
+    'pets': true,
+  };
+  
+  final habits2 = {
+    'cleanliness_level': 7,
+    'noise_tolerance': 7,
+    'party_frequency': 4,
+    'pets': false,
+  };
+  
+  await matchingProvider.createMatchIfCompatible(
+    userId1: 'user-1',
+    userId2: 'user-2',
+    habits1: habits1,
+    habits2: habits2,
+  );
+  
+  // El IA calcula la compatibilidad y si es > 70%, crea el match
+}
+
+// =====================================================
+// 10. CARGAR MATCHES DEL USUARIO
+// =====================================================
+void loadMatchesExample(BuildContext context) async {
+  final matchingProvider = Provider.of<MatchingProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  await matchingProvider.loadUserMatches(authProvider.currentUser!.id);
+  
+  print('Matches encontrados: ${matchingProvider.matches.length}');
+  for (var match in matchingProvider.matches) {
+    print('Compatibilidad: ${match.compatibilityScore}%');
+  }
+}
+
+// =====================================================
+// 11. USAR EN UN WIDGET CON CONSUMER
+// =====================================================
+class ProfileScreenExample extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Mi Perfil')),
+      body: Consumer<UserProvider>(
+        builder: (context, userProvider, _) {
+          if (userProvider.isLoading) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (userProvider.error != null) {
+            return Center(child: Text('Error: ${userProvider.error}'));
+          }
+
+          final profile = userProvider.profile;
+          return ListView(
+            padding: EdgeInsets.all(16),
+            children: [
+              Text(profile?.fullName ?? 'Sin nombre'),
+              Text(profile?.bio ?? 'Sin bio'),
+              ElevatedButton(
+                onPressed: () => updateProfileExample(context),
+                child: Text('Editar Perfil'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =====================================================
+// 12. VALIDAR IMAGEN DE PERFIL (IA)
+// =====================================================
+void validateProfileImageExample(BuildContext context) async {
+  final aiService = AIServiceProvider.instance;
+  
+  try {
+    final isValid = await aiService.validateProfileImage(
+      'https://example.com/photo.jpg',
+    );
+    
+    if (isValid) {
+      print('✅ Imagen válida (rostro detectado)');
+    } else {
+      print('❌ Imagen inválida');
+    }
+  } catch (e) {
+    print('Error validando imagen: $e');
+  }
+}
+
+// =====================================================
+// 13. VALIDAR IMAGEN DE PROPIEDAD
+// =====================================================
+void validatePropertyImageExample(BuildContext context) async {
+  final aiService = AIServiceProvider.instance;
+  
+  try {
+    final isValid = await aiService.validatePropertyImage(
+      'https://example.com/apartment.jpg',
+    );
+    
+    if (isValid) {
+      print('✅ Imagen de propiedad válida');
+    } else {
+      print('❌ No parece ser una foto de propiedad');
+    }
+  } catch (e) {
+    print('Error validando imagen: $e');
+  }
+}
+
+// =====================================================
+// 14. FLUJO COMPLETO DE REGISTRO Y PERFIL
+// =====================================================
+Future<void> completeOnboardingExample(BuildContext context) async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+  // 1. Registrar usuario
+  await authProvider.signUp(
+    email: 'maria@example.com',
+    password: 'SecurePass123',
+    fullName: 'María García',
+    role: UserRole.student,
+  );
+
+  // 2. Cargar usuario y perfil
+  if (authProvider.isAuthenticated) {
+    await userProvider.loadUser(authProvider.currentUser!.id);
+
+    // 3. Completar perfil
+    await userProvider.updateProfile({
+      'bio': 'Estudiante de Ingeniería',
+      'gender': 'female',
+    });
+
+    // 4. Definir hábitos
+    await userProvider.updateHabits({
+      'cleanliness_level': 8,
+      'noise_tolerance': 5,
+      'party_frequency': 2,
+      'guests_tolerance': 6,
+      'pets': false,
+      'work_mode': 'office',
+    });
+
+    // 5. Navegar a home
+    Navigator.of(context).pushReplacementNamed('/home');
+  }
+}
+
+// =====================================================
+// NOTAS IMPORTANTES
+// =====================================================
+/*
+1. SIEMPRE usar `listen: false` cuando NO necesites que el widget se reconstruya
+   - Para guardar datos, cambiar estado, etc.
+
+2. USAR `Consumer<Provider>` o `Watch` cuando SÍ necesites cambios reactivos
+   - Para mostrar datos en UI que cambian frecuentemente
+
+3. MANEJO DE ERRORES
+   - Siempre chequear provider.error después de operaciones
+   - Mostrar mensajes claros al usuario
+
+4. LOADING STATES
+   - Mostrar spinner mientras isLoading == true
+   - Deshabilitar botones durante operaciones
+
+5. COMPATIBILIDAD IA
+   - Solo se crea match si score > 70%
+   - Los hábitos deben ser completos para mejor precisión
+
+6. IMÁGENES
+   - Validar imágenes de perfil (debe tener rostro)
+   - Validar imágenes de propiedad (debe verse el inmueble)
+
+7. REALTIME
+   - El chat usa Realtime de Supabase
+   - Los cambios en matches se sincronizan automáticamente
+
+8. NOTIFICACIONES
+   - OneSignal maneja push notifications
+   - Configurar en app_config.dart
+
+*/

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../widgets/property_card.dart';
 import '../widgets/bottom_nav_bar.dart';
-import 'home_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   final String userName;
   
@@ -15,14 +15,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   int _currentCardIndex = 0;
-  
+
   // Datos de ejemplo de propiedades
   final List<PropertyData> _properties = [
     PropertyData(
       id: '1',
       images: [
-        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-        'https://images.unsplash.com/photo-1502672260066-6bc35f0af07e?w=800',
+        'https://via.placeholder.com/800x600?text=Apartamento+1',
+        'https://via.placeholder.com/800x600?text=Apartamento+2',
       ],
       title: 'Apartamento Moderno en La Mariscal',
       price: 450,
@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       distance: 2.5,
       ownerName: 'María González',
       ownerAge: 24,
-      ownerImage: 'https://i.pravatar.cc/150?img=5',
+      ownerImage: 'https://ui-avatars.com/api/?name=MariaGonzalez&background=FF69B4&color=fff',
       compatibility: 92,
       isVerified: true,
       bedrooms: 2,
@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     PropertyData(
       id: '2',
       images: [
-        'https://images.unsplash.com/photo-1502672260066-6bc35f0af07e?w=800',
+        'https://via.placeholder.com/800x600?text=Habitacion+Centro',
       ],
       title: 'Habitación Acogedora Centro Histórico',
       price: 320,
@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       distance: 3.8,
       ownerName: 'Carlos Ruiz',
       ownerAge: 26,
-      ownerImage: 'https://i.pravatar.cc/150?img=12',
+      ownerImage: 'https://ui-avatars.com/api/?name=CarlosRuiz&background=4169E1&color=fff',
       compatibility: 87,
       isVerified: true,
       bedrooms: 1,
@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     PropertyData(
       id: '3',
       images: [
-        'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800',
+        'https://via.placeholder.com/800x600?text=Departamento+Carolina',
       ],
       title: 'Departamento Luminoso en La Carolina',
       price: 520,
@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       distance: 1.2,
       ownerName: 'Ana Martínez',
       ownerAge: 23,
-      ownerImage: 'https://i.pravatar.cc/150?img=9',
+      ownerImage: 'https://ui-avatars.com/api/?name=AnaMartinez&background=FF1493&color=fff',
       compatibility: 95,
       isVerified: true,
       bedrooms: 2,
@@ -87,6 +87,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // TODO: Cargar propiedades desde Supabase via PropertyProvider
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(

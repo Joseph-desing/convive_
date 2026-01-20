@@ -242,10 +242,11 @@ class _PropertyCardState extends State<PropertyCard> {
           Expanded(
             flex: 2,
             child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -330,7 +331,7 @@ class _PropertyCardState extends State<PropertyCard> {
                     }).toList(),
                   ),
                   
-                  const Spacer(),
+                  const SizedBox(height: 12),
                   
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -359,7 +360,8 @@ class _PropertyCardState extends State<PropertyCard> {
                       ],
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

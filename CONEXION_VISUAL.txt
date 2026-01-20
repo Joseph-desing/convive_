@@ -1,0 +1,113 @@
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║                      🔗 CONECTAR CON SUPABASE                            ║
+║                                                                           ║
+║                         3 PASOS SIMPLES - 5 MIN                          ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+1️⃣ COPIAR CREDENCIALES
+═══════════════════════════════════════════════════════════════════════════════
+
+  Abre: https://supabase.com → Tu proyecto → Settings → API
+  
+  Busca y COPIA estos dos valores:
+  
+  📝 Project URL:
+     https://kvhwlbgkfjdshkf.supabase.co
+     
+  📝 Anon Public Key:
+     eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+     
+
+2️⃣ PEGAR EN FLUTTER
+═══════════════════════════════════════════════════════════════════════════════
+
+  Abre: lib/config/app_config.dart
+  
+  Busca:
+  ┌──────────────────────────────────────────────┐
+  │ const String SUPABASE_URL = '...';           │
+  │ const String SUPABASE_ANON_KEY = '...';      │
+  └──────────────────────────────────────────────┘
+  
+  Reemplaza CON tus valores:
+  ┌──────────────────────────────────────────────┐
+  │ const String SUPABASE_URL =                  │
+  │   'https://kvhwlbgkfjdshkf.supabase.co';    │
+  │                                              │
+  │ const String SUPABASE_ANON_KEY =             │
+  │   'eyJhbGciOiJIUzI1NiIsInR5cCI6...';        │
+  └──────────────────────────────────────────────┘
+  
+  Guarda: Ctrl+S
+
+
+3️⃣ EJECUTAR COMANDOS
+═══════════════════════════════════════════════════════════════════════════════
+
+  Terminal en tu proyecto:
+  
+  $ flutter pub run build_runner build --delete-conflicting-outputs
+  
+  Espera a: "Succeeded after XXX ms"
+  
+  Luego:
+  
+  $ flutter run
+
+
+✅ VERIFICAR QUE FUNCIONA
+═══════════════════════════════════════════════════════════════════════════════
+
+  1. App abre sin errores
+  2. LoginScreen → "Registrarse"
+  3. Email: test@example.com
+  4. Contraseña: Test123456
+  5. Nombre: Test User
+  6. "Crear Cuenta"
+  
+  Verifica en Supabase:
+  → https://supabase.com → Tu proyecto
+  → Authentication → Users
+  → Deberías ver: test@example.com
+  
+  ✅ Si lo ves → ¡FUNCIONA!
+  ❌ Si no → Ver troubleshooting
+
+
+🆘 TROUBLESHOOTING RÁPIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+  ❌ "Cannot connect to Supabase"
+     → Verifica que SUPABASE_URL empiece con https://
+     → Verifica que termine con .supabase.co
+     → Copia la credencial de NUEVO
+
+  ❌ "xxx.g.dart no existe"
+     → flutter pub run build_runner build --delete-conflicting-outputs
+
+  ❌ Sigue fallando
+     → rm -r .dart_tool/
+     → flutter pub get
+     → flutter pub run build_runner build
+
+
+📚 MÁS INFORMACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+  CONEXION_RAPIDA.md              ← Esta guía en detalle
+  CONECTAR_SUPABASE.md            ← Guía completa (todos los casos)
+  COPIAR_CREDENCIALES.md          ← Screenshots de dónde copiar
+  CREAR_TABLAS_SUPABASE.md        ← Cómo crear las tablas
+  INTEGRACION_DISENO.md           ← Cómo integrar con tu UI
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+            ¡Eso es todo! Ya está conectado. 🎉
+
+═══════════════════════════════════════════════════════════════════════════════
+```

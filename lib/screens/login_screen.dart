@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
-import 'welcome_screen.dart';
+import '../providers/auth_provider.dart';
+import '../models/user.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -370,19 +372,45 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _onSubmit() {
+  void _onSubmit() async {
     if (_formKey.currentState!.validate()) {
-      // Obtener el nombre del usuario
-      String userName = _isLogin 
-        ? _emailController.text.split('@')[0] 
-        : _nameController.text;
-      
-      // Navegar a la pantalla de bienvenida
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => WelcomeScreen(userName: userName),
-        ),
-      );
+      if (!_acceptTerms && !_isLogin) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debes aceptar los términos')),
+        );
+        return;
+      }
+
+      final authProvider = context.read<AuthProvider>();
+
+      try {
+        if (_isLogin) {
+          // Iniciar sesión
+          await authProvider.signIn(
+            email: _emailController.text,
+            password: _passwordController.text,
+          );
+        } else {
+          // Registrar
+          await authProvider.signUp(
+            email: _emailController.text,
+            password: _passwordController.text,
+            fullName: _nameController.text,
+            role: UserRole.student,
+          );
+        }
+
+        if (mounted && authProvider.isAuthenticated) {
+          // Navegar a home
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${authProvider.error}')),
+          );
+        }
+      }
     }
   }
 
