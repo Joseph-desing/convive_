@@ -3,19 +3,37 @@ import 'package:uuid/uuid.dart';
 
 part 'profile.g.dart';
 
-enum Gender { male, female, other }
+enum Gender { 
+  @JsonValue('male') male, 
+  @JsonValue('female') female, 
+  @JsonValue('other') other 
+}
 
 @JsonSerializable()
 class Profile {
   final String id;
+  
+  @JsonKey(name: 'user_id')
   final String userId;
+  
+  @JsonKey(name: 'full_name')
   final String fullName;
+  
+  @JsonKey(name: 'birth_date')
   final DateTime? birthDate;
+  
   final Gender? gender;
   final String? bio;
+  
+  @JsonKey(name: 'profile_image_url')
   final String? profileImageUrl;
+  
   final bool verified;
+  
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  
+  @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
   Profile({

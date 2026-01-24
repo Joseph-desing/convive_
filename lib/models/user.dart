@@ -3,17 +3,29 @@ import 'package:uuid/uuid.dart';
 
 part 'user.g.dart';
 
-enum UserRole { student, non_student, admin }
+enum UserRole { 
+  @JsonValue('student') student, 
+  @JsonValue('non_student') non_student, 
+  @JsonValue('admin') admin 
+}
 
-enum SubscriptionType { free, premium }
+enum SubscriptionType { 
+  @JsonValue('free') free, 
+  @JsonValue('premium') premium 
+}
 
 @JsonSerializable()
 class User {
+  @JsonKey(name: 'id')
   final String id;
   final String email;
+  @JsonKey(unknownEnumValue: UserRole.student)
   final UserRole role;
+  @JsonKey(name: 'subscription_type', unknownEnumValue: SubscriptionType.free)
   final SubscriptionType subscriptionType;
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
   User({

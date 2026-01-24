@@ -3,27 +3,64 @@ import 'package:uuid/uuid.dart';
 
 part 'habits.g.dart';
 
-enum WorkMode { remote, office, hybrid }
+enum WorkMode { 
+  @JsonValue('remote') remote, 
+  @JsonValue('office') office, 
+  @JsonValue('hybrid') hybrid 
+}
 
 @JsonSerializable()
 class Habits {
   final String id;
+  
+  @JsonKey(name: 'user_id')
   final String userId;
+  
+  @JsonKey(name: 'sleep_start')
   final int sleepStart; // 0-23 (hora)
+  
+  @JsonKey(name: 'sleep_end')
   final int sleepEnd; // 0-23 (hora)
+  
+  @JsonKey(name: 'cleanliness_level')
   final int cleanlinessLevel; // 1-10
+  
+  @JsonKey(name: 'noise_tolerance')
   final int noiseTolerance; // 1-10
+  
+  @JsonKey(name: 'party_frequency')
   final int partyFrequency; // 1-10
+  
+  @JsonKey(name: 'guests_tolerance')
   final int guestsTolerance; // 1-10
+  
   final bool pets;
+  
+  @JsonKey(name: 'pet_tolerance')
   final int petTolerance; // 1-10
+  
+  @JsonKey(name: 'alcohol_frequency')
   final int alcoholFrequency; // 1-10
+  
+  @JsonKey(name: 'work_mode')
   final WorkMode workMode;
+  
+  @JsonKey(name: 'time_at_home')
   final int timeAtHome; // porcentaje 0-100
+  
+  @JsonKey(name: 'communication_style')
   final int communicationStyle; // 1-10
+  
+  @JsonKey(name: 'conflict_management')
   final int conflictManagement; // 1-10
+  
+  @JsonKey(name: 'responsibility_level')
   final int responsibilityLevel; // 1-10
+  
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  
+  @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
   Habits({

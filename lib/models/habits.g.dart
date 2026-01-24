@@ -8,49 +8,49 @@ part of 'habits.dart';
 
 Habits _$HabitsFromJson(Map<String, dynamic> json) => Habits(
       id: json['id'] as String?,
-      userId: json['userId'] as String,
-      sleepStart: (json['sleepStart'] as num?)?.toInt() ?? 23,
-      sleepEnd: (json['sleepEnd'] as num?)?.toInt() ?? 7,
-      cleanlinessLevel: (json['cleanlinessLevel'] as num?)?.toInt() ?? 5,
-      noiseTolerance: (json['noiseTolerance'] as num?)?.toInt() ?? 5,
-      partyFrequency: (json['partyFrequency'] as num?)?.toInt() ?? 3,
-      guestsTolerance: (json['guestsTolerance'] as num?)?.toInt() ?? 5,
+      userId: json['user_id'] as String,
+      sleepStart: (json['sleep_start'] as num?)?.toInt() ?? 23,
+      sleepEnd: (json['sleep_end'] as num?)?.toInt() ?? 7,
+      cleanlinessLevel: (json['cleanliness_level'] as num?)?.toInt() ?? 5,
+      noiseTolerance: (json['noise_tolerance'] as num?)?.toInt() ?? 5,
+      partyFrequency: (json['party_frequency'] as num?)?.toInt() ?? 3,
+      guestsTolerance: (json['guests_tolerance'] as num?)?.toInt() ?? 5,
       pets: json['pets'] as bool? ?? false,
-      petTolerance: (json['petTolerance'] as num?)?.toInt() ?? 5,
-      alcoholFrequency: (json['alcoholFrequency'] as num?)?.toInt() ?? 3,
-      workMode: $enumDecodeNullable(_$WorkModeEnumMap, json['workMode']) ??
+      petTolerance: (json['pet_tolerance'] as num?)?.toInt() ?? 5,
+      alcoholFrequency: (json['alcohol_frequency'] as num?)?.toInt() ?? 3,
+      workMode: $enumDecodeNullable(_$WorkModeEnumMap, json['work_mode']) ??
           WorkMode.hybrid,
-      timeAtHome: (json['timeAtHome'] as num?)?.toInt() ?? 50,
-      communicationStyle: (json['communicationStyle'] as num?)?.toInt() ?? 5,
-      conflictManagement: (json['conflictManagement'] as num?)?.toInt() ?? 5,
-      responsibilityLevel: (json['responsibilityLevel'] as num?)?.toInt() ?? 5,
-      createdAt: json['createdAt'] == null
+      timeAtHome: (json['time_at_home'] as num?)?.toInt() ?? 50,
+      communicationStyle: (json['communication_style'] as num?)?.toInt() ?? 5,
+      conflictManagement: (json['conflict_management'] as num?)?.toInt() ?? 5,
+      responsibilityLevel: (json['responsibility_level'] as num?)?.toInt() ?? 5,
+      createdAt: json['created_at'] == null
           ? null
-          : DateTime.parse(json['createdAt'] as String),
-      updatedAt: json['updatedAt'] == null
+          : DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] == null
           ? null
-          : DateTime.parse(json['updatedAt'] as String),
+          : DateTime.parse(json['updated_at'] as String),
     );
 
 Map<String, dynamic> _$HabitsToJson(Habits instance) => <String, dynamic>{
       'id': instance.id,
-      'userId': instance.userId,
-      'sleepStart': instance.sleepStart,
-      'sleepEnd': instance.sleepEnd,
-      'cleanlinessLevel': instance.cleanlinessLevel,
-      'noiseTolerance': instance.noiseTolerance,
-      'partyFrequency': instance.partyFrequency,
-      'guestsTolerance': instance.guestsTolerance,
+      'user_id': instance.userId,
+      'sleep_start': instance.sleepStart,
+      'sleep_end': instance.sleepEnd,
+      'cleanliness_level': instance.cleanlinessLevel,
+      'noise_tolerance': instance.noiseTolerance,
+      'party_frequency': instance.partyFrequency,
+      'guests_tolerance': instance.guestsTolerance,
       'pets': instance.pets,
-      'petTolerance': instance.petTolerance,
-      'alcoholFrequency': instance.alcoholFrequency,
-      'workMode': _$WorkModeEnumMap[instance.workMode]!,
-      'timeAtHome': instance.timeAtHome,
-      'communicationStyle': instance.communicationStyle,
-      'conflictManagement': instance.conflictManagement,
-      'responsibilityLevel': instance.responsibilityLevel,
-      'createdAt': instance.createdAt.toIso8601String(),
-      'updatedAt': instance.updatedAt?.toIso8601String(),
+      'pet_tolerance': instance.petTolerance,
+      'alcohol_frequency': instance.alcoholFrequency,
+      'work_mode': _$WorkModeEnumMap[instance.workMode]!,
+      'time_at_home': instance.timeAtHome,
+      'communication_style': instance.communicationStyle,
+      'conflict_management': instance.conflictManagement,
+      'responsibility_level': instance.responsibilityLevel,
+      'created_at': instance.createdAt.toIso8601String(),
+      'updated_at': instance.updatedAt?.toIso8601String(),
     };
 
 const _$WorkModeEnumMap = {
