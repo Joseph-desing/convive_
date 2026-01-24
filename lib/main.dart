@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'utils/colors.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
@@ -58,6 +61,11 @@ class ConViveApp extends StatelessWidget {
           ),
         ),
         home: const SplashScreen(),
+        routes: {
+          '/home': (_) => const HomeScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/welcome': (_) => const WelcomeScreen(),
+        },
       ),
     );
   }

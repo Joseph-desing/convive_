@@ -70,13 +70,21 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       
-      // Map Supabase GoTrue User to our User model
+      // Cargar usuario de la BD
       if (authResponse.user != null) {
-        _currentUser = convive_user.User(
-          id: authResponse.user!.id,
-          email: authResponse.user!.email ?? '',
-          role: convive_user.UserRole.student,
-        );
+        try {
+          final dbUser = await SupabaseProvider.databaseService.getUser(authResponse.user!.id);
+          _currentUser = dbUser;
+        } catch (e) {
+          // Si no existe en BD, crear con datos de Auth
+          _currentUser = convive_user.User(
+            id: authResponse.user!.id,
+            email: authResponse.user!.email ?? '',
+            role: convive_user.UserRole.student,
+          );
+        }
+      } else {
+        _error = 'No se pudo obtener el usuario';
       }
     } catch (e) {
       _error = e.toString();
