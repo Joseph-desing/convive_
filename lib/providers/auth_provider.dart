@@ -35,6 +35,9 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
 
+      // Esperar un poco para evitar rate limiting
+      await Future.delayed(const Duration(milliseconds: 500));
+
       // Crear usuario en BD
       final user = convive_user.User(
         id: authResponse.user!.id,

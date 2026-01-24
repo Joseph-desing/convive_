@@ -12,17 +12,22 @@ class SupabaseDatabaseService {
   Future<convive_user.User> getUser(String userId) async {
     final response = await _supabase
         .from('users')
-        .select()
+        .select('*')
         .eq('id', userId)
         .single();
     return convive_user.User.fromJson(response);
   }
 
   Future<convive_user.User> createUser(convive_user.User user) async {
+    // No enviar createdAt ni updatedAt, Supabase los genera automáticamente
+    final userData = user.toJson();
+    userData.remove('createdAt');
+    userData.remove('updatedAt');
+    
     final response = await _supabase
         .from('users')
-        .insert(user.toJson())
-        .select()
+        .insert(userData)
+        .select('*')
         .single();
     return convive_user.User.fromJson(response);
   }
@@ -39,7 +44,7 @@ class SupabaseDatabaseService {
     try {
       final response = await _supabase
           .from('profiles')
-          .select()
+          .select('*')
           .eq('user_id', userId)
           .single();
       return Profile.fromJson(response);
@@ -49,10 +54,14 @@ class SupabaseDatabaseService {
   }
 
   Future<Profile> createProfile(Profile profile) async {
+    final profileData = profile.toJson();
+    profileData.remove('createdAt');
+    profileData.remove('updatedAt');
+    
     final response = await _supabase
         .from('profiles')
-        .insert(profile.toJson())
-        .select()
+        .insert(profileData)
+        .select('*')
         .single();
     return Profile.fromJson(response);
   }
@@ -70,7 +79,7 @@ class SupabaseDatabaseService {
     try {
       final response = await _supabase
           .from('habits')
-          .select()
+          .select('*')
           .eq('user_id', userId)
           .single();
       return Habits.fromJson(response);
@@ -80,10 +89,14 @@ class SupabaseDatabaseService {
   }
 
   Future<Habits> createHabits(Habits habits) async {
+    final habitsData = habits.toJson();
+    habitsData.remove('createdAt');
+    habitsData.remove('updatedAt');
+    
     final response = await _supabase
         .from('habits')
-        .insert(habits.toJson())
-        .select()
+        .insert(habitsData)
+        .select('*')
         .single();
     return Habits.fromJson(response);
   }
@@ -100,7 +113,7 @@ class SupabaseDatabaseService {
   Future<List<Property>> getProperties({int limit = 20, int offset = 0}) async {
     final response = await _supabase
         .from('properties')
-        .select()
+        .select('*')
         .eq('is_active', true)
         .range(offset, offset + limit - 1);
     return (response as List).map((p) => Property.fromJson(p)).toList();
@@ -109,7 +122,7 @@ class SupabaseDatabaseService {
   Future<Property> getProperty(String propertyId) async {
     final response = await _supabase
         .from('properties')
-        .select()
+        .select('*')
         .eq('id', propertyId)
         .single();
     return Property.fromJson(response);
@@ -117,15 +130,19 @@ class SupabaseDatabaseService {
 
   Future<List<Property>> getUserProperties(String userId) async {
     final response =
-        await _supabase.from('properties').select().eq('owner_id', userId);
+        await _supabase.from('properties').select('*').eq('owner_id', userId);
     return (response as List).map((p) => Property.fromJson(p)).toList();
   }
 
   Future<Property> createProperty(Property property) async {
+    final propertyData = property.toJson();
+    propertyData.remove('createdAt');
+    propertyData.remove('updatedAt');
+    
     final response = await _supabase
         .from('properties')
-        .insert(property.toJson())
-        .select()
+        .insert(propertyData)
+        .select('*')
         .single();
     return Property.fromJson(response);
   }
@@ -142,23 +159,31 @@ class SupabaseDatabaseService {
   Future<List<Match>> getUserMatches(String userId) async {
     final response = await _supabase
         .from('matches')
-        .select()
+        .select('*')
         .or('user_a.eq.$userId,user_b.eq.$userId');
     return (response as List).map((m) => Match.fromJson(m)).toList();
   }
 
   Future<Match> createMatch(Match match) async {
+    final matchData = match.toJson();
+    matchData.remove('createdAt');
+    matchData.remove('updatedAt');
+    
     final response = await _supabase
         .from('matches')
-        .insert(match.toJson())
-        .select()
+        .insert(matchData)
+        .select('*')
         .single();
     return Match.fromJson(response);
   }
 
   // ==================== SWIPES ====================
   Future<void> createSwipe(Swipe swipe) async {
-    await _supabase.from('swipes').insert(swipe.toJson());
+    final swipeData = swipe.toJson();
+    swipeData.remove('createdAt');
+    swipeData.remove('updatedAt');
+    
+    await _supabase.from('swipes').insert(swipeData);
   }
 
   Future<bool> hasSwipedBefore(String swiperId, String targetUserId) async {
