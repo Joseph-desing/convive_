@@ -5,6 +5,7 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/email_verification_screen.dart';
 import 'utils/colors.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';

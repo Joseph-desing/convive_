@@ -63,4 +63,24 @@ class SupabaseAuthService {
       UserAttributes(data: metadata),
     );
   }
+
+  /// Verificar si el email del usuario actual está confirmado
+  bool isEmailVerified() {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+    
+    // Verificar si el email está confirmado
+    return user.emailConfirmedAt != null;
+  }
+
+  /// Obtener estado de verificación del usuario actual
+  Map<String, dynamic> getUserVerificationStatus() {
+    final user = _supabase.auth.currentUser;
+    return {
+      'isAuthenticated': user != null,
+      'emailVerified': user?.emailConfirmedAt != null,
+      'email': user?.email,
+      'userId': user?.id,
+    };
+  }
 }

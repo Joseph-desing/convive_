@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../widgets/property_card.dart';
 import '../widgets/bottom_nav_bar.dart';
+import 'profile_screen.dart';
+import 'create_roommate_search_screen.dart';
+import 'create_property_screen.dart';
+import '../providers/property_provider.dart';
+import '../models/property.dart';
+import '../models/habits.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -15,9 +22,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   int _currentCardIndex = 0;
+  List<Property> _properties = [];
+  bool _isLoading = true;
 
-  // Datos de ejemplo de propiedades
-  final List<PropertyData> _properties = [
+  // Datos de ejemplo (fallback si no hay propiedades reales)
+  final List<PropertyData> _exampleProperties = [
     PropertyData(
       id: '1',
       images: [
@@ -90,7 +99,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    // TODO: Cargar propiedades desde Supabase via PropertyProvider
+    _loadProperties();
+  }
+
+  Future<void> _loadProperties() async {
+    setState(() => _isLoading = true);
+    try {
+      final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
+      await propertyProvider.loadProperties();
+      setState(() {
+        _properties = propertyProvider.properties;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error cargando propiedades: $e');
+      setState(() => _isLoading = false);
+    }
   }
   @override
   Widget build(BuildContext context) {
@@ -132,6 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
+
     );
   }
 
@@ -176,19 +201,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           Row(
             children: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.tune_rounded),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.background,
+              Tooltip(
+                message: 'Publicar',
+                child: IconButton(
+                  onPressed: () {
+                    _showPublishMenu(context);
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.background,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.notifications_outlined),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.background,
+              Tooltip(
+                message: 'Filtros',
+                child: IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.tune_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.background,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Notificaciones',
+                child: IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.notifications_outlined),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.background,
+                  ),
                 ),
               ),
             ],
@@ -199,14 +243,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSwipeSection() {
-    if (_currentCardIndex >= _properties.length) {
+    // Mostrar loading mientras carga
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      );
+    }
+
+    // Convertir propiedades reales a formato PropertyData
+    final displayProperties = _properties.isEmpty
+        ? _exampleProperties
+        : _properties.map((prop) => _convertToPropertyData(prop)).toList();
+
+    if (_currentCardIndex >= displayProperties.length) {
       return _buildNoMoreCards();
     }
 
     return Stack(
       children: [
         // Cards stack
-        for (int i = _properties.length - 1; i >= _currentCardIndex; i--)
+        for (int i = displayProperties.length - 1; i >= _currentCardIndex; i--)
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.only(
@@ -214,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 bottom: 100,
               ),
               child: PropertyCard(
-                property: _properties[i],
+                property: displayProperties[i],
                 onSwipeLeft: () => _handleSwipe(false),
                 onSwipeRight: () => _handleSwipe(true),
               ),
@@ -352,6 +410,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPlaceholder() {
+    // Mostrar la pantalla de perfil cuando se selecciona
+    if (_currentIndex == 3) {
+      return const ProfileScreen();
+    }
+    
     return Center(
       child: Text(
         _currentIndex == 1 ? 'Matches' :
@@ -378,6 +441,171 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _currentCardIndex++;
       }
     });
+  }
+
+  PropertyData _convertToPropertyData(Property property) {
+    return PropertyData(
+      id: property.id,
+      images: ['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(property.title)}'],
+      title: property.title,
+      price: property.price,
+      location: property.address,
+      distance: 0.0, // TODO: Calcular distancia real
+      ownerName: 'Propietario', // TODO: Obtener desde profile
+      ownerAge: 25, // TODO: Obtener desde profile
+      ownerImage: 'https://ui-avatars.com/api/?name=User&background=FF69B4&color=fff',
+      compatibility: 85, // TODO: Calcular compatibilidad real
+      isVerified: property.isActive,
+      bedrooms: 1, // TODO: Agregar a modelo Property
+      amenities: [], // TODO: Agregar a modelo Property
+      habits: HabitData(
+        cleanliness: 8,
+        noiseLevel: 7,
+        socialLevel: 7,
+      ), // TODO: Obtener habits del owner
+    );
+  }
+
+  void _showPublishMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '¿Qué quieres publicar?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildMenuOption(
+              context,
+              icon: Icons.home_work,
+              title: 'Publicar Propiedad',
+              description: 'Tengo un cuarto para alquilar',
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreatePropertyScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildMenuOption(
+              context,
+              icon: Icons.group_add,
+              title: 'Buscar Roommate',
+              description: 'Necesito un compañero/a',
+              gradient: AppColors.primaryGradient,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateRoommateSearchScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String description,
+    required Gradient gradient,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

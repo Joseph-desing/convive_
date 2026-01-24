@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../providers/auth_provider.dart';
 import '../models/user.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -390,6 +391,23 @@ class _LoginScreenState extends State<LoginScreen> {
             email: _emailController.text,
             password: _passwordController.text,
           );
+          
+          if (mounted && authProvider.isAuthenticated) {
+            // Verificar si el email está confirmado
+            if (!authProvider.isEmailVerified) {
+              // Ir a pantalla de verificación
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => EmailVerificationScreen(
+                    email: _emailController.text,
+                  ),
+                ),
+              );
+            } else {
+              // Navegar a home
+              Navigator.of(context).pushReplacementNamed('/home');
+            }
+          }
         } else {
           // Registrar
           await authProvider.signUp(
@@ -398,11 +416,17 @@ class _LoginScreenState extends State<LoginScreen> {
             fullName: _nameController.text,
             role: UserRole.student,
           );
-        }
-
-        if (mounted && authProvider.isAuthenticated) {
-          // Navegar a home
-          Navigator.of(context).pushReplacementNamed('/home');
+          
+          if (mounted && authProvider.isAuthenticated) {
+            // Ir a pantalla de verificación
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => EmailVerificationScreen(
+                  email: _emailController.text,
+                ),
+              ),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {

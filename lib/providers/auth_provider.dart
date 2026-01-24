@@ -7,11 +7,33 @@ class AuthProvider extends ChangeNotifier {
   convive_user.User? _currentUser;
   bool _isLoading = false;
   String? _error;
+  bool _isEmailVerified = false;
 
   convive_user.User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  bool get isEmailVerified => _isEmailVerified;
+
+  /// Forzar refresco del estado de verificación desde Supabase
+  Future<void> refreshEmailVerification() async {
+    try {
+      // Si no hay sesión, no se puede refrescar; evita lanzar excepción 400
+      final session = SupabaseProvider.client.auth.currentSession;
+      if (session == null) {
+        return;
+      }
+
+      final response = await SupabaseProvider.client.auth.getUser();
+      _isEmailVerified = response.user?.emailConfirmedAt != null;
+    } catch (e) {
+      // Si falla, mantenemos el estado previo
+      if (kDebugMode) {
+        print('Error refrescando verificación: $e');
+      }
+    }
+    notifyListeners();
+  }
 
   /// Inicializar con usuario actual
   void initializeAuth() {
@@ -35,18 +57,34 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
 
-      // Esperar un poco para evitar rate limiting
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Esperar a que el trigger cree el usuario en BD
+      await Future.delayed(const Duration(milliseconds: 1000));
 
-      // Crear usuario en BD
-      final user = convive_user.User(
-        id: authResponse.user!.id,
-        email: email,
-        role: role,
-      );
-      await SupabaseProvider.databaseService.createUser(user);
-
-      _currentUser = user;
+      // Cargar usuario de la BD (ya creado por el trigger)
+      if (authResponse.user != null) {
+        try {
+          final dbUser = await SupabaseProvider.databaseService.getUser(authResponse.user!.id);
+          _currentUser = dbUser;
+        } catch (e) {
+          // Si el trigger no lo creó, intentar crearlo manualmente
+          try {
+            final user = convive_user.User(
+              id: authResponse.user!.id,
+              email: email,
+              role: role,
+            );
+            await SupabaseProvider.databaseService.createUser(user);
+            _currentUser = user;
+          } catch (createError) {
+            // Si falla, usar datos en memoria
+            _currentUser = convive_user.User(
+              id: authResponse.user!.id,
+              email: email,
+              role: role,
+            );
+          }
+        }
+      }
     } catch (e) {
       _error = e.toString();
     }
@@ -70,18 +108,32 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       
+      // Verificar si el email está confirmado
+      _isEmailVerified = SupabaseProvider.authService.isEmailVerified();
+      
       // Cargar usuario de la BD
       if (authResponse.user != null) {
         try {
           final dbUser = await SupabaseProvider.databaseService.getUser(authResponse.user!.id);
           _currentUser = dbUser;
         } catch (e) {
-          // Si no existe en BD, crear con datos de Auth
-          _currentUser = convive_user.User(
-            id: authResponse.user!.id,
-            email: authResponse.user!.email ?? '',
-            role: convive_user.UserRole.student,
-          );
+          // Si no existe en BD, intentar crearlo (por si el trigger falló)
+          try {
+            final user = convive_user.User(
+              id: authResponse.user!.id,
+              email: authResponse.user!.email ?? '',
+              role: convive_user.UserRole.student,
+            );
+            await SupabaseProvider.databaseService.createUser(user);
+            _currentUser = user;
+          } catch (createError) {
+            // Si falla la creación, usar datos en memoria
+            _currentUser = convive_user.User(
+              id: authResponse.user!.id,
+              email: authResponse.user!.email ?? '',
+              role: convive_user.UserRole.student,
+            );
+          }
         }
       } else {
         _error = 'No se pudo obtener el usuario';
