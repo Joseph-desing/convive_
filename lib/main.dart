@@ -44,6 +44,7 @@ class ConViveApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MatchingProvider()),
         ChangeNotifierProvider(create: (_) => PropertyProvider()),
+        ChangeNotifierProvider(create: (_) => RoommateSearchProvider()),
       ],
       child: MaterialApp(
         title: 'ConVive',

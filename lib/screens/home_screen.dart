@@ -7,7 +7,9 @@ import 'profile_screen.dart';
 import 'create_roommate_search_screen.dart';
 import 'create_property_screen.dart';
 import '../providers/property_provider.dart';
+import '../providers/roommate_search_provider.dart';
 import '../models/property.dart';
+import '../models/roommate_search.dart';
 import '../models/habits.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,96 +25,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   int _currentCardIndex = 0;
   List<Property> _properties = [];
+  List<RoommateSearch> _roommateSearches = [];
   bool _isLoading = true;
 
-  // Datos de ejemplo (fallback si no hay propiedades reales)
-  final List<PropertyData> _exampleProperties = [
-    PropertyData(
-      id: '1',
-      images: [
-        'https://via.placeholder.com/800x600?text=Apartamento+1',
-        'https://via.placeholder.com/800x600?text=Apartamento+2',
-      ],
-      title: 'Apartamento Moderno en La Mariscal',
-      price: 450,
-      location: 'La Mariscal, Quito',
-      distance: 2.5,
-      ownerName: 'María González',
-      ownerAge: 24,
-      ownerImage: 'https://ui-avatars.com/api/?name=MariaGonzalez&background=FF69B4&color=fff',
-      compatibility: 92,
-      isVerified: true,
-      bedrooms: 2,
-      amenities: ['WiFi', 'Amueblado', 'Cocina'],
-      habits: HabitData(
-        cleanliness: 9,
-        noiseLevel: 7,
-        socialLevel: 8,
-      ),
-    ),
-    PropertyData(
-      id: '2',
-      images: [
-        'https://via.placeholder.com/800x600?text=Habitacion+Centro',
-      ],
-      title: 'Habitación Acogedora Centro Histórico',
-      price: 320,
-      location: 'Centro Histórico, Quito',
-      distance: 3.8,
-      ownerName: 'Carlos Ruiz',
-      ownerAge: 26,
-      ownerImage: 'https://ui-avatars.com/api/?name=CarlosRuiz&background=4169E1&color=fff',
-      compatibility: 87,
-      isVerified: true,
-      bedrooms: 1,
-      amenities: ['Mascotas OK', 'Cocina compartida'],
-      habits: HabitData(
-        cleanliness: 8,
-        noiseLevel: 6,
-        socialLevel: 9,
-      ),
-    ),
-    PropertyData(
-      id: '3',
-      images: [
-        'https://via.placeholder.com/800x600?text=Departamento+Carolina',
-      ],
-      title: 'Departamento Luminoso en La Carolina',
-      price: 520,
-      location: 'La Carolina, Quito',
-      distance: 1.2,
-      ownerName: 'Ana Martínez',
-      ownerAge: 23,
-      ownerImage: 'https://ui-avatars.com/api/?name=AnaMartinez&background=FF1493&color=fff',
-      compatibility: 95,
-      isVerified: true,
-      bedrooms: 2,
-      amenities: ['WiFi', 'Gimnasio', 'Parqueadero'],
-      habits: HabitData(
-        cleanliness: 10,
-        noiseLevel: 8,
-        socialLevel: 7,
-      ),
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadProperties();
+    _loadData();
   }
 
-  Future<void> _loadProperties() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
-      await propertyProvider.loadProperties();
+      final roommateProvider = Provider.of<RoommateSearchProvider>(context, listen: false);
+      
+      await Future.wait([
+        propertyProvider.loadProperties(),
+        roommateProvider.fetchRoommateSearches(),
+      ]);
+      
       setState(() {
         _properties = propertyProvider.properties;
+        _roommateSearches = roommateProvider.searches;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error cargando propiedades: $e');
+      print('Error cargando datos: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -252,10 +192,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Convertir propiedades reales a formato PropertyData
-    final displayProperties = _properties.isEmpty
-        ? _exampleProperties
-        : _properties.map((prop) => _convertToPropertyData(prop)).toList();
+    // Combinar propiedades y búsquedas de roommate
+    final List<PropertyData> displayProperties = [];
+    
+    // Agregar propiedades
+    displayProperties.addAll(
+      _properties.map((prop) => _convertToPropertyData(prop)).toList()
+    );
+    
+    // Agregar búsquedas de roommate
+    displayProperties.addAll(
+      _roommateSearches.map((search) => _convertRoommateToPropertyData(search)).toList()
+    );
 
     if (_currentCardIndex >= displayProperties.length) {
       return _buildNoMoreCards();
@@ -463,6 +411,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         noiseLevel: 7,
         socialLevel: 7,
       ), // TODO: Obtener habits del owner
+    );
+  }
+
+  PropertyData _convertRoommateToPropertyData(RoommateSearch search) {
+    return PropertyData(
+      id: search.id ?? '',
+      images: search.imageUrls.isNotEmpty 
+          ? search.imageUrls 
+          : ['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(search.title)}'],
+      title: search.title,
+      price: search.budget,
+      location: search.address,
+      distance: 0.0, // TODO: Calcular distancia real
+      ownerName: 'Buscando Roommate', // Indicador de que es búsqueda de roommate
+      ownerAge: 25, // TODO: Obtener desde profile del usuario
+      ownerImage: 'https://ui-avatars.com/api/?name=US&background=9C27B0&color=fff',
+      compatibility: 85, // TODO: Calcular compatibilidad real
+      isVerified: search.status == 'active',
+      bedrooms: 1,
+      amenities: search.habitsPreferences,
+      habits: HabitData(
+        cleanliness: 8,
+        noiseLevel: 7,
+        socialLevel: 7,
+      ),
     );
   }
 

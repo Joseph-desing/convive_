@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 
 part 'property.g.dart';
 
-@JsonSerializable()
+@JsonSerializable(fieldRename: FieldRename.snake)
 class Property {
   final String id;
   final String ownerId;

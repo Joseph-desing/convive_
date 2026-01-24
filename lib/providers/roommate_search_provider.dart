@@ -38,12 +38,15 @@ class RoommateSearchProvider extends ChangeNotifier {
         imageUrls: imageUrls,
       );
 
-      // Aquí insertarías en Supabase
-      // final response = await SupabaseProvider.client
-      //     .from('roommate_searches')
-      //     .insert(search.toJson());
+      // Insertar en Supabase
+      final response = await SupabaseProvider.client
+          .from('roommate_searches')
+          .insert(search.toJson())
+          .select()
+          .single();
 
-      _searches.add(search);
+      final createdSearch = RoommateSearch.fromJson(response);
+      _searches.add(createdSearch);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -62,15 +65,16 @@ class RoommateSearchProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Aquí buscarías desde Supabase
-      // final response = await SupabaseProvider.client
-      //     .from('roommate_searches')
-      //     .select()
-      //     .eq('status', 'active');
+      // Buscar desde Supabase
+      final response = await SupabaseProvider.client
+          .from('roommate_searches')
+          .select()
+          .eq('status', 'active');
 
-      // _searches = (response as List)
-      //     .map((data) => RoommateSearch.fromJson(data))
-      //     .toList();
+      _searches.clear();
+      _searches.addAll((response as List)
+          .map((data) => RoommateSearch.fromJson(data))
+          .toList());
 
       _isLoading = false;
       notifyListeners();
