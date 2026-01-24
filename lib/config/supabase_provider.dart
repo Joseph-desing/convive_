@@ -9,6 +9,7 @@ class SupabaseProvider {
   static late SupabaseDatabaseService _databaseService;
   static late SupabaseRealtimeService _realtimeService;
   static late SupabaseStorageService _storageService;
+  static late SupabaseMessagesService _messagesService;
 
   /// Inicializar Supabase
   static Future<void> initialize() async {
@@ -23,6 +24,7 @@ class SupabaseProvider {
       _databaseService = SupabaseDatabaseService(supabase: _client);
       _realtimeService = SupabaseRealtimeService(supabase: _client);
       _storageService = SupabaseStorageService(supabase: _client);
+      _messagesService = SupabaseMessagesService(supabase: _client);
 
       if (kDebugMode) {
         print('✅ Supabase inicializado correctamente');
@@ -40,4 +42,5 @@ class SupabaseProvider {
   static SupabaseDatabaseService get databaseService => _databaseService;
   static SupabaseRealtimeService get realtimeService => _realtimeService;
   static SupabaseStorageService get storageService => _storageService;
+  static SupabaseMessagesService get messagesService => _messagesService;
 }

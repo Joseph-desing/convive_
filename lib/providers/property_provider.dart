@@ -17,14 +17,14 @@ class PropertyProvider extends ChangeNotifier {
   String? get error => _error;
 
   /// Cargar propiedades disponibles
-  Future<void> loadProperties({int limit = 20, int offset = 0}) async {
+  Future<void> loadProperties({int limit = 20, int offset = 0, String? excludeUserId}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _properties =
-          await SupabaseProvider.databaseService.getProperties(limit: limit, offset: offset);
+      _properties = await SupabaseProvider.databaseService
+          .getProperties(limit: limit, offset: offset, excludeUserId: excludeUserId);
     } catch (e) {
       _error = e.toString();
     }

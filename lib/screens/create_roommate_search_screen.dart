@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../models/roommate_search.dart';
+import '../providers/roommate_search_provider.dart';
+import '../config/supabase_provider.dart';
 
 class CreateRoommateSearchScreen extends StatefulWidget {
-  const CreateRoommateSearchScreen({Key? key}) : super(key: key);
+  final RoommateSearch? search;
+
+  const CreateRoommateSearchScreen({Key? key, this.search}) : super(key: key);
 
   @override
   State<CreateRoommateSearchScreen> createState() =>
@@ -17,6 +22,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
+  bool get _isEditing => widget.search != null;
 
   // Controladores de formulario
   final _titleController = TextEditingController();
@@ -28,6 +34,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   String? _selectedGender;
   final List<String> _selectedHabits = [];
   final List<File> _selectedImages = [];
+  final List<String> _existingImageUrls = []; // Para imágenes existentes en edición
+  final List<String> _deletedImageUrls = []; // Para rastrear eliminadas
 
   // Listas de opciones
   final List<String> _genderOptions = [
@@ -55,6 +63,47 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    if (_isEditing) {
+      final search = widget.search!;
+      _titleController.text = search.title;
+      _descriptionController.text = search.description;
+      _budgetController.text = search.budget.toStringAsFixed(0);
+      _addressController.text = search.address;
+      
+      // Convertir gender_preference de BD (male/female/any) a opciones del dropdown
+      if (search.genderPreference != null) {
+        _selectedGender = {
+          'male': 'Hombre',
+          'female': 'Mujer',
+          'any': 'Sin preferencia',
+        }[search.genderPreference!] ?? 'Sin preferencia';
+      }
+      
+      final normalizedHabits = search.habitsPreferences
+          .map((h) => h.isNotEmpty ? '${h[0].toUpperCase()}${h.substring(1)}' : h)
+          .toList();
+      _selectedHabits.addAll(normalizedHabits);
+      
+      // Cargar imágenes existentes desde BD
+      _loadExistingImages(search.id ?? '');
+    }
+  }
+  
+  Future<void> _loadExistingImages(String searchId) async {
+    try {
+      final urls = await SupabaseProvider.databaseService
+          .getRoommateSearchImages(searchId);
+      
+      // Copia defensiva para evitar dartx_get en Flutter Web
+      final urlsCopy = List<String>.from(urls);
+      
+      setState(() {
+        _existingImageUrls.addAll(urlsCopy);
+        print('🖼️ Imágenes cargadas para edición: ${urlsCopy.length}');
+      });
+    } catch (e) {
+      print('❌ Error cargando imágenes existentes: $e');
+    }
   }
 
   @override
@@ -110,9 +159,9 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
               ShaderMask(
                 shaderCallback: (bounds) =>
                     AppColors.primaryGradient.createShader(bounds),
-                child: const Text(
-                  'Buscar Roommate',
-                  style: TextStyle(
+                child: Text(
+                  _isEditing ? 'Editar búsqueda' : 'Buscar Roommate',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
@@ -334,6 +383,24 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           const SizedBox(height: 16),
           _buildPhotoUpload(),
           const SizedBox(height: 20),
+          // Mostrar imágenes existentes (en modo edición)
+          if (_existingImageUrls.isNotEmpty) ...[
+            _buildSectionTitle('Fotos existentes (${_existingImageUrls.length})'),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _existingImageUrls.length,
+              itemBuilder: (context, index) {
+                return _buildExistingPhotoItem(_existingImageUrls[index], index);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
           if (_selectedImages.isNotEmpty) ...[
             _buildSectionTitle('Fotos seleccionadas (${_selectedImages.length})'),
             GridView.builder(
@@ -398,7 +465,6 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       ),
     );
   }
-
   Widget _buildPhotoUpload() {
     return GestureDetector(
       onTap: _pickImages,
@@ -619,7 +685,9 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
                       ),
                     )
                   : Text(
-                      _tabController.index == 2 ? 'Publicar' : 'Siguiente',
+                      _tabController.index == 2
+                          ? (_isEditing ? 'Guardar cambios' : 'Publicar')
+                          : 'Siguiente',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -673,24 +741,122 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     }
   }
 
-  void _handlePublish() {
-    if (_selectedImages.isEmpty) {
-      _showSnackBar('Por favor agrega al menos una foto');
+  Future<void> _handlePublish() async {
+    // Validar campos mínimos
+    if (_titleController.text.isEmpty ||
+        _descriptionController.text.isEmpty ||
+        _budgetController.text.isEmpty ||
+        _addressController.text.isEmpty) {
+      _showSnackBar('Completa los campos obligatorios');
       return;
+    }
+
+    final currentUser = SupabaseProvider.client.auth.currentUser;
+    if (currentUser == null) {
+      _showSnackBar('Debes iniciar sesión para publicar');
+      return;
+    }
+
+    final genderPref = _selectedGender == null
+        ? null
+        : {
+            'Hombre': 'male',
+            'Mujer': 'female',
+            'Sin preferencia': 'any',
+          }[_selectedGender!] ?? 'any';
+
+    // Subir imágenes a Supabase Storage
+    final imageUrls = <String>[];
+    if (_selectedImages.isNotEmpty) {
+      try {
+        print('🔧 Iniciando upload de ${_selectedImages.length} imágenes...');
+        for (int i = 0; i < _selectedImages.length; i++) {
+          final file = _selectedImages[i];
+          final fileName =
+              'search_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}_$i';
+          
+          print('⬆️ Subiendo imagen $i: $fileName');
+          
+          // Convertir File a XFile para compatibilidad web
+          final xfile = XFile(file.path);
+          
+          final url = await SupabaseProvider.storageService
+              .uploadRoommateSearchImageXFile(fileName, xfile);
+          print('✅ URL generada: $url');
+          imageUrls.add(url);
+        }
+        print('🎉 Todas las imágenes subidas: ${imageUrls.length}');
+      } catch (e) {
+        print('❌ ERROR SUBIENDO FOTOS: $e');
+        _showSnackBar('Error subiendo fotos: $e');
+        setState(() => _isLoading = false);
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      final habitsNormalized =
+          _selectedHabits.map((h) => h.toLowerCase()).toList();
+
+      if (_isEditing) {
+        await SupabaseProvider.databaseService.updateRoommateSearch(
+          widget.search!.id ?? '',
+          {
+            'title': _titleController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'budget': double.tryParse(_budgetController.text.trim()) ??
+                widget.search!.budget,
+            'address': _addressController.text.trim(),
+            'gender_preference': genderPref,
+            'habits_preferences': habitsNormalized,
+          },
+        );
+        
+        // Eliminar imágenes marcadas
+        for (final deletedUrl in _deletedImageUrls) {
+          await SupabaseProvider.databaseService
+              .deleteRoommateSearchImageByUrl(widget.search!.id ?? '', deletedUrl);
+          print('🗑️ Imagen eliminada de BD: $deletedUrl');
+        }
+        
+        // Agregar nuevas imágenes
+        for (final imageUrl in imageUrls) {
+          await SupabaseProvider.databaseService
+              .addRoommateSearchImage(widget.search!.id ?? '', imageUrl);
+          print('➕ Nueva imagen agregada: $imageUrl');
+        }
+        
+        _showSnackBar('✅ Búsqueda actualizada');
+      } else {
+        final provider = context.read<RoommateSearchProvider>();
+        final success = await provider.createRoommateSearch(
+          userId: currentUser.id,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          budget: double.tryParse(_budgetController.text.trim()) ?? 0,
+          address: _addressController.text.trim(),
+          genderPreference: genderPref,
+          habitsPreferences: habitsNormalized,
+          imageUrls: imageUrls,
+        );
+
+        if (!success) {
+          setState(() => _isLoading = false);
+          _showSnackBar('No se pudo publicar. Intenta de nuevo');
+          return;
+        }
+        _showSnackBar('✅ ¡Tu búsqueda ha sido publicada!');
+      }
+
       setState(() => _isLoading = false);
-
-      // Aquí irá la lógica para guardar en Supabase
-      _showSnackBar('✅ ¡Tu búsqueda ha sido publicada!');
-
-      Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pop(context);
-      });
-    });
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar('Error: $e');
+    }
   }
 
   Future<void> _pickImages() async {
@@ -727,4 +893,48 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       ),
     );
   }
-}
+
+  Widget _buildExistingPhotoItem(String imageUrl, int index) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: AppColors.background,
+                child: const Icon(Icons.image, size: 50),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _deletedImageUrls.add(imageUrl);
+                _existingImageUrls.removeAt(index);
+                print('🗑️ Imagen marcada para eliminar: $imageUrl');
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../screens/home_screen.dart';
@@ -23,6 +24,39 @@ class _PropertyCardState extends State<PropertyCard> {
   Offset _position = Offset.zero;
   bool _isDragging = false;
   double _angle = 0;
+  Timer? _autoSlideTimer;
+
+  List<String> get _images => widget.property.images.isNotEmpty
+      ? widget.property.images
+      : ['https://via.placeholder.com/800x600?text=Sin+imagen'];
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoSlide();
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoSlide() {
+    _autoSlideTimer?.cancel();
+    if (!mounted) return;
+    final imageCount = _images.length;
+    if (imageCount < 2) return;
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || _isDragging) return;
+      setState(() {
+        final count = _images.length;
+        if (count > 1) {
+          _currentImageIndex = (_currentImageIndex + 1) % count;
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +110,10 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   Widget _buildCardContent() {
+    if (_currentImageIndex >= _images.length) {
+      _currentImageIndex = 0;
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Column(
@@ -90,7 +128,7 @@ class _PropertyCardState extends State<PropertyCard> {
                     decoration: BoxDecoration(
                       image: DecorationImage(
                         image: NetworkImage(
-                          widget.property.images[_currentImageIndex],
+                          _images[_currentImageIndex],
                         ),
                         fit: BoxFit.cover,
                       ),
@@ -165,7 +203,7 @@ class _PropertyCardState extends State<PropertyCard> {
                     right: 80,
                     child: Row(
                       children: List.generate(
-                        widget.property.images.length,
+                        _images.length,
                         (index) => Expanded(
                           child: Container(
                             height: 3,
@@ -242,7 +280,7 @@ class _PropertyCardState extends State<PropertyCard> {
           Expanded(
             flex: 2,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,24 +372,25 @@ class _PropertyCardState extends State<PropertyCard> {
                   const SizedBox(height: 12),
                   
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildHabitIndicator(
                           'Limpieza',
                           widget.property.habits.cleanliness,
                           Icons.cleaning_services_rounded,
                         ),
+                        const SizedBox(width: 8),
                         _buildHabitIndicator(
                           'Ruido',
                           widget.property.habits.noiseLevel,
                           Icons.volume_up_rounded,
                         ),
+                        const SizedBox(width: 8),
                         _buildHabitIndicator(
                           'Social',
                           widget.property.habits.socialLevel,
@@ -360,6 +399,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -371,27 +411,37 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   Widget _buildHabitIndicator(String label, int value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: AppColors.textSecondary,
-          ),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: AppColors.primary),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$value/10',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          '$value/10',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -432,10 +482,11 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   void _nextImage() {
-    if (widget.property.images.length > 1) {
+    if (!mounted) return;
+    final count = _images.length;
+    if (count > 1) {
       setState(() {
-        _currentImageIndex = 
-            (_currentImageIndex + 1) % widget.property.images.length;
+        _currentImageIndex = (_currentImageIndex + 1) % count;
       });
     }
   }

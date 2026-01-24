@@ -6,11 +6,14 @@ import '../widgets/bottom_nav_bar.dart';
 import 'profile_screen.dart';
 import 'create_roommate_search_screen.dart';
 import 'create_property_screen.dart';
+import 'messages_screen.dart';
 import '../providers/property_provider.dart';
 import '../providers/roommate_search_provider.dart';
 import '../models/property.dart';
 import '../models/roommate_search.dart';
 import '../models/habits.dart';
+import '../models/profile.dart';
+import '../config/supabase_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -27,6 +30,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Property> _properties = [];
   List<RoommateSearch> _roommateSearches = [];
   bool _isLoading = true;
+  final Map<String, Profile> _profileCache = {};
+  final Map<String, Habits> _habitsCache = {};
+  final Map<String, List<String>> _propertyImagesCache = {};
+  final Map<String, List<String>> _roommateImagesCache = {};
 
 
   @override
@@ -40,11 +47,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
       final roommateProvider = Provider.of<RoommateSearchProvider>(context, listen: false);
+      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
       
       await Future.wait([
-        propertyProvider.loadProperties(),
-        roommateProvider.fetchRoommateSearches(),
+        propertyProvider.loadProperties(excludeUserId: currentUserId),
+        roommateProvider.fetchRoommateSearches(excludeUserId: currentUserId),
       ]);
+
+      final ownerIds = <String>{
+        ...propertyProvider.properties.map((p) => p.ownerId),
+        ...roommateProvider.searches.map((s) => s.userId),
+      }..removeWhere((id) => id.isEmpty);
+
+      await _preloadProfiles(ownerIds);
+      await _preloadHabits(ownerIds);
+      await _preloadPropertyImages(propertyProvider.properties);
+      await _preloadRoommateImages(roommateProvider.searches);
       
       setState(() {
         _properties = propertyProvider.properties;
@@ -54,6 +72,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (e) {
       print('Error cargando datos: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _preloadProfiles(Set<String> userIds) async {
+    for (final userId in userIds) {
+      if (_profileCache.containsKey(userId)) continue;
+      try {
+        final profile = await SupabaseProvider.databaseService.getProfile(userId);
+        if (profile != null) {
+          _profileCache[userId] = profile;
+        }
+      } catch (_) {
+        // Si falla alguno, seguimos con el resto
+      }
+    }
+  }
+
+  Future<void> _preloadHabits(Set<String> userIds) async {
+    for (final userId in userIds) {
+      if (_habitsCache.containsKey(userId)) continue;
+      try {
+        final habits = await SupabaseProvider.databaseService.getHabits(userId);
+        if (habits != null) {
+          _habitsCache[userId] = habits;
+        }
+      } catch (_) {
+        // Si falla alguno, seguimos con el resto
+      }
+    }
+  }
+
+  Future<void> _preloadPropertyImages(List<Property> properties) async {
+    for (final prop in properties) {
+      if (_propertyImagesCache.containsKey(prop.id)) continue;
+      try {
+        final urls =
+            await SupabaseProvider.databaseService.getPropertyImages(prop.id);
+        _propertyImagesCache[prop.id] = urls;
+      } catch (_) {
+        // Si falla alguno, seguimos con el resto
+      }
+    }
+  }
+
+  Future<void> _preloadRoommateImages(List<RoommateSearch> searches) async {
+    for (final search in searches) {
+      if (search.id == null) continue;
+      if (_roommateImagesCache.containsKey(search.id)) continue;
+      try {
+        // Cargar desde tabla separada (como property_images)
+        final urls = await SupabaseProvider.databaseService
+            .getRoommateSearchImages(search.id!);
+        print('🖼️ Imágenes cargadas para búsqueda ${search.id}: ${urls.length} imágenes');
+        _roommateImagesCache[search.id!] = List<String>.from(urls);
+      } catch (e) {
+        print('❌ Error cargando imágenes para búsqueda ${search.id}: $e');
+      }
     }
   }
   @override
@@ -363,6 +438,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return const ProfileScreen();
     }
     
+    // Mostrar la pantalla de mensajes cuando se selecciona
+    if (_currentIndex == 2) {
+      return const MessagesScreen();
+    }
+    
     return Center(
       child: Text(
         _currentIndex == 1 ? 'Matches' :
@@ -392,50 +472,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   PropertyData _convertToPropertyData(Property property) {
+    final ownerProfile = _profileCache[property.ownerId];
+    final ownerImage = ownerProfile?.profileImageUrl ??
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(ownerProfile?.fullName ?? 'Usuario')}&background=FF69B4&color=fff';
+    final ownerName = ownerProfile?.fullName ?? 'Propietario';
+    final ownerAge = _calculateAge(ownerProfile?.birthDate);
+    final verified = ownerProfile?.verified ?? property.isActive;
+
+    final cachedImages = _propertyImagesCache[property.id];
+    final imageList = (cachedImages != null && cachedImages.isNotEmpty)
+        ? List<String>.from(cachedImages)
+        : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(property.title)}'];
+
     return PropertyData(
       id: property.id,
-      images: ['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(property.title)}'],
+      images: imageList,
       title: property.title,
       price: property.price,
       location: property.address,
       distance: 0.0, // TODO: Calcular distancia real
-      ownerName: 'Propietario', // TODO: Obtener desde profile
-      ownerAge: 25, // TODO: Obtener desde profile
-      ownerImage: 'https://ui-avatars.com/api/?name=User&background=FF69B4&color=fff',
+      ownerName: ownerName,
+      ownerAge: ownerAge,
+      ownerImage: ownerImage,
       compatibility: 85, // TODO: Calcular compatibilidad real
-      isVerified: property.isActive,
+      isVerified: verified,
       bedrooms: 1, // TODO: Agregar a modelo Property
       amenities: [], // TODO: Agregar a modelo Property
-      habits: HabitData(
-        cleanliness: 8,
-        noiseLevel: 7,
-        socialLevel: 7,
-      ), // TODO: Obtener habits del owner
+      habits: _getHabitDataFromOwner(property.ownerId),
     );
   }
 
   PropertyData _convertRoommateToPropertyData(RoommateSearch search) {
+    final ownerProfile = _profileCache[search.userId];
+    final ownerImage = ownerProfile?.profileImageUrl ??
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(ownerProfile?.fullName ?? 'User')}&background=9C27B0&color=fff';
+    final ownerName = ownerProfile?.fullName ?? 'Buscando Roommate';
+    final ownerAge = _calculateAge(ownerProfile?.birthDate);
+    final verified = ownerProfile?.verified ?? search.status == 'active';
+
+    // Usar imágenes cacheadas con copia defensiva para evitar dartx_get
+    final cachedImages = search.id != null ? _roommateImagesCache[search.id] : null;
+    final imageList = (cachedImages != null && cachedImages.isNotEmpty)
+        ? List<String>.from(cachedImages)
+        : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(search.title)}'];
+
     return PropertyData(
       id: search.id ?? '',
-      images: search.imageUrls.isNotEmpty 
-          ? search.imageUrls 
-          : ['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(search.title)}'],
+      images: imageList,
       title: search.title,
       price: search.budget,
       location: search.address,
       distance: 0.0, // TODO: Calcular distancia real
-      ownerName: 'Buscando Roommate', // Indicador de que es búsqueda de roommate
-      ownerAge: 25, // TODO: Obtener desde profile del usuario
-      ownerImage: 'https://ui-avatars.com/api/?name=US&background=9C27B0&color=fff',
+      ownerName: ownerName,
+      ownerAge: ownerAge,
+      ownerImage: ownerImage,
       compatibility: 85, // TODO: Calcular compatibilidad real
-      isVerified: search.status == 'active',
+      isVerified: verified,
       bedrooms: 1,
       amenities: search.habitsPreferences,
-      habits: HabitData(
-        cleanliness: 8,
-        noiseLevel: 7,
-        socialLevel: 7,
-      ),
+      habits: _getHabitDataFromOwner(search.userId),
     );
   }
 
@@ -578,6 +673,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
         ),
       ),
+    );
+  }
+
+  int _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return 25;
+    final now = DateTime.now();
+    var age = now.year - birthDate.year;
+    if (now.month < birthDate.month ||
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+  HabitData _getHabitDataFromOwner(String ownerId) {
+    final habits = _habitsCache[ownerId];
+    if (habits == null) {
+      // Valores por defecto si no hay hábitos disponibles
+      return HabitData(
+        cleanliness: 5,
+        noiseLevel: 5,
+        socialLevel: 5,
+      );
+    }
+    // Copias defensivas para evitar dartx_get en Flutter Web
+    final cleanliness = habits.cleanlinessLevel;
+    final noiseTolerance = habits.noiseTolerance;
+    final partyFrequency = habits.partyFrequency;
+    
+    return HabitData(
+      cleanliness: cleanliness,
+      noiseLevel: 10 - noiseTolerance,
+      socialLevel: partyFrequency,
     );
   }
 }

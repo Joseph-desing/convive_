@@ -1,16 +1,26 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
+import '../providers/user_provider.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   final String userId;
   final String email;
+  final Profile? existingProfile;
+  final Habits? existingHabits;
+  final bool isEdit;
   
   const CompleteProfileScreen({
     Key? key,
     required this.userId,
     required this.email,
+    this.existingProfile,
+    this.existingHabits,
+    this.isEdit = false,
   }) : super(key: key);
 
   @override
@@ -26,6 +36,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _bioController = TextEditingController();
   DateTime? _birthDate;
   Gender? _gender;
+  XFile? _selectedImage;
+  String? _currentImageUrl;
+  bool _uploadingImage = false;
   
   // Datos de hábitos
   int _cleanlinessLevel = 5;
@@ -41,6 +54,39 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   int _responsibilityLevel = 5;
   
   bool _isLoading = false;
+  late final bool _isEdit;
+
+  @override
+  void initState() {
+    super.initState();
+    _isEdit = widget.isEdit;
+    _prefillIfEditing();
+  }
+
+  void _prefillIfEditing() {
+    final profile = widget.existingProfile;
+    final habits = widget.existingHabits;
+    if (profile != null) {
+      _fullNameController.text = profile.fullName;
+      _bioController.text = profile.bio ?? '';
+      _birthDate = profile.birthDate;
+      _gender = profile.gender;
+      _currentImageUrl = profile.profileImageUrl;
+    }
+    if (habits != null) {
+      _cleanlinessLevel = habits.cleanlinessLevel;
+      _noiseTolerance = habits.noiseTolerance;
+      _partyFrequency = habits.partyFrequency;
+      _guestsTolerance = habits.guestsTolerance;
+      _pets = habits.pets;
+      _petTolerance = habits.petTolerance;
+      _workMode = habits.workMode;
+      _sleepStartHour = habits.sleepStart;
+      _sleepEndHour = habits.sleepEnd;
+      _timeAtHome = habits.timeAtHome;
+      _responsibilityLevel = habits.responsibilityLevel;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +134,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 ),
               ),
               Text(
-                'Paso ${_currentStep + 1} de 2',
+                _isEdit ? 'Editar perfil' : 'Paso ${_currentStep + 1} de 2',
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -141,6 +187,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             _buildWhiteCard(
               child: Column(
                 children: [
+                  _buildProfileImagePicker(),
+                  const SizedBox(height: 24),
+                  
                   _buildTextField(
                     controller: _fullNameController,
                     label: 'Nombre completo',
@@ -297,6 +346,115 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
       child: child,
     );
+  }
+
+  Widget _buildProfileImagePicker() {
+    return Center(
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: _uploadingImage ? null : _pickImage,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.background,
+                border: Border.all(
+                  color: AppColors.primary,
+                  width: 3,
+                ),
+              ),
+              child: _uploadingImage
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    )
+                  : _selectedImage != null
+                      ? FutureBuilder<List<int>>(
+                          future: _selectedImage!.readAsBytes(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return ClipOval(
+                                child: Image.memory(
+                                  Uint8List.fromList(snapshot.data!),
+                                  fit: BoxFit.cover,
+                                ),
+                              );
+                            }
+                            return _buildImagePlaceholder();
+                          },
+                        )
+                      : _currentImageUrl != null && _currentImageUrl!.isNotEmpty
+                          ? ClipOval(
+                              child: Image.network(
+                                _currentImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _buildImagePlaceholder(),
+                              ),
+                            )
+                          : _buildImagePlaceholder(),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_a_photo_outlined,
+            size: 40,
+            color: AppColors.textSecondary.withOpacity(0.5),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Agregar foto',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
   }
 
   Widget _buildTextField({
@@ -725,7 +883,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       ),
                     )
                   : Text(
-                      _currentStep == 0 ? 'Continuar' : 'Finalizar',
+                      _isEdit
+                          ? 'Guardar cambios'
+                          : _currentStep == 0
+                              ? 'Continuar'
+                              : 'Finalizar',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -740,6 +902,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Future<void> _handleNext() async {
+    if (_isEdit) {
+      await _saveProfile(editMode: true);
+      return;
+    }
+
     if (_currentStep == 0) {
       if (_formKey.currentState!.validate()) {
         if (_fullNameController.text.isEmpty) {
@@ -751,27 +918,159 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         setState(() => _currentStep++);
       }
     } else {
-      await _saveProfile();
+      await _saveProfile(editMode: false);
     }
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _saveProfile({required bool editMode}) async {
     setState(() => _isLoading = true);
 
     try {
-      // Crear perfil
-      final profile = Profile(
-        userId: widget.userId,
-        fullName: _fullNameController.text,
-        birthDate: _birthDate,
-        gender: _gender,
-        bio: _bioController.text.isEmpty ? null : _bioController.text,
-      );
+      if (editMode) {
+        await _updateProfileAndHabits();
+      } else {
+        await _createProfileAndHabits();
+      }
 
-      await SupabaseProvider.databaseService.createProfile(profile);
+      if (mounted) {
+        // Forzar actualización del UserProvider
+        try {
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          final authUser = SupabaseProvider.authService.getCurrentUser();
+          if (authUser != null) {
+            await userProvider.loadUser(authUser.id);
+          }
+        } catch (e) {
+          // Ignorar si el provider no está disponible
+        }
 
-      // Crear hábitos
-      final habits = Habits(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(editMode
+                ? 'Cambios guardados'
+                : '¡Perfil completado exitosamente!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        if (editMode) {
+          Navigator.of(context).pop(true);
+        } else {
+          // Navegar a home
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _createProfileAndHabits() async {
+    String? profileImageUrl;
+
+    // Si hay una imagen seleccionada, subirla primero
+    if (_selectedImage != null) {
+      setState(() => _uploadingImage = true);
+      try {
+        profileImageUrl = await SupabaseProvider.storageService
+            .uploadProfileImageXFile(
+          userId: widget.userId,
+          file: _selectedImage!,
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al subir imagen: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _uploadingImage = false);
+        }
+      }
+    }
+
+    final profile = Profile(
+      userId: widget.userId,
+      fullName: _fullNameController.text,
+      birthDate: _birthDate,
+      gender: _gender,
+      bio: _bioController.text.isEmpty ? null : _bioController.text,
+      profileImageUrl: profileImageUrl,
+    );
+
+    await SupabaseProvider.databaseService.createProfile(profile);
+
+    final habits = Habits(
+      userId: widget.userId,
+      sleepStart: _sleepStartHour,
+      sleepEnd: _sleepEndHour,
+      cleanlinessLevel: _cleanlinessLevel,
+      noiseTolerance: _noiseTolerance,
+      partyFrequency: _partyFrequency,
+      guestsTolerance: _guestsTolerance,
+      pets: _pets,
+      petTolerance: _petTolerance,
+      workMode: _workMode,
+      timeAtHome: _timeAtHome,
+      responsibilityLevel: _responsibilityLevel,
+    );
+
+    await SupabaseProvider.databaseService.createHabits(habits);
+  }
+
+  Future<void> _updateProfileAndHabits() async {
+    if (widget.existingProfile == null) {
+      throw Exception('Perfil no cargado para editar.');
+    }
+
+    final profileUpdates = <String, dynamic>{
+      'full_name': _fullNameController.text,
+      'birth_date': _birthDate?.toIso8601String(),
+      'gender': _gender != null ? _genderToDb(_gender!) : null,
+      'bio': _bioController.text.isEmpty ? null : _bioController.text,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    // Si hay una imagen seleccionada, subirla
+    if (_selectedImage != null) {
+      setState(() => _uploadingImage = true);
+      try {
+        final imageUrl = await SupabaseProvider.storageService
+            .uploadProfileImageXFile(
+          userId: widget.userId,
+          file: _selectedImage!,
+        );
+        profileUpdates['profile_image_url'] = imageUrl;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al subir imagen: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _uploadingImage = false);
+        }
+      }
+    }
+
+    await SupabaseProvider.databaseService.updateProfile(
+      widget.existingProfile!.id,
+      profileUpdates,
+    );
+
+    if (widget.existingHabits == null) {
+      // Si no hay hábitos, los creamos con los valores actuales
+      final newHabits = Habits(
         userId: widget.userId,
         sleepStart: _sleepStartHour,
         sleepEnd: _sleepEndHour,
@@ -785,30 +1084,69 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         timeAtHome: _timeAtHome,
         responsibilityLevel: _responsibilityLevel,
       );
+      await SupabaseProvider.databaseService.createHabits(newHabits);
+      return;
+    }
 
-      await SupabaseProvider.databaseService.createHabits(habits);
+    final habitsUpdates = <String, dynamic>{
+      'sleep_start': _formatHour(_sleepStartHour),
+      'sleep_end': _formatHour(_sleepEndHour),
+      'cleanliness_level': _cleanlinessLevel,
+      'noise_tolerance': _noiseTolerance,
+      'party_frequency': _partyFrequency,
+      'guests_tolerance': _guestsTolerance,
+      'pets': _pets,
+      'pet_tolerance': _petTolerance >= 5,
+      'work_mode': _workModeToDb(_workMode),
+      'time_at_home': _timeAtHome,
+      'responsibility_level': _responsibilityLevel,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Perfil completado exitosamente!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+    await SupabaseProvider.databaseService.updateHabits(
+      widget.existingHabits!.id,
+      habitsUpdates,
+    );
+  }
 
-        // Navegar a home
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  String _genderToDb(Gender gender) {
+    switch (gender) {
+      case Gender.male:
+        return 'male';
+      case Gender.female:
+        return 'female';
+      case Gender.other:
+        return 'other';
+    }
+  }
+
+  String _formatHour(int hour) {
+    final normalized = hour.clamp(0, 23).toString().padLeft(2, '0');
+    return '$normalized:00';
+  }
+
+  String _workModeToDb(WorkMode mode) {
+    // Usar los valores que Supabase acepta actualmente
+    switch (mode) {
+      case WorkMode.remote:
+        return 'remote';
+      case WorkMode.office:
+        return 'office';
+      case WorkMode.hybrid:
+        return 'hybrid';
+    }
+  }
+
+  WorkMode _mapWorkModeFromDb(WorkMode mode) {
+    // The model may already map, but ensure alignment with allowed values
+    switch (mode) {
+      case WorkMode.remote:
+        return WorkMode.remote;
+      case WorkMode.office:
+        return WorkMode.office;
+      case WorkMode.hybrid:
+      default:
+        return WorkMode.hybrid;
     }
   }
 

@@ -60,8 +60,20 @@ class MatchingProvider extends ChangeNotifier {
           userB: userId2,
           compatibilityScore: score,
         );
-        await SupabaseProvider.databaseService.createMatch(match);
-        _matches.add(match);
+        final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
+        _matches.add(createdMatch);
+        
+        // Crear chat automáticamente para el match
+        try {
+          await SupabaseProvider.messagesService.getOrCreateChat(createdMatch.id);
+          if (kDebugMode) {
+            print('✅ Chat creado automáticamente para el match: ${createdMatch.id}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ Error creando chat: $e');
+          }
+        }
       }
     } catch (e) {
       _error = e.toString();
@@ -82,14 +94,56 @@ class MatchingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Registrar el swipe
       final swipe = Swipe(
         swiperId: swiperId,
         targetUserId: targetUserId,
         direction: direction,
       );
       await SupabaseProvider.databaseService.createSwipe(swipe);
+
+      // Si es un LIKE, verificar si hay match mutuo
+      if (direction == SwipeDirection.like) {
+        // Verificar si ya existe match
+        final existingMatch = await SupabaseProvider.databaseService
+            .getExistingMatch(swiperId, targetUserId);
+
+        if (existingMatch == null) {
+          // Verificar si hay swipe mutuo LIKE
+          final isMutualLike = await SupabaseProvider.databaseService
+              .checkMutualLike(swiperId, targetUserId);
+
+          if (isMutualLike) {
+            // ¡MATCH! Crear match automáticamente
+            final match = Match(
+              userA: swiperId,
+              userB: targetUserId,
+              compatibilityScore: 80.0, // Score por defecto
+            );
+            final createdMatch =
+                await SupabaseProvider.databaseService.createMatch(match);
+            _matches.add(createdMatch);
+
+            // Crear chat automáticamente
+            try {
+              await SupabaseProvider.messagesService
+                  .getOrCreateChat(createdMatch.id);
+              if (kDebugMode) {
+                print('✅ ¡MATCH! Chat creado: ${createdMatch.id}');
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('⚠️ Error creando chat: $e');
+              }
+            }
+          }
+        }
+      }
     } catch (e) {
       _error = e.toString();
+      if (kDebugMode) {
+        print('Error en swipe: $e');
+      }
     }
 
     _isLoading = false;

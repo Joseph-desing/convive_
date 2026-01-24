@@ -22,11 +22,13 @@ class RoommateSearchProvider extends ChangeNotifier {
     required List<String> habitsPreferences,
     required List<String> imageUrls,
   }) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
+    try {
+      print('📝 Creando roommate search con ${imageUrls.length} imágenes');
+      
       final search = RoommateSearch(
         userId: userId,
         title: title,
@@ -35,23 +37,32 @@ class RoommateSearchProvider extends ChangeNotifier {
         address: address,
         genderPreference: genderPreference,
         habitsPreferences: habitsPreferences,
-        imageUrls: imageUrls,
+        imageUrls: [], // Array vacío en la BD
       );
 
-      // Insertar en Supabase
-      final response = await SupabaseProvider.client
-          .from('roommate_searches')
-          .insert(search.toJson())
-          .select()
-          .single();
-
-      final createdSearch = RoommateSearch.fromJson(response);
+      // Usar el servicio de BD igual que PropertyProvider
+      final createdSearch =
+          await SupabaseProvider.databaseService.createRoommateSearch(search);
+      
+      print('✅ Búsqueda creada con ID: ${createdSearch.id}');
+      
+      // Guardar imágenes en tabla separada (como property_images)
+      for (final imageUrl in imageUrls) {
+        print('💾 Guardando imagen en roommate_search_images: $imageUrl');
+        await SupabaseProvider.databaseService
+            .addRoommateSearchImage(createdSearch.id ?? '', imageUrl);
+      }
+      
+      // Actualizar objeto local con las imágenes cargadas
+      createdSearch.imageUrls.addAll(imageUrls);
       _searches.add(createdSearch);
+      
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+      print('❌ Error creando búsqueda de roommate: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -59,17 +70,23 @@ class RoommateSearchProvider extends ChangeNotifier {
   }
 
   // Obtener búsquedas de roommate
-  Future<void> fetchRoommateSearches() async {
+  Future<void> fetchRoommateSearches({String? excludeUserId}) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
       // Buscar desde Supabase
-      final response = await SupabaseProvider.client
+      var query = SupabaseProvider.client
           .from('roommate_searches')
           .select()
           .eq('status', 'active');
+
+      if (excludeUserId != null && excludeUserId.isNotEmpty) {
+        query = query.neq('user_id', excludeUserId);
+      }
+
+      final response = await query;
 
       _searches.clear();
       _searches.addAll((response as List)

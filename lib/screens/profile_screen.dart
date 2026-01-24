@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/user_provider.dart';
 import '../utils/colors.dart';
 import '../models/index.dart';
 import '../config/supabase_provider.dart';
+import 'complete_profile_screen.dart';
+import 'settings_screen.dart';
+import 'help_support_screen.dart';
+import 'privacy_screen.dart';
+import 'edit_habits_screen.dart';
+import 'my_publications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -17,12 +24,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
   User? _user;
   Habits? _habits;
   bool _isLoading = false;
+  bool _uploadingImage = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+  }
+
+  Future<void> _pickAndUploadProfileImage() async {
+    if (_profile == null) return;
+    final authUser = SupabaseProvider.authService.getCurrentUser();
+    if (authUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para actualizar tu foto')),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (image == null) return;
+
+    setState(() => _uploadingImage = true);
+    try {
+      final url = await SupabaseProvider.storageService.uploadProfileImageXFile(
+        userId: authUser.id,
+        file: image,
+      );
+
+      await SupabaseProvider.databaseService.updateProfile(
+        _profile!.id,
+        {'profile_image_url': url},
+      );
+
+      await _loadUserData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error subiendo foto: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -59,6 +115,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _error = 'Error al cargar perfil: ${e.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await SupabaseProvider.authService.signOut();
+        if (mounted) {
+          // Navegar a la pantalla de login o inicio
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cerrar sesión: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 
@@ -160,35 +255,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Imagen de perfil
-            if (profile.profileImageUrl != null)
-              Image.network(
-                profile.profileImageUrl!,
-                fit: BoxFit.cover,
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                ),
-                child: Center(
-                  child: Text(
-                    profile.fullName[0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 80,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+            // Fondo siempre en gradiente (sin ocupar la foto completa)
+            Container(
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
               ),
+            ),
             // Gradiente oscuro en la parte inferior
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: Container(
-                height: 150,
+                height: 120,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -201,6 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+            _buildAvatar(profile),
             // Badge de verificación
             if (profile.verified)
               const Positioned(
@@ -216,13 +296,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       actions: [
+        if (_uploadingImage)
+          const Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ),
+        IconButton(
+          icon: const Icon(Icons.camera_alt_outlined),
+          tooltip: 'Cambiar foto',
+          onPressed: _uploadingImage ? null : _pickAndUploadProfileImage,
+        ),
         IconButton(
           icon: const Icon(Icons.edit),
-          onPressed: () {
-            // TODO: Navegar a pantalla de edición
-          },
+          onPressed: _profile == null
+              ? null
+              : () async {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => CompleteProfileScreen(
+                        userId: _profile!.userId,
+                        email: _user?.email ?? '',
+                        existingProfile: _profile!,
+                        existingHabits: _habits,
+                        isEdit: true,
+                      ),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    // Pequeña espera para asegurar que Supabase procese
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    await _loadUserData();
+                  }
+                },
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatar(Profile profile) {
+    final hasImage = profile.profileImageUrl != null;
+    final width = MediaQuery.of(context).size.width;
+    final avatarSize = width * 0.45; // responsive
+    final clampedSize = avatarSize.clamp(140.0, 220.0);
+    
+    // Agregar timestamp para evitar caché de imagen
+    final imageUrl = hasImage 
+        ? '${profile.profileImageUrl!}?t=${DateTime.now().millisecondsSinceEpoch}'
+        : null;
+    
+    return Positioned(
+      bottom: 12,
+      left: 12,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: clampedSize,
+          height: clampedSize,
+          child: CircleAvatar(
+            backgroundColor: AppColors.primary,
+            backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+            child: hasImage
+                ? null
+                : Text(
+                    profile.fullName.isNotEmpty
+                        ? profile.fullName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -363,6 +528,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                color: AppColors.primary,
+                tooltip: 'Editar hábitos',
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditHabitsScreen(
+                        habits: _habits!,
+                      ),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    await _loadUserData();
+                  }
+                },
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -452,29 +636,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           _buildSettingsTile(
+            icon: Icons.publish_outlined,
+            title: 'Mis publicaciones',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyPublicationsScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          _buildSettingsTile(
             icon: Icons.settings_outlined,
             title: 'Configuración',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           _buildSettingsTile(
             icon: Icons.help_outline,
             title: 'Ayuda y soporte',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HelpSupportScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           _buildSettingsTile(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacidad',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PrivacyScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           _buildSettingsTile(
             icon: Icons.logout,
             title: 'Cerrar sesión',
-            onTap: () {
-              // TODO: Implementar logout
-            },
+            onTap: () => _handleLogout(),
             textColor: Colors.red,
           ),
         ],
@@ -686,9 +902,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 30),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Navegar a crear perfil
-            },
+            onPressed: _navigateToCompleteProfile,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -704,6 +918,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  void _navigateToCompleteProfile() {
+    final authUser = SupabaseProvider.authService.getCurrentUser();
+    
+    if (authUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: No hay usuario autenticado'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CompleteProfileScreen(
+          userId: authUser.id,
+          email: authUser.email ?? '',
+        ),
+      ),
+    ).then((_) {
+      // Recargar los datos después de completar el perfil
+      _loadUserData();
+    });
   }
 
   Widget _buildPremiumSection(User? user) {

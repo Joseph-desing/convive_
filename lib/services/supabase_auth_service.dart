@@ -47,6 +47,13 @@ class SupabaseAuthService {
     await _supabase.auth.resetPasswordForEmail(email);
   }
 
+  /// Actualizar contraseña del usuario actual
+  Future<void> updatePassword(String newPassword) async {
+    await _supabase.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+  }
+
   /// Verificar si el usuario está autenticado
   bool isAuthenticated() {
     return _supabase.auth.currentUser != null;

@@ -82,7 +82,22 @@ class SupabaseDatabaseService {
           .select('*')
           .eq('user_id', userId)
           .single();
-      return Habits.fromJson(response);
+
+      // Adapt Supabase schema values to model expectations
+      final data = Map<String, dynamic>.from(response);
+      data['sleep_start'] = _parseHourToInt(data['sleep_start']);
+      data['sleep_end'] = _parseHourToInt(data['sleep_end']);
+      data['pet_tolerance'] = _boolToTolerance(data['pet_tolerance']);
+      // NO convertir work_mode aquí, fromJson lo hace automáticamente
+      // communication_style y conflict_management: convertir string a int
+      if (data['communication_style'] is String) {
+        data['communication_style'] = int.tryParse(data['communication_style']) ?? 5;
+      }
+      if (data['conflict_management'] is String) {
+        data['conflict_management'] = int.tryParse(data['conflict_management']) ?? 5;
+      }
+
+      return Habits.fromJson(data);
     } catch (e) {
       return null;
     }
@@ -92,13 +107,45 @@ class SupabaseDatabaseService {
     final habitsData = habits.toJson();
     habitsData.remove('createdAt');
     habitsData.remove('updatedAt');
+    habitsData.remove('id'); // Let DB generate ID on upsert
+
+    // Adapt model values to Supabase schema expectations
+    habitsData['sleep_start'] = _formatHour(habits.sleepStart);
+    habitsData['sleep_end'] = _formatHour(habits.sleepEnd);
+    habitsData['pet_tolerance'] = habits.petTolerance >= 5; // boolean in DB
+    habitsData['work_mode'] = _mapWorkModeToDb(habits.workMode);
+
+    habitsData['time_at_home'] = habits.timeAtHome.clamp(0, 10);
+    habitsData['party_frequency'] = habits.partyFrequency.clamp(0, 7);
+    habitsData['alcohol_frequency'] = habits.alcoholFrequency.clamp(0, 7);
+    habitsData['cleanliness_level'] = habits.cleanlinessLevel.clamp(1, 10);
+    habitsData['noise_tolerance'] = habits.noiseTolerance.clamp(1, 10);
+    habitsData['guests_tolerance'] = habits.guestsTolerance.clamp(0, 10);
+    habitsData['responsibility_level'] = habits.responsibilityLevel.clamp(1, 10);
+
+    // communication_style y conflict_management son TEXT en DB pero INT en modelo
+    // Convertir a string solo si no son null
+    habitsData['communication_style'] = habits.communicationStyle?.toString();
+    habitsData['conflict_management'] = habits.conflictManagement?.toString();
     
     final response = await _supabase
-        .from('habits')
-        .insert(habitsData)
-        .select('*')
-        .single();
-    return Habits.fromJson(response);
+      .from('habits')
+      .upsert(habitsData, onConflict: 'user_id')
+      .select('*')
+      .single();
+    final data = Map<String, dynamic>.from(response);
+    data['sleep_start'] = _parseHourToInt(data['sleep_start']);
+    data['sleep_end'] = _parseHourToInt(data['sleep_end']);
+    data['pet_tolerance'] = _boolToTolerance(data['pet_tolerance']);
+    // NO convertir work_mode aquí, dejar que fromJson lo haga
+    // communication_style y conflict_management: convertir string a int
+    if (data['communication_style'] is String) {
+      data['communication_style'] = int.tryParse(data['communication_style']) ?? 5;
+    }
+    if (data['conflict_management'] is String) {
+      data['conflict_management'] = int.tryParse(data['conflict_management']) ?? 5;
+    }
+    return Habits.fromJson(data);
   }
 
   Future<void> updateHabits(String habitsId,
@@ -109,13 +156,65 @@ class SupabaseDatabaseService {
         .eq('id', habitsId);
   }
 
+  // ==================== HELPERS ====================
+  int _parseHourToInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String && value.contains(':')) {
+      final parts = value.split(':');
+      return int.tryParse(parts.first) ?? 0;
+    }
+    return 0;
+  }
+
+  String _formatHour(int hour) {
+    final normalized = hour.clamp(0, 23).toString().padLeft(2, '0');
+    return '$normalized:00';
+  }
+
+  int _boolToTolerance(dynamic value) {
+    if (value is bool) return value ? 10 : 0;
+    if (value is num) return value.toInt();
+    return 0;
+  }
+
+  String _mapWorkModeToDb(WorkMode mode) {
+    // Usar los valores que Supabase acepta actualmente
+    switch (mode) {
+      case WorkMode.remote:
+        return 'remote';
+      case WorkMode.office:
+        return 'office';
+      case WorkMode.hybrid:
+        return 'hybrid';
+    }
+  }
+
+  WorkMode _mapWorkModeFromDb(dynamic value) {
+    switch (value) {
+      case 'remote':
+        return WorkMode.remote;
+      case 'presencial':
+      case 'office':
+        return WorkMode.office;
+      case 'hibrido':
+      case 'hybrid':
+      default:
+        return WorkMode.hybrid;
+    }
+  }
+
   // ==================== PROPERTIES ====================
-  Future<List<Property>> getProperties({int limit = 20, int offset = 0}) async {
-    final response = await _supabase
+  Future<List<Property>> getProperties({int limit = 20, int offset = 0, String? excludeUserId}) async {
+    var query = _supabase
         .from('properties')
         .select('*')
-        .eq('is_active', true)
-        .range(offset, offset + limit - 1);
+        .eq('is_active', true);
+
+    if (excludeUserId != null && excludeUserId.isNotEmpty) {
+      query = query.neq('owner_id', excludeUserId);
+    }
+
+    final response = await query.range(offset, offset + limit - 1);
     return (response as List).map((p) => Property.fromJson(p)).toList();
   }
 
@@ -132,6 +231,75 @@ class SupabaseDatabaseService {
     final response =
         await _supabase.from('properties').select('*').eq('owner_id', userId);
     return (response as List).map((p) => Property.fromJson(p)).toList();
+  }
+
+  Future<List<String>> getPropertyImages(String propertyId) async {
+    final response = await _supabase
+        .from('property_images')
+        .select('image_url')
+        .eq('property_id', propertyId)
+        .order('created_at');
+    return (response as List)
+        .map((item) => item['image_url'] as String)
+        .toList();
+  }
+
+  Future<void> addPropertyImage(String propertyId, String imageUrl) async {
+    await _supabase.from('property_images').insert({
+      'property_id': propertyId,
+      'image_url': imageUrl,
+    });
+  }
+
+  Future<void> deletePropertyImageByUrl(String propertyId, String imageUrl) async {
+    await _supabase
+        .from('property_images')
+        .delete()
+        .eq('property_id', propertyId)
+        .eq('image_url', imageUrl);
+  }
+
+  // ==================== ROOMMATE SEARCH IMAGES ====================
+  Future<List<String>> getRoommateSearchImages(String searchId) async {
+    try {
+      print('🔍 Buscando imágenes para searchId: $searchId');
+      final response = await _supabase
+          .from('roommate_search_images')
+          .select('image_url')
+          .eq('search_id', searchId)
+          .order('created_at');
+      print('✅ Respuesta de roommate_search_images: $response');
+      return (response as List)
+          .map((item) => item['image_url'] as String)
+          .toList();
+    } catch (e) {
+      print('❌ Error obteniendo imágenes de roommate: $e');
+      return [];
+    }
+  }
+
+  Future<void> addRoommateSearchImage(String searchId, String imageUrl) async {
+    await _supabase.from('roommate_search_images').insert({
+      'search_id': searchId,
+      'image_url': imageUrl,
+    });
+  }
+
+  Future<void> deleteRoommateSearchImageByUrl(String searchId, String imageUrl) async {
+    await _supabase
+        .from('roommate_search_images')
+        .delete()
+        .eq('search_id', searchId)
+        .eq('image_url', imageUrl);
+  }
+
+  /// Obtener búsquedas de compañero del usuario
+  Future<List<RoommateSearch>> getUserRoommateSearches(String userId) async {
+    final response = await _supabase
+        .from('roommate_searches')
+        .select('*')
+        .eq('user_id', userId);
+    return (response as List).map((r) => RoommateSearch.fromJson(r)).toList();
   }
 
   Future<Property> createProperty(Property property) async {
@@ -153,6 +321,25 @@ class SupabaseDatabaseService {
         .from('properties')
         .update(updates)
         .eq('id', propertyId);
+  }
+
+  /// Actualizar una búsqueda de compañero
+  Future<void> updateRoommateSearch(String searchId,
+      Map<String, dynamic> updates) async {
+    await _supabase
+        .from('roommate_searches')
+        .update(updates)
+        .eq('id', searchId);
+  }
+
+  /// Crear una nueva búsqueda de compañero
+  Future<RoommateSearch> createRoommateSearch(RoommateSearch search) async {
+    final response = await _supabase
+        .from('roommate_searches')
+        .insert(search.toJson())
+        .select()
+        .single();
+    return RoommateSearch.fromJson(response);
   }
 
   // ==================== MATCHES ====================
@@ -197,6 +384,78 @@ class SupabaseDatabaseService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Verificar si hay un swipe mutuo LIKE entre dos usuarios
+  Future<bool> checkMutualLike(String userId1, String userId2) async {
+    try {
+      // Verificar si ambos hicieron swipe LIKE entre sí
+      final swipe1 = await _supabase
+          .from('swipes')
+          .select('id')
+          .eq('swiper_id', userId1)
+          .eq('target_user_id', userId2)
+          .eq('direction', 'like')
+          .maybeSingle();
+
+      final swipe2 = await _supabase
+          .from('swipes')
+          .select('id')
+          .eq('swiper_id', userId2)
+          .eq('target_user_id', userId1)
+          .eq('direction', 'like')
+          .maybeSingle();
+
+      // Si ambos swipes existen, hay match mutuo
+      return swipe1 != null && swipe2 != null;
+    } catch (e) {
+      print('Error verificando swipe mutuo: $e');
+      return false;
+    }
+  }
+
+  /// Verificar si ya existe un match entre dos usuarios
+  Future<Match?> getExistingMatch(String userId1, String userId2) async {
+    try {
+      final response = await _supabase
+          .from('matches')
+          .select('*')
+          .or('user_a.eq.$userId1,user_a.eq.$userId2')
+          .or('user_b.eq.$userId1,user_b.eq.$userId2')
+          .maybeSingle();
+
+      if (response == null) return null;
+      return Match.fromJson(response);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ==================== ELIMINAR PUBLICACIONES ====================
+  /// Eliminar una propiedad
+  Future<void> deleteProperty(String propertyId) async {
+    try {
+      await _supabase
+          .from('properties')
+          .delete()
+          .eq('id', propertyId);
+    } catch (e) {
+      print('Error eliminando propiedad: $e');
+      rethrow;
+    }
+  }
+
+  /// Eliminar una búsqueda de compañero
+  Future<void> deleteRoommateSearch(String searchId) async {
+    try {
+      await _supabase
+          .from('roommate_searches')
+          .delete()
+          .eq('id', searchId);
+    } catch (e) {
+      print('Error eliminando búsqueda de compañero: $e');
+      rethrow;
     }
   }
 }

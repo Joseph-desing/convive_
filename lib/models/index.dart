@@ -9,3 +9,4 @@ export 'match.dart';
 export 'chat.dart';
 export 'message.dart';
 export 'subscription.dart';
+export 'roommate_search.dart';

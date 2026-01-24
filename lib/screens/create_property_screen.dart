@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
+import 'dart:typed_data';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CreatePropertyScreen extends StatefulWidget {
-  const CreatePropertyScreen({Key? key}) : super(key: key);
+  final Property? property;
+
+  const CreatePropertyScreen({Key? key, this.property}) : super(key: key);
 
   @override
   State<CreatePropertyScreen> createState() => _CreatePropertyScreenState();
@@ -55,10 +58,46 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   DateTime _availableFrom = DateTime.now();
   
   // Imágenes
-  final List<File> _imageFiles = [];
+  final List<XFile> _imageFiles = [];
+  final List<String> _existingImageUrls = [];
+  final List<String> _deletedImageUrls = [];
   final ImagePicker _picker = ImagePicker();
   
   bool _isLoading = false;
+  bool _isLoadingImages = false;
+
+  bool get _isEditing => widget.property != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final prop = widget.property!;
+      _titleController.text = prop.title;
+      _descriptionController.text = prop.description;
+      _priceController.text = prop.price.toStringAsFixed(0);
+      _addressController.text = prop.address;
+      _availableFrom = prop.availableFrom;
+      _latitude = prop.latitude;
+      _longitude = prop.longitude;
+      _isActive = prop.isActive;
+      _loadExistingImages();
+    }
+  }
+
+  Future<void> _loadExistingImages() async {
+    setState(() => _isLoadingImages = true);
+    try {
+      final urls = await SupabaseProvider.databaseService
+          .getPropertyImages(widget.property!.id);
+      setState(() {
+        _existingImageUrls.addAll(urls);
+        _isLoadingImages = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingImages = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,9 +113,9 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
         title: ShaderMask(
           shaderCallback: (bounds) =>
               AppColors.primaryGradient.createShader(bounds),
-          child: const Text(
-            'Publicar Propiedad',
-            style: TextStyle(
+          child: Text(
+            _isEditing ? 'Editar Propiedad' : 'Publicar Propiedad',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -351,7 +390,9 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
           ),
           const SizedBox(height: 32),
           
-          if (_imageFiles.isEmpty)
+          if (_isLoadingImages)
+            const Center(child: CircularProgressIndicator())
+          else if (_existingImageUrls.isEmpty && _imageFiles.isEmpty)
             _buildAddPhotoButton()
           else
             _buildPhotoGrid(),
@@ -413,6 +454,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   }
 
   Widget _buildPhotoGrid() {
+    final totalImages = _existingImageUrls.length + _imageFiles.length;
     return Column(
       children: [
         GridView.builder(
@@ -424,14 +466,86 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             mainAxisSpacing: 12,
             childAspectRatio: 1,
           ),
-          itemCount: _imageFiles.length + 1,
+          itemCount: totalImages + 1,
           itemBuilder: (context, index) {
-            if (index == _imageFiles.length) {
+            if (index == totalImages) {
               return _buildAddMoreButton();
             }
-            return _buildPhotoItem(_imageFiles[index], index);
+            // Primero mostrar imágenes existentes, luego nuevas
+            if (index < _existingImageUrls.length) {
+              return _buildExistingPhotoItem(_existingImageUrls[index], index);
+            } else {
+              final newIndex = index - _existingImageUrls.length;
+              return _buildPhotoItem(_imageFiles[newIndex], index);
+            }
           },
         ),
+      ],
+    );
+  }
+
+  Widget _buildExistingPhotoItem(String imageUrl, int index) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            imageUrl,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: AppColors.background,
+                child: const Icon(Icons.broken_image, size: 50),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _deletedImageUrls.add(_existingImageUrls[index]);
+                _existingImageUrls.removeAt(index);
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 16,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        if (index == 0)
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Principal',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -467,26 +581,31 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     );
   }
 
-  Widget _buildPhotoItem(File imageFile, int index) {
+  Widget _buildPhotoItem(XFile imageFile, int index) {
     return Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: kIsWeb
-              ? Image.network(
-                  imageFile.path,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
+              ? FutureBuilder<Uint8List>(
+                  future: imageFile.readAsBytes(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return Image.memory(
+                        snapshot.data!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      );
+                    }
                     return Container(
                       color: AppColors.background,
-                      child: const Icon(Icons.image, size: 50),
+                      child: const CircularProgressIndicator(),
                     );
                   },
                 )
               : Image.file(
-                  imageFile,
+                  File(imageFile.path),
                   width: double.infinity,
                   height: double.infinity,
                   fit: BoxFit.cover,
@@ -763,7 +882,9 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                       ),
                     )
                   : Text(
-                      _currentStep == 2 ? 'Publicar' : 'Continuar',
+                      _currentStep == 2
+                          ? (_isEditing ? 'Guardar cambios' : 'Publicar')
+                          : 'Continuar',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -787,7 +908,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
 
     if (image != null) {
       setState(() {
-        _imageFiles.add(File(image.path));
+        _imageFiles.add(image);
       });
     }
   }
@@ -805,9 +926,16 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   }
 
   Future<void> _publishProperty() async {
-    if (_imageFiles.isEmpty) {
+    if (!_isEditing && _imageFiles.isEmpty && _existingImageUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Agrega al menos una foto')),
+      );
+      return;
+    }
+
+    if (_isEditing && _imageFiles.isEmpty && _existingImageUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes tener al menos una foto')),
       );
       return;
     }
@@ -824,32 +952,64 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
         throw Exception('Debes iniciar sesión');
       }
 
-      // Crear propiedad
-      final property = Property(
-        ownerId: authUser.id,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        price: double.parse(_priceController.text),
-        address: _addressController.text,
-        latitude: _latitude ?? 0.0,
-        longitude: _longitude ?? 0.0,
-        availableFrom: _availableFrom,
-        isActive: _isActive,
-      );
+      if (_isEditing) {
+        await SupabaseProvider.databaseService.updateProperty(
+          widget.property!.id,
+          {
+            'title': _titleController.text,
+            'description': _descriptionController.text,
+            'price': double.tryParse(_priceController.text) ??
+                widget.property!.price,
+            'address': _addressController.text,
+            'latitude': _latitude ?? widget.property!.latitude,
+            'longitude': _longitude ?? widget.property!.longitude,
+            'available_from': _availableFrom.toIso8601String(),
+            'is_active': _isActive,
+          },
+        );
 
-      final createdProperty = await SupabaseProvider.databaseService.createProperty(property);
+        // Eliminar imágenes marcadas para borrar
+        for (final url in _deletedImageUrls) {
+          await SupabaseProvider.databaseService
+              .deletePropertyImageByUrl(widget.property!.id, url);
+        }
 
-      // TODO: Subir imágenes al Storage de Supabase
-      // Por ahora solo guardamos la propiedad sin imágenes
+        if (_imageFiles.isNotEmpty) {
+          await _uploadPropertyImages(widget.property!.id);
+        }
+      } else {
+        final property = Property(
+          ownerId: authUser.id,
+          title: _titleController.text,
+          description: _descriptionController.text,
+          price: double.parse(_priceController.text),
+          address: _addressController.text,
+          latitude: _latitude ?? 0.0,
+          longitude: _longitude ?? 0.0,
+          availableFrom: _availableFrom,
+          isActive: _isActive,
+        );
+
+        final createdProperty =
+            await SupabaseProvider.databaseService.createProperty(property);
+
+        if (_imageFiles.isNotEmpty) {
+          await _uploadPropertyImages(createdProperty.id);
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Propiedad publicada exitosamente!'),
+          SnackBar(
+            content: Text(
+              _isEditing
+                  ? 'Propiedad actualizada'
+                  : '¡Propiedad publicada exitosamente!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -861,6 +1021,17 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _uploadPropertyImages(String propertyId) async {
+    for (final file in _imageFiles) {
+      final url = await SupabaseProvider.storageService.uploadPropertyImageXFile(
+        propertyId: propertyId,
+        file: file,
+      );
+      await SupabaseProvider.databaseService
+          .addPropertyImage(propertyId, url);
     }
   }
 
