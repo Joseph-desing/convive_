@@ -6,6 +6,9 @@ import '../providers/auth_provider.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import 'package:intl/intl.dart';
+import '../config/supabase_provider.dart';
+import '../models/match.dart' as models;
+import '../models/profile.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({Key? key}) : super(key: key);
@@ -153,37 +156,87 @@ class _ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: AppColors.primaryGradient,
-          ),
-          child: const Center(
-            child: Icon(Icons.person, color: Colors.white, size: 28),
-          ),
-        ),
-        title: Text(
-          'Chat ${chat.id.substring(0, 8)}...',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          'Match creado ${DateFormat('dd MMM').format(chat.createdAt)}',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.primary),
-        onTap: onTap,
+      child: FutureBuilder<models.Match?>(
+        future: SupabaseProvider.databaseService.getMatch(chat.matchId),
+        builder: (context, matchSnapshot) {
+          if (!matchSnapshot.hasData) {
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                ),
+                child: const Center(
+                  child: Icon(Icons.person, color: Colors.white, size: 28),
+                ),
+              ),
+              title: const Text('Cargando...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              subtitle: Text('Match creado ${DateFormat('dd MMM').format(chat.createdAt)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.primary),
+              onTap: onTap,
+            );
+          }
+          final match = matchSnapshot.data;
+          if (match == null) {
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                ),
+                child: const Center(
+                  child: Icon(Icons.person, color: Colors.white, size: 28),
+                ),
+              ),
+              title: Text('Chat ${chat.id.substring(0, 8)}...'),
+              subtitle: Text('Match creado ${DateFormat('dd MMM').format(chat.createdAt)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.primary),
+              onTap: onTap,
+            );
+          }
+          final otherUserId = match.userA == currentUserId ? match.userB : match.userA;
+          return FutureBuilder<Profile?>(
+            future: SupabaseProvider.databaseService.getProfile(otherUserId),
+            builder: (context, profileSnapshot) {
+              final name = profileSnapshot.data?.fullName ?? 'Usuario';
+              final imageUrl = profileSnapshot.data?.profileImageUrl ?? null;
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.primaryGradient,
+                    image: imageUrl != null ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) : null,
+                  ),
+                  child: imageUrl == null
+                      ? const Center(child: Icon(Icons.person, color: Colors.white, size: 28))
+                      : null,
+                ),
+                title: Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                subtitle: Text('Match creado ${DateFormat('dd MMM').format(chat.createdAt)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: AppColors.primary),
+                onTap: onTap,
+              );
+            },
+          );
+        },
       ),
     );
   }
