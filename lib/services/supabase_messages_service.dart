@@ -154,4 +154,49 @@ class SupabaseMessagesService {
           return Message.fromJson(data.last);
         });
   }
+
+  /// Obtener la fecha de último leído para un chat y usuario (versión robusta con single)
+  Future<DateTime?> getLastReadAt(String chatId, String userId) async {
+    try {
+        final response = await _supabase
+          .from('chat_reads')
+          .select('last_read_at')
+          .eq('chat_id', chatId)
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+        print('DEBUG getLastReadAt response: $response');
+        if (response == null || response['last_read_at'] == null) return null;
+        final value = response['last_read_at'];
+        print('DEBUG last_read_at value: $value, type: \'${value.runtimeType}\'');
+        if (value is DateTime) return value;
+        if (value is String && value.isNotEmpty) {
+          try {
+            return DateTime.parse(value);
+          } catch (e) {
+            print('Error parseando last_read_at: $e');
+            return null;
+          }
+        }
+        return null;
+    } catch (e) {
+      print('Error obteniendo lastReadAt (robusto): $e');
+      return null;
+    }
+  }
+
+  /// Actualizar la fecha de último leído para un chat y usuario
+  Future<void> updateLastReadAt(String chatId, String userId) async {
+    try {
+      await _supabase
+          .from('chat_reads')
+          .upsert({
+            'chat_id': chatId,
+            'user_id': userId,
+            'last_read_at': DateTime.now().toUtc().toIso8601String(),
+          });
+    } catch (e) {
+      print('Error actualizando lastReadAt: $e');
+    }
+  }
 }

@@ -150,4 +150,10 @@ class MessagesProvider extends ChangeNotifier {
     _selectedChatId = null;
     _error = null;
   }
+
+  /// Limpiar el cache de mensajes
+  void clearMessagesCache() {
+    _messages.clear();
+    notifyListeners();
+  }
 }

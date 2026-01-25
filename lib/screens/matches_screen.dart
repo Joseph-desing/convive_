@@ -394,7 +394,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                   const SizedBox(width: 4),
                                   Text(
                                     match.contextType == 'property'
-                                        ? '📦 Propietario busca compañero/a'
+                                        ? '📦 Busca compañero/a'
                                         : '🔍 Busca departamento',
                                     style: TextStyle(
                                       color: match.contextType == 'property'

@@ -28,47 +28,53 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadChat() async {
-    setState(() => _isLoading = true);
-    
+    if (mounted) setState(() => _isLoading = true);
     try {
       // Obtener o crear chat para este match
       final chat = await SupabaseProvider.messagesService.getOrCreateChat(widget.matchId);
       _chatId = chat.id;
       print('💬 Chat ID: $_chatId');
-      
+
+      // Obtener información del usuario actual
+      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+      // Actualizar lastReadAt para este usuario y chat (apenas se abre el chat)
+      if (_chatId != null && currentUserId != null) {
+        await SupabaseProvider.messagesService.updateLastReadAt(_chatId!, currentUserId);
+      }
+
       // Cargar mensajes
       final messages = await SupabaseProvider.messagesService.getChatMessages(_chatId!);
       print('📨 Mensajes cargados: ${messages.length}');
-      
-      // Obtener información del otro usuario
-      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
-      print('👤 Usuario actual: $currentUserId');
-      
+
       final match = await SupabaseProvider.databaseService.getMatch(widget.matchId);
       print('🤝 Match obtenido: ${match?.id}');
-      
+
       if (match != null) {
         print('👥 Match userA: ${match.userA}, userB: ${match.userB}');
         final otherUserId = match.userA == currentUserId ? match.userB : match.userA;
         print('🎯 Otro usuario ID: $otherUserId');
-        
+
         final profile = await SupabaseProvider.databaseService.getProfile(otherUserId);
         print('📸 Perfil cargado: ${profile?.fullName ?? "null"}');
-        
-        setState(() {
-          _messages = messages;
-          _otherUserProfile = profile;
-          _isLoading = false;
-        });
-        
-        _scrollToBottom();
+
+        if (mounted) {
+          setState(() {
+            _messages = messages;
+            _otherUserProfile = profile;
+            _isLoading = false;
+          });
+          // Esperar al próximo frame para hacer scroll
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
       } else {
         print('❌ Match no encontrado');
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       print('❌ Error cargando chat: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -87,76 +93,96 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _chatId == null) return;
-    
+
     _messageController.clear();
-    
+
     try {
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
       if (currentUserId == null) return;
-      
+
       await SupabaseProvider.messagesService.sendMessage(
         chatId: _chatId!,
         senderId: currentUserId,
         content: text,
       );
-      
+
       // Recargar mensajes
-      await _loadChat();
+      if (mounted) await _loadChat();
     } catch (e) {
       print('❌ Error enviando mensaje: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error enviando mensaje')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error enviando mensaje')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: _isLoading
-            ? const Text('Cargando...')
-            : Row(
-                children: [
-                  if (_otherUserProfile != null)
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundImage: NetworkImage(
-                        _otherUserProfile!.profileImageUrl ??
-                            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_otherUserProfile!.fullName)}&background=9C27B0&color=fff',
+    return WillPopScope(
+      onWillPop: () async {
+        // Actualizar lastReadAt justo antes de salir
+        final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+        if (_chatId != null && currentUserId != null) {
+          await SupabaseProvider.messagesService.updateLastReadAt(_chatId!, currentUserId);
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () async {
+              final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+              if (_chatId != null && currentUserId != null) {
+                await SupabaseProvider.messagesService.updateLastReadAt(_chatId!, currentUserId);
+                await Future.delayed(const Duration(milliseconds: 300));
+              }
+              Navigator.pop(context);
+            },
+          ),
+          title: _isLoading
+              ? const Text('Cargando...')
+              : Row(
+                  children: [
+                    if (_otherUserProfile != null)
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundImage: NetworkImage(
+                          _otherUserProfile!.profileImageUrl ??
+                              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_otherUserProfile!.fullName)}&background=9C27B0&color=fff',
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _otherUserProfile?.fullName ?? 'Usuario',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _otherUserProfile?.fullName ?? 'Usuario',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  ],
+                ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: _messages.isEmpty
+                        ? _buildEmptyState()
+                        : _buildMessagesList(),
                   ),
+                  _buildMessageInput(),
                 ],
               ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Expanded(
-                  child: _messages.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMessagesList(),
-                ),
-                _buildMessageInput(),
-              ],
-            ),
     );
   }
 
