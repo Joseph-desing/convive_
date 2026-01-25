@@ -77,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _properties = propertyProvider.properties;
         _roommateSearches = roommateProvider.searches;
         _isLoading = false;
+        print('📊 Datos cargados: ${_properties.length} propiedades, ${_roommateSearches.length} búsquedas roommate');
       });
     } catch (e) {
       print('Error cargando datos: $e');
@@ -476,16 +477,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     // Obtener targetUserId buscando en properties o roommate searches
     String? targetUserId;
+    String? contextType;
+    String? contextId;
     
     // Buscar en properties
     final property = _properties.where((p) => p.id == currentProperty.id).firstOrNull;
     if (property != null) {
       targetUserId = property.ownerId;
+      contextType = 'property';
+      contextId = property.id;
+      print('🏠 Contexto detectado: PROPERTY (${property.id})');
     } else {
       // Buscar en roommate searches
       final search = _roommateSearches.where((r) => r.id == currentProperty.id).firstOrNull;
       if (search != null) {
         targetUserId = search.userId;
+        contextType = 'roommate_search';
+        contextId = search.id;
+        print('🔍 Contexto detectado: ROOMMATE_SEARCH (${search.id})');
       }
     }
     
@@ -529,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Crear match incluso si solo tú diste like (mostrar conexión al receptor)
       final existingMatch = await SupabaseProvider.databaseService
-          .getExistingMatch(currentUserId, targetUserId);
+          .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
 
       if (existingMatch == null) {
         print('🎉 ¡MATCH/CONEXIÓN CREADA!');
@@ -537,12 +546,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Calcular compatibilidad
         final compatibility = _calculateCompatibility(targetUserId);
 
-        // Crear el match
+        // Crear el match con contexto
         final match = await SupabaseProvider.databaseService.createMatch(
           Match(
             userA: currentUserId,
             userB: targetUserId,
             compatibilityScore: compatibility.toDouble(),
+            contextType: contextType ?? 'general',
+            contextId: contextId,
           ),
         );
 
@@ -567,6 +578,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final List<PropertyData> all = [];
     all.addAll(_properties.map((p) => _convertToPropertyData(p)));
     all.addAll(_roommateSearches.map((r) => _convertRoommateToPropertyData(r)));
+    print('📋 _getAllProperties: ${_properties.length} propiedades + ${_roommateSearches.length} roommate = ${all.length} total');
     return all;
   }
 

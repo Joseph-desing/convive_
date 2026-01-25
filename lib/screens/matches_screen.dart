@@ -369,8 +369,47 @@ class _MatchesScreenState extends State<MatchesScreen> {
                               ],
                             ),
                           ),
-                          // Badge de tipo de búsqueda (solo si tenemos dato)
-                          if (_userTypeCache[otherUserId] != null && _userTypeCache[otherUserId] != 'unknown')
+                          // Badge de contexto (si existe)
+                          if (match.contextType != null && match.contextType!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: match.contextType == 'property'
+                                    ? Colors.blue.shade100
+                                    : Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    match.contextType == 'property'
+                                        ? Icons.home
+                                        : Icons.search,
+                                    color: match.contextType == 'property'
+                                        ? Colors.blue.shade700
+                                        : Colors.orange.shade700,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    match.contextType == 'property'
+                                        ? '📦 Propietario busca compañero/a'
+                                        : '🔍 Busca departamento',
+                                    style: TextStyle(
+                                      color: match.contextType == 'property'
+                                          ? Colors.blue.shade700
+                                          : Colors.orange.shade700,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Badge de tipo de búsqueda (solo si tenemos dato y no hay contexto)
+                          if ((match.contextType == null || match.contextType!.isEmpty) &&
+                              _userTypeCache[otherUserId] != null && _userTypeCache[otherUserId] != 'unknown')
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(

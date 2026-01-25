@@ -372,6 +372,12 @@ class SupabaseDatabaseService {
     final matchData = match.toJson();
     matchData['user_a_id'] = ordered.first;
     matchData['user_b_id'] = ordered.last;
+    // Asegurar que contextType nunca sea null
+    matchData['context_type'] = match.contextType ?? 'general';
+    // Si contextId es null, usar string 'null' para la BD
+    if (matchData['context_id'] == null) {
+      matchData['context_id'] = null; // Supabase manejará null correctamente
+    }
     // No enviar ID para no intentar actualizar la PK en caso de conflicto
     matchData.remove('id');
     matchData.remove('createdAt');
@@ -382,7 +388,7 @@ class SupabaseDatabaseService {
         .from('matches')
         .upsert(
           matchData,
-          onConflict: 'user_a_id,user_b_id',
+          onConflict: 'user_a_id,user_b_id,context_type,context_id',
         )
         .select('*')
         .single();
@@ -475,14 +481,26 @@ class SupabaseDatabaseService {
     }
   }
 
-  /// Verificar si ya existe un match entre dos usuarios
-  Future<Match?> getExistingMatch(String userId1, String userId2) async {
+  /// Verificar si ya existe un match entre dos usuarios (filtrando por contexto)
+  Future<Match?> getExistingMatch(String userId1, String userId2, 
+      [String? contextType, String? contextId]) async {
     try {
-      // Buscar ambas orientaciones en un OR compuesto
+      // Normalizar orden de usuarios
+      final ordered = [userId1, userId2]..sort();
+      final ua = ordered.first;
+      final ub = ordered.last;
+      
+      // Normalizar contextType (default 'general' si es null)
+      final ct = contextType ?? 'general';
+      
+      // Buscar match con el mismo contexto exacto
       final response = await _supabase
           .from('matches')
           .select('*')
-          .or('and(user_a_id.eq.$userId1,user_b_id.eq.$userId2),and(user_a_id.eq.$userId2,user_b_id.eq.$userId1)')
+          .eq('user_a_id', ua)
+          .eq('user_b_id', ub)
+          .eq('context_type', ct)
+          .eq('context_id', contextId ?? 'null')
           .maybeSingle();
 
       if (response == null) return null;

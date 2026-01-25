@@ -22,6 +22,12 @@ class Match {
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
+  @JsonKey(name: 'context_type')
+  final String? contextType; // 'property' o 'roommate_search'
+
+  @JsonKey(name: 'context_id')
+  final String? contextId; // ID de la propiedad o búsqueda
+
   Match({
     String? id,
     required this.userA,
@@ -29,6 +35,8 @@ class Match {
     required this.compatibilityScore,
     DateTime? createdAt,
     this.updatedAt,
+    this.contextType,
+    this.contextId,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
@@ -43,6 +51,8 @@ class Match {
     double? compatibilityScore,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? contextType,
+    String? contextId,
   }) {
     return Match(
       id: id ?? this.id,
@@ -51,6 +61,8 @@ class Match {
       compatibilityScore: compatibilityScore ?? this.compatibilityScore,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      contextType: contextType ?? this.contextType,
+      contextId: contextId ?? this.contextId,
     );
   }
 }

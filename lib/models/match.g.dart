@@ -17,6 +17,8 @@ Match _$MatchFromJson(Map<String, dynamic> json) => Match(
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
+      contextType: json['context_type'] as String?,
+      contextId: json['context_id'] as String?,
     );
 
 Map<String, dynamic> _$MatchToJson(Match instance) => <String, dynamic>{
@@ -26,4 +28,6 @@ Map<String, dynamic> _$MatchToJson(Match instance) => <String, dynamic>{
       'compatibility_score': instance.compatibilityScore,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
+      'context_type': instance.contextType,
+      'context_id': instance.contextId,
     };
