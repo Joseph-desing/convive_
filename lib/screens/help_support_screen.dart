@@ -65,7 +65,7 @@ class HelpSupportScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1),
                 _buildFAQTile(
-                  question: '¿Cómo encuentro un roommate compatible?',
+                  question: '¿Cómo encuentro un compañero/a compatible?',
                   answer: 'Usa los filtros de búsqueda para encontrar personas con hábitos y preferencias similares. Puedes ver sus perfiles y enviar solicitudes de contacto.',
                 ),
                 const Divider(height: 1),
@@ -99,7 +99,7 @@ class HelpSupportScreen extends StatelessWidget {
                 _buildResourceTile(
                   icon: Icons.tips_and_updates_outlined,
                   title: 'Consejos de seguridad',
-                  subtitle: 'Cómo encontrar roommate seguro',
+                  subtitle: 'Cómo encontrar compañero/a seguro',
                   onTap: () => _showSafetyTipsDialog(context),
                 ),
                 const Divider(height: 1),
@@ -326,7 +326,7 @@ class HelpSupportScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: const [
               Text(
-                '• Conoce a tu futuro roommate en persona antes de firmar\n\n'
+                '• Conoce a tu futuro compañero/a en persona antes de firmar\n\n'
                 '• Revisa referencias y verifica identidad\n\n'
                 '• No compartas información financiera sensible\n\n'
                 '• Visita la propiedad antes de comprometerte\n\n'

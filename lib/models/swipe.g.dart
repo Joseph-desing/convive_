@@ -8,20 +8,20 @@ part of 'swipe.dart';
 
 Swipe _$SwipeFromJson(Map<String, dynamic> json) => Swipe(
       id: json['id'] as String?,
-      swiperId: json['swiperId'] as String,
-      targetUserId: json['targetUserId'] as String,
+      swiperId: json['swiper_id'] as String,
+      targetUserId: json['target_user_id'] as String,
       direction: $enumDecode(_$SwipeDirectionEnumMap, json['direction']),
-      createdAt: json['createdAt'] == null
+      createdAt: json['created_at'] == null
           ? null
-          : DateTime.parse(json['createdAt'] as String),
+          : DateTime.parse(json['created_at'] as String),
     );
 
 Map<String, dynamic> _$SwipeToJson(Swipe instance) => <String, dynamic>{
       'id': instance.id,
-      'swiperId': instance.swiperId,
-      'targetUserId': instance.targetUserId,
+      'swiper_id': instance.swiperId,
+      'target_user_id': instance.targetUserId,
       'direction': _$SwipeDirectionEnumMap[instance.direction]!,
-      'createdAt': instance.createdAt.toIso8601String(),
+      'created_at': instance.createdAt.toIso8601String(),
     };
 
 const _$SwipeDirectionEnumMap = {

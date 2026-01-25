@@ -347,20 +347,46 @@ class SupabaseDatabaseService {
     final response = await _supabase
         .from('matches')
         .select('*')
-        .or('user_a.eq.$userId,user_b.eq.$userId');
+        .or('user_a_id.eq.$userId,user_b_id.eq.$userId');
     return (response as List).map((m) => Match.fromJson(m)).toList();
   }
 
+  Future<Match?> getMatch(String matchId) async {
+    try {
+      final response = await _supabase
+          .from('matches')
+          .select('*')
+          .eq('id', matchId)
+          .single();
+      return Match.fromJson(response);
+    } catch (e) {
+      print('❌ Error obteniendo match: $e');
+      return null;
+    }
+  }
+
   Future<Match> createMatch(Match match) async {
+    // Normalizar el orden para evitar duplicados (A,B) y (B,A)
+    final ordered = [match.userA, match.userB]..sort();
+
     final matchData = match.toJson();
+    matchData['user_a_id'] = ordered.first;
+    matchData['user_b_id'] = ordered.last;
+    // No enviar ID para no intentar actualizar la PK en caso de conflicto
+    matchData.remove('id');
     matchData.remove('createdAt');
     matchData.remove('updatedAt');
-    
+
+    // upsert evita el error de unique; devuelve la fila existente o la nueva
     final response = await _supabase
         .from('matches')
-        .insert(matchData)
+        .upsert(
+          matchData,
+          onConflict: 'user_a_id,user_b_id',
+        )
         .select('*')
         .single();
+
     return Match.fromJson(response);
   }
 
@@ -369,8 +395,17 @@ class SupabaseDatabaseService {
     final swipeData = swipe.toJson();
     swipeData.remove('createdAt');
     swipeData.remove('updatedAt');
-    
-    await _supabase.from('swipes').insert(swipeData);
+
+    // Evitar violar la restricción única (swiper_id, target_user_id).
+    // Si ya existe un swipe previo, lo actualizamos con la nueva dirección.
+    await _supabase
+        .from('swipes')
+        .upsert(
+          swipeData,
+          onConflict: 'swiper_id,target_user_id',
+        )
+        .select('id')
+        .maybeSingle();
   }
 
   Future<bool> hasSwipedBefore(String swiperId, String targetUserId) async {
@@ -387,24 +422,49 @@ class SupabaseDatabaseService {
     }
   }
 
+  Future<bool> hasSwipedLike(String swiperId, String targetUserId) async {
+    try {
+      print('🔍 Verificando si $swiperId dio like a $targetUserId');
+
+      // Evitar el error 406 cuando existen varias filas: limitamos a la primera coincidencia
+      final response = await _supabase
+          .from('swipes')
+          .select('id')
+          .eq('swiper_id', swiperId)
+          .eq('target_user_id', targetUserId)
+          .eq('direction', 'like')
+          .limit(1)
+          .maybeSingle();
+
+      final hasLiked = response != null;
+      print(hasLiked ? '✅ Sí dio like!' : '❌ No ha dado like');
+      return hasLiked;
+    } catch (e) {
+      print('❌ Error verificando like: $e');
+      return false;
+    }
+  }
+
   /// Verificar si hay un swipe mutuo LIKE entre dos usuarios
   Future<bool> checkMutualLike(String userId1, String userId2) async {
     try {
       // Verificar si ambos hicieron swipe LIKE entre sí
-      final swipe1 = await _supabase
+        final swipe1 = await _supabase
           .from('swipes')
           .select('id')
           .eq('swiper_id', userId1)
           .eq('target_user_id', userId2)
           .eq('direction', 'like')
+          .limit(1)
           .maybeSingle();
 
-      final swipe2 = await _supabase
+        final swipe2 = await _supabase
           .from('swipes')
           .select('id')
           .eq('swiper_id', userId2)
           .eq('target_user_id', userId1)
           .eq('direction', 'like')
+          .limit(1)
           .maybeSingle();
 
       // Si ambos swipes existen, hay match mutuo
@@ -418,11 +478,11 @@ class SupabaseDatabaseService {
   /// Verificar si ya existe un match entre dos usuarios
   Future<Match?> getExistingMatch(String userId1, String userId2) async {
     try {
+      // Buscar ambas orientaciones en un OR compuesto
       final response = await _supabase
           .from('matches')
           .select('*')
-          .or('user_a.eq.$userId1,user_a.eq.$userId2')
-          .or('user_b.eq.$userId1,user_b.eq.$userId2')
+          .or('and(user_a_id.eq.$userId1,user_b_id.eq.$userId2),and(user_a_id.eq.$userId2,user_b_id.eq.$userId1)')
           .maybeSingle();
 
       if (response == null) return null;
@@ -430,6 +490,14 @@ class SupabaseDatabaseService {
     } catch (e) {
       return null;
     }
+  }
+
+  /// Eliminar un match (cascade eliminará chat y mensajes asociados)
+  Future<void> deleteMatch(String matchId) async {
+    await _supabase
+        .from('matches')
+        .delete()
+        .eq('id', matchId);
   }
 
   // ==================== ELIMINAR PUBLICACIONES ====================

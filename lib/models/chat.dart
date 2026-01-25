@@ -6,8 +6,14 @@ part 'chat.g.dart';
 @JsonSerializable()
 class Chat {
   final String id;
+  
+  @JsonKey(name: 'match_id')
   final String matchId;
+  
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  
+  @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
   Chat({

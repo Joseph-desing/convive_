@@ -29,7 +29,7 @@ class SupabaseRealtimeService {
   /// Escuchar cambios de estado de match
   RealtimeChannel subscribeToMatches(String userId) {
     return _supabase
-        .channel('matches:user_a=eq.$userId,user_b=eq.$userId')
+        .channel('matches:user_a_id=eq.$userId,user_b_id=eq.$userId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',

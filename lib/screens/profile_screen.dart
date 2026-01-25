@@ -1042,7 +1042,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildPremiumBenefit(
               Icons.flash_on,
               'Match prioritario',
-              'Conecta más rápido con roommates',
+              'Conecta más rápido con compañeros/as',
             ),
             const SizedBox(height: 12),
             _buildPremiumBenefit(
@@ -1212,7 +1212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Encuentra tu roommate ideal más rápido',
+                'Encuentra tu compañero/a ideal más rápido',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,

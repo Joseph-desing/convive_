@@ -7,13 +7,17 @@ import 'profile_screen.dart';
 import 'create_roommate_search_screen.dart';
 import 'create_property_screen.dart';
 import 'messages_screen.dart';
+import 'matches_screen.dart';
 import '../providers/property_provider.dart';
 import '../providers/roommate_search_provider.dart';
 import '../models/property.dart';
 import '../models/roommate_search.dart';
 import '../models/habits.dart';
 import '../models/profile.dart';
+import '../models/swipe.dart';
+import '../models/match.dart';
 import '../config/supabase_provider.dart';
+import '../services/compatibility_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -58,6 +62,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ...propertyProvider.properties.map((p) => p.ownerId),
         ...roommateProvider.searches.map((s) => s.userId),
       }..removeWhere((id) => id.isEmpty);
+
+      // Agregar usuario actual para calcular compatibilidad
+      if (currentUserId != null) {
+        ownerIds.add(currentUserId);
+      }
 
       await _preloadProfiles(ownerIds);
       await _preloadHabits(ownerIds);
@@ -443,23 +452,236 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return const MessagesScreen();
     }
     
-    return Center(
+    // Mostrar la pantalla de matches
+    if (_currentIndex == 1) {
+      return const MatchesScreen();
+    }
+    
+    return const Center(
       child: Text(
-        _currentIndex == 1 ? 'Matches' :
-        _currentIndex == 2 ? 'Mensajes' : 'Perfil',
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        'Perfil',
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
       ),
     );
   }
 
-  void _handleSwipe(bool isLike) {
-    setState(() {
-      if (_currentCardIndex < _properties.length) {
-        // Aquí irá la lógica de guardar el like/dislike
-        print(isLike ? 'Like ❤️' : 'Dislike ✗');
-        _currentCardIndex++;
+  void _handleSwipe(bool isLike) async {
+    if (_currentCardIndex >= _getAllProperties().length) return;
+    
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    
+    final allProperties = _getAllProperties();
+    final currentProperty = allProperties[_currentCardIndex];
+    
+    // Obtener targetUserId buscando en properties o roommate searches
+    String? targetUserId;
+    
+    // Buscar en properties
+    final property = _properties.where((p) => p.id == currentProperty.id).firstOrNull;
+    if (property != null) {
+      targetUserId = property.ownerId;
+    } else {
+      // Buscar en roommate searches
+      final search = _roommateSearches.where((r) => r.id == currentProperty.id).firstOrNull;
+      if (search != null) {
+        targetUserId = search.userId;
       }
+    }
+    
+    if (targetUserId == null) {
+      print('❌ No se pudo determinar el targetUserId');
+      return;
+    }
+    
+    setState(() {
+      _currentCardIndex++;
     });
+
+    if (!isLike) {
+      // Solo guardar el dislike sin verificar match
+      try {
+        await SupabaseProvider.databaseService.createSwipe(
+          Swipe(
+            swiperId: currentUserId,
+            targetUserId: targetUserId,
+            direction: SwipeDirection.dislike,
+          ),
+        );
+        print('👎 Dislike guardado');
+      } catch (e) {
+        print('❌ Error guardando dislike: $e');
+      }
+      return;
+    }
+
+    // Like - guardar y verificar si hay match
+    try {
+      // Guardar el swipe
+      await SupabaseProvider.databaseService.createSwipe(
+        Swipe(
+          swiperId: currentUserId,
+          targetUserId: targetUserId,
+          direction: SwipeDirection.like,
+        ),
+      );
+      print('❤️ Like guardado');
+
+      // Crear match incluso si solo tú diste like (mostrar conexión al receptor)
+      final existingMatch = await SupabaseProvider.databaseService
+          .getExistingMatch(currentUserId, targetUserId);
+
+      if (existingMatch == null) {
+        print('🎉 ¡MATCH/CONEXIÓN CREADA!');
+
+        // Calcular compatibilidad
+        final compatibility = _calculateCompatibility(targetUserId);
+
+        // Crear el match
+        final match = await SupabaseProvider.databaseService.createMatch(
+          Match(
+            userA: currentUserId,
+            userB: targetUserId,
+            compatibilityScore: compatibility.toDouble(),
+          ),
+        );
+
+        // Crear chat automáticamente
+        try {
+          await SupabaseProvider.messagesService.getOrCreateChat(match.id);
+          print('✅ Chat creado automáticamente');
+        } catch (e) {
+          print('⚠️ Error creando chat: $e');
+        }
+
+        // No mostrar diálogo
+      } else {
+        print('ℹ️ Match ya existente, no se duplica');
+      }
+    } catch (e) {
+      print('❌ Error en el proceso de like: $e');
+    }
+  }
+
+  List<PropertyData> _getAllProperties() {
+    final List<PropertyData> all = [];
+    all.addAll(_properties.map((p) => _convertToPropertyData(p)));
+    all.addAll(_roommateSearches.map((r) => _convertRoommateToPropertyData(r)));
+    return all;
+  }
+
+  void _showMatchDialog(String otherUserId, int compatibility) {
+    final otherProfile = _profileCache[otherUserId];
+    final name = otherProfile?.fullName ?? 'Usuario';
+    final imageUrl = otherProfile?.profileImageUrl ??
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=9C27B0&color=fff';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.favorite,
+                color: Colors.white,
+                size: 80,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                '¡Conexión encontrada!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Tú y $name son compatibles para compartir depa o habitación',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$compatibility% Compatible',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              CircleAvatar(
+                radius: 60,
+                backgroundImage: NetworkImage(imageUrl),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Seguir viendo',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() => _currentIndex = 1); // Ir a Matches
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Ver match',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _handleSuperLike() {
@@ -484,6 +706,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? List<String>.from(cachedImages)
         : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(property.title)}'];
 
+    // Calcular compatibilidad real
+    final compatibility = _calculateCompatibility(property.ownerId);
+
     return PropertyData(
       id: property.id,
       images: imageList,
@@ -494,7 +719,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ownerName: ownerName,
       ownerAge: ownerAge,
       ownerImage: ownerImage,
-      compatibility: 85, // TODO: Calcular compatibilidad real
+      compatibility: compatibility,
       isVerified: verified,
       bedrooms: 1, // TODO: Agregar a modelo Property
       amenities: [], // TODO: Agregar a modelo Property
@@ -506,7 +731,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final ownerProfile = _profileCache[search.userId];
     final ownerImage = ownerProfile?.profileImageUrl ??
         'https://ui-avatars.com/api/?name=${Uri.encodeComponent(ownerProfile?.fullName ?? 'User')}&background=9C27B0&color=fff';
-    final ownerName = ownerProfile?.fullName ?? 'Buscando Roommate';
+    final ownerName = ownerProfile?.fullName ?? 'Buscando Compañero/a';
     final ownerAge = _calculateAge(ownerProfile?.birthDate);
     final verified = ownerProfile?.verified ?? search.status == 'active';
 
@@ -515,6 +740,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final imageList = (cachedImages != null && cachedImages.isNotEmpty)
         ? List<String>.from(cachedImages)
         : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(search.title)}'];
+
+    // Calcular compatibilidad real
+    final compatibility = _calculateCompatibility(search.userId);
 
     return PropertyData(
       id: search.id ?? '',
@@ -526,7 +754,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ownerName: ownerName,
       ownerAge: ownerAge,
       ownerImage: ownerImage,
-      compatibility: 85, // TODO: Calcular compatibilidad real
+      compatibility: compatibility,
       isVerified: verified,
       bedrooms: 1,
       amenities: search.habitsPreferences,
@@ -686,6 +914,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     return age;
   }
+
+  int _calculateCompatibility(String otherUserId) {
+    try {
+      // Obtener hábitos del usuario actual
+      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+      if (currentUserId == null) return 50; // Sin usuario, compatibilidad neutra
+
+      final userHabits = _habitsCache[currentUserId];
+      final otherHabits = _habitsCache[otherUserId];
+
+      // Si no hay datos de hábitos, retornar compatibilidad neutra
+      if (userHabits == null || otherHabits == null) {
+        return 50;
+      }
+
+      // Calcular compatibilidad usando el servicio
+      return CompatibilityService.calculateCompatibility(userHabits, otherHabits);
+    } catch (e) {
+      print('❌ Error calculando compatibilidad: $e');
+      return 50; // Compatibilidad neutra en caso de error
+    }
+  }
+
   HabitData _getHabitDataFromOwner(String ownerId) {
     final habits = _habitsCache[ownerId];
     if (habits == null) {

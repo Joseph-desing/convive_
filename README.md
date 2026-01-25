@@ -1,6 +1,6 @@
-# ConVive - App de Roommates con IA
+# ConVive - App de Compañeros/as de Vivienda con IA
 
-**ConVive** es una aplicación mobile que conecta estudiantes y profesionales para encontrar roommates compatibles usando inteligencia artificial. La app utiliza algoritmos de compatibilidad basados en hábitos de vida para hacer matches precisos.
+**ConVive** es una aplicación mobile que conecta estudiantes y profesionales para encontrar compañeros/as de vivienda compatibles usando inteligencia artificial. La app utiliza algoritmos de compatibilidad basados en hábitos de vida para hacer matches precisos.
 
 ## 📋 Tabla de Contenidos
 

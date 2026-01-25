@@ -466,6 +466,6 @@ Tienes una arquitectura profesional, escalable y bien documentada.
 
 ---
 
-*ConVive - Find your perfect roommate*
+*ConVive - Find your perfect companion*
 *Última actualización: 2024*
 *Estado: ✅ COMPLETO Y DOCUMENTADO*

@@ -389,7 +389,7 @@ Total estimado: 4-5 horas
 ═══════════════════════════════════════════════════════════════════════════════
 
 Proyecto: ConVive
-Descripción: Encuentra tu roommate perfecto con IA
+Descripción: Encuentra tu compañero/a perfecto con IA
 Status: ✅ ARQUITECTURA COMPLETADA Y DOCUMENTADA
 Fecha: 2024
 Version: 1.0.0

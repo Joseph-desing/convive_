@@ -221,7 +221,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             _buildTextField(
               controller: _descriptionController,
               label: 'Descripción',
-              hint: 'Describe tu propiedad, el barrio, qué estás buscando en un roommate...',
+              hint: 'Describe tu propiedad, el barrio, qué estás buscando en un compañero/a...',
               icon: Icons.description_outlined,
               maxLines: 5,
               validator: (value) {

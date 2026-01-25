@@ -90,7 +90,13 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   }
   
   Future<void> _loadExistingImages(String searchId) async {
+    if (searchId.isEmpty) {
+      print('⚠️ searchId vacío, no se cargan imágenes');
+      return;
+    }
+    
     try {
+      print('🔍 Intentando cargar imágenes para búsqueda: $searchId');
       final urls = await SupabaseProvider.databaseService
           .getRoommateSearchImages(searchId);
       
@@ -160,7 +166,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
                 shaderCallback: (bounds) =>
                     AppColors.primaryGradient.createShader(bounds),
                 child: Text(
-                  _isEditing ? 'Editar búsqueda' : 'Buscar Roommate',
+                  _isEditing ? 'Editar búsqueda' : 'Buscar Compañero/a',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -184,7 +190,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           ),
           const SizedBox(height: 8),
           const Text(
-            'Publica que estás buscando roommate',
+            'Publica que estás buscando compañero/a',
             style: TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -273,7 +279,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           _buildSectionTitle('Título de tu búsqueda'),
           _buildTextField(
             controller: _titleController,
-            hint: 'Ej: Busco roommate responsable para apto en La Mariscal',
+            hint: 'Ej: Busco compañero/a responsable para apto en La Mariscal',
             maxLines: 2,
           ),
           const SizedBox(height: 20),
@@ -293,7 +299,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             suffixText: '\$',
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle('Dónde necesitas roommate'),
+          _buildSectionTitle('Dónde necesitas compañero/a'),
           _buildTextField(
             controller: _addressController,
             hint: 'Ej: La Mariscal, Calle Pinto con Diego de Almagro',
@@ -310,7 +316,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Género preferido del roommate'),
+          _buildSectionTitle('Género preferido del compañero/a'),
           _buildDropdown(
             hint: 'Selecciona una opción',
             value: _selectedGender,
@@ -374,7 +380,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
         children: [
           _buildSectionTitle('Agregar fotos'),
           const Text(
-            'Las fotos te ayudarán a conseguir roommate más rápido',
+            'Las fotos te ayudarán a conseguir compañero/a más rápido',
             style: TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,

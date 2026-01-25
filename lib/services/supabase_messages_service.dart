@@ -15,7 +15,7 @@ class SupabaseMessagesService {
       final matchesResponse = await _supabase
           .from('matches')
           .select('id')
-          .or('user_a.eq.$userId,user_b.eq.$userId');
+          .or('user_a_id.eq.$userId,user_b_id.eq.$userId');
 
       final matchIds =
           (matchesResponse as List).map((m) => m['id'] as String).toList();
@@ -40,31 +40,35 @@ class SupabaseMessagesService {
 
   /// Obtener o crear chat para un match
   Future<Chat> getOrCreateChat(String matchId) async {
-    try {
-      // Intentar obtener chat existente
-      final response = await _supabase
-          .from('chats')
-          .select('*')
-          .eq('match_id', matchId)
-          .single();
-      return Chat.fromJson(response);
-    } catch (e) {
-      // Si no existe, crear uno nuevo
-      if (e.toString().contains('no rows')) {
-        final chat = Chat(matchId: matchId);
-        final chatData = chat.toJson();
-        chatData.remove('createdAt');
-        chatData.remove('updatedAt');
-
-        final response = await _supabase
-            .from('chats')
-            .insert(chatData)
-            .select('*')
-            .single();
-        return Chat.fromJson(response);
-      }
-      rethrow;
+    print('💬 Buscando chat para match: $matchId');
+    
+    // Intentar obtener chat existente
+    final existing = await _supabase
+        .from('chats')
+        .select('*')
+        .eq('match_id', matchId)
+        .maybeSingle();
+    
+    if (existing != null) {
+      print('✅ Chat encontrado: ${existing['id']}');
+      return Chat.fromJson(existing);
     }
+    
+    // Si no existe, crear uno nuevo
+    print('🆕 Creando nuevo chat para match: $matchId');
+    final chat = Chat(matchId: matchId);
+    final chatData = chat.toJson();
+    chatData.remove('created_at');
+    chatData.remove('updated_at');
+
+    final response = await _supabase
+        .from('chats')
+        .insert(chatData)
+        .select('*')
+        .single();
+    
+    print('✅ Chat creado: ${response['id']}');
+    return Chat.fromJson(response);
   }
 
   // ==================== MESSAGES ====================

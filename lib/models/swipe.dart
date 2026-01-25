@@ -8,9 +8,16 @@ enum SwipeDirection { like, dislike }
 @JsonSerializable()
 class Swipe {
   final String id;
+  
+  @JsonKey(name: 'swiper_id')
   final String swiperId;
+  
+  @JsonKey(name: 'target_user_id')
   final String targetUserId;
+  
   final SwipeDirection direction;
+  
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
   Swipe({

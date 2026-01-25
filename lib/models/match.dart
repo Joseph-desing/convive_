@@ -6,10 +6,20 @@ part 'match.g.dart';
 @JsonSerializable()
 class Match {
   final String id;
+  
+  @JsonKey(name: 'user_a_id')
   final String userA;
+  
+  @JsonKey(name: 'user_b_id')
   final String userB;
+  
+  @JsonKey(name: 'compatibility_score')
   final double compatibilityScore;
+  
+  @JsonKey(name: 'created_at')
   final DateTime createdAt;
+  
+  @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
 
   Match({
