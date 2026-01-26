@@ -27,12 +27,12 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   Future<void> _loadMatches() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     
     try {
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
       if (currentUserId == null) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
@@ -47,13 +47,15 @@ class _MatchesScreenState extends State<MatchesScreen> {
       await _preloadProfiles(userIds);
       await _preloadUserTypes(userIds);
       
-      setState(() {
-        _matches = matchesData;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _matches = matchesData;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('❌ Error cargando matches: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

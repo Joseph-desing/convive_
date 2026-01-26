@@ -33,6 +33,15 @@ class MessagesProvider extends ChangeNotifier {
     try {
       _chats = await SupabaseProvider.messagesService.getUserChats(userId);
       _error = null;
+      // Cargar mensajes de cada chat automáticamente
+      for (final chat in _chats) {
+        try {
+          final messages = await SupabaseProvider.messagesService.getChatMessages(chat.id, limit: 50);
+          _messages[chat.id] = messages.reversed.toList();
+        } catch (e) {
+          print('Error cargando mensajes del chat ${chat.id}: $e');
+        }
+      }
     } catch (e) {
       _error = e.toString();
       print('Error cargando chats: $e');
