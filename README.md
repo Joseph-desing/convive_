@@ -255,6 +255,32 @@ flutter pub run build_runner build
 flutter logs
 ```
 
+## 🆕 Cambios recientes
+
+- Global map button: pantalla de mapas con marcadores para publicaciones y búsquedas de roomates.
+- `FilterSheet`: panel de filtros completo (radio, precio, dormitorios, ordenar, solo matches) con persistencia local.
+- `bedrooms`: campo añadido al modelo cliente y SQL de migración generado (ejecutar la migración en Supabase si aún no está aplicada).
+- Super-Like (botón estrella): flujo cliente que registra super-likes (actualmente se guardan como `like` si la restricción DB lo requiere) y crea match/chat automático cuando hay reciprocidad.
+- `NotificationsScreen`: pantalla para ver notificaciones (likes / super-likes) con detección del remitente y marcación como leída.
+- Chat reads (`chat_reads`): se añadió logging y reintentos para `updateLastReadAt` (upsert → update → insert) para diagnosticar problemas con RLS y asegurar que el campo `last_read_at` se guarde.
+
+Si trabajas en desarrollo y quieres verificar el comportamiento de `chat_reads`, desde el SQL editor de Supabase ejecuta:
+
+```sql
+SELECT * FROM chat_reads
+WHERE chat_id = '<CHAT_ID>'
+  AND user_id = '<USER_ID>';
+```
+
+Si devuelve `No rows returned`, el `upsert` no creó la fila (posible RLS o fallo). Revisa los logs de la app para las líneas que comienzan con:
+
+- `DEBUG updateLastReadAt upsert response`
+- `DEBUG updateLastReadAt upsert threw`
+- `DEBUG updateLastReadAt update response`
+- `DEBUG updateLastReadAt insert response`
+
+Estos ayudan a identificar si la operación fue bloqueada por las políticas de Row Level Security o si hubo otro error.
+
 ## 📡 Servicios Principales
 
 ### AuthProvider
