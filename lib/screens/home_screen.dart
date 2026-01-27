@@ -41,6 +41,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final Map<String, List<String>> _propertyImagesCache = {};
   final Map<String, List<String>> _roommateImagesCache = {};
 
+  // Overlay de acción (estrella / corazón)
+  bool _overlayVisible = false;
+  IconData? _overlayIcon;
+  Color _overlayColor = Colors.white;
+
+  void _showActionOverlay(IconData icon, Color color, {int durationMs = 800}) {
+    setState(() {
+      _overlayIcon = icon;
+      _overlayColor = color;
+      _overlayVisible = true;
+    });
+
+    Future.delayed(Duration(milliseconds: durationMs), () {
+      if (mounted) setState(() => _overlayVisible = false);
+    });
+  }
+
 
   @override
   void initState() {
@@ -332,6 +349,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         
+        // Overlay de acción (estrella/corazón)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Center(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _overlayVisible ? 1.0 : 0.0,
+                child: AnimatedScale(
+                  scale: _overlayVisible ? 1.0 : 0.6,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: Icon(_overlayIcon ?? Icons.star, color: _overlayColor, size: 48),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
         // Action buttons
         Positioned(
           bottom: 120,
@@ -546,6 +593,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // Like - guardar y verificar si hay match
     try {
+      // Mostrar corazón como feedback inmediato
+      _showActionOverlay(Icons.favorite_rounded, Colors.green);
+
       // Guardar el swipe
       await SupabaseProvider.databaseService.createSwipe(
         Swipe(
@@ -611,118 +661,205 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.favorite,
-                color: Colors.white,
-                size: 80,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                '¡Conexión encontrada!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Tú y $name son compatibles para compartir depa o habitación',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      builder: (context) {
+        final maxH = MediaQuery.of(context).size.height * 0.85;
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          child: SizedBox(
+            height: maxH,
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(30),
                 ),
-                child: Text(
-                  '$compatibility% Compatible',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              CircleAvatar(
-                radius: 60,
-                backgroundImage: NetworkImage(imageUrl),
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white, width: 2),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Seguir viendo',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 72,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '¡Conexión encontrada!',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        setState(() => _currentIndex = 1); // Ir a Matches
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Ver match',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Tú y $name son compatibles para compartir depa o habitación',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$compatibility% Compatible',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundImage: NetworkImage(imageUrl),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white, width: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Seguir viendo',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              setState(() => _currentIndex = 1);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Ver match',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   void _handleSuperLike() {
-    setState(() {
-      if (_currentCardIndex < _properties.length) {
-        print('Super Like ⭐');
-        _currentCardIndex++;
+    () async {
+      if (_currentCardIndex >= _getAllProperties().length) return;
+
+      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      final allProperties = _getAllProperties();
+      final currentProperty = allProperties[_currentCardIndex];
+
+      String? targetUserId;
+      String? contextType;
+      String? contextId;
+
+      final property = _properties.where((p) => p.id == currentProperty.id).firstOrNull;
+      if (property != null) {
+        targetUserId = property.ownerId;
+        contextType = 'property';
+        contextId = property.id;
+      } else {
+        final search = _roommateSearches.where((r) => r.id == currentProperty.id).firstOrNull;
+        if (search != null) {
+          targetUserId = search.userId;
+          contextType = 'roommate_search';
+          contextId = search.id;
+        }
       }
-    });
+
+      if (targetUserId == null) return;
+
+      setState(() => _currentCardIndex++);
+
+      // Mostrar estrella como feedback inmediato
+      _showActionOverlay(Icons.star_rounded, AppColors.primary);
+
+      try {
+        // Guardar super-like (se almacena como 'like' en la tabla)
+        await SupabaseProvider.databaseService.createSuperLike(currentUserId, targetUserId);
+        print('⭐ Super-like enviado');
+
+        // Verificar si el otro ya te había dado like
+        final otherLiked = await SupabaseProvider.databaseService.hasSwipedLikeOrSuper(targetUserId, currentUserId);
+
+        if (otherLiked) {
+          final existingMatch = await SupabaseProvider.databaseService
+              .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
+
+          if (existingMatch == null) {
+            final compatibility = _calculateCompatibility(targetUserId);
+            final match = await SupabaseProvider.databaseService.createMatch(
+              Match(
+                userA: currentUserId,
+                userB: targetUserId,
+                compatibilityScore: compatibility.toDouble(),
+                contextType: contextType ?? 'general',
+                contextId: contextId,
+              ),
+            );
+
+            // Crear chat y enviar mensaje automático
+            try {
+              final chat = await SupabaseProvider.messagesService.getOrCreateChat(match.id);
+              await SupabaseProvider.messagesService.sendMessage(
+                chatId: chat.id,
+                senderId: currentUserId,
+                content: 'Estoy muy interesado/a',
+              );
+              print('✉️ Mensaje automático enviado tras super-like + match');
+            } catch (e) {
+              print('⚠️ Error creando chat/enviando mensaje automático: $e');
+            }
+
+            _showMatchDialog(targetUserId, _calculateCompatibility(targetUserId));
+          } else {
+            print('ℹ️ Match ya existente tras super-like');
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Has enviado un Super-like ⭐'),
+            duration: Duration(seconds: 2),
+          ));
+        }
+      } catch (e) {
+        print('❌ Error en super-like: $e');
+      }
+    }();
   }
 
   PropertyData _convertToPropertyData(Property property) {

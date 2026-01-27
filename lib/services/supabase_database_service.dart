@@ -414,6 +414,45 @@ class SupabaseDatabaseService {
         .maybeSingle();
   }
 
+  /// Registrar un "super-like" en la base reutilizando la dirección 'like'
+  /// para mantener compatibilidad con la restricción CHECK actual.
+  Future<void> createSuperLike(String swiperId, String targetUserId) async {
+    final swipeData = {
+      'swiper_id': swiperId,
+      'target_user_id': targetUserId,
+      // Guardar como 'like' en la tabla para evitar violar el check constraint
+      'direction': 'like',
+    };
+
+    await _supabase
+        .from('swipes')
+        .upsert(
+          swipeData,
+          onConflict: 'swiper_id,target_user_id',
+        )
+        .select('id')
+        .maybeSingle();
+  }
+
+  /// Verifica si `swiperId` ya hizo like hacia `targetUserId`.
+  Future<bool> hasSwipedLikeOrSuper(String swiperId, String targetUserId) async {
+    try {
+      final response = await _supabase
+          .from('swipes')
+          .select('id')
+          .eq('swiper_id', swiperId)
+          .eq('target_user_id', targetUserId)
+          .eq('direction', 'like')
+          .limit(1)
+          .maybeSingle();
+
+      return response != null;
+    } catch (e) {
+      print('❌ Error verificando like/super_like: $e');
+      return false;
+    }
+  }
+
   Future<bool> hasSwipedBefore(String swiperId, String targetUserId) async {
     try {
       await _supabase
