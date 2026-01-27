@@ -17,6 +17,9 @@ import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import 'create_property_screen.dart';
 import 'create_roommate_search_screen.dart';
+import 'user_profile_screen.dart';
+import 'property_details_screen.dart';
+import 'user_profile_screen.dart';
 
 class MapPostsScreen extends StatefulWidget {
   const MapPostsScreen({Key? key}) : super(key: key);
@@ -516,11 +519,11 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    // Ir al detalle de la propiedad
+                    // Ir al detalle de la propiedad (solo lectura)
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute<void>(builder: (BuildContext ctx) => CreatePropertyScreen(property: p)),
+                      MaterialPageRoute<void>(builder: (BuildContext ctx) => PropertyDetailsScreen(property: p)),
                     );
                   },
                   child: const Text('Ver publicación'),
@@ -557,11 +560,11 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    // Ir a la pantalla de edición/ver búsqueda (o perfil del autor)
+                    // Abrir perfil público del autor de la búsqueda
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute<void>(builder: (BuildContext ctx) => CreateRoommateSearchScreen(search: s)),
+                      MaterialPageRoute<void>(builder: (BuildContext ctx) => UserProfileScreen(userId: s.userId)),
                     );
                   },
                   child: const Text('Ver perfil'),
