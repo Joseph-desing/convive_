@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/filter_sheet.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -34,6 +35,13 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   RealtimeChannel? _propertiesChannel;
   bool _showProperties = true;
   bool _showSearches = true;
+  bool _filterOnlyMatches = false;
+  double? _filterRadiusKm;
+  int? _filterPriceMin;
+  int? _filterPriceMax;
+  int? _filterMinBedrooms;
+  String _filterOrderBy = 'recent';
+  LatLng? _currentMapCenter;
 
   @override
   void initState() {
@@ -92,6 +100,12 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
       // load saved filters
       _showProperties = prefs.getBool('map_show_properties') ?? true;
       _showSearches = prefs.getBool('map_show_searches') ?? true;
+      _filterOnlyMatches = prefs.getBool('map_filter_only_matches') ?? false;
+      _filterRadiusKm = prefs.getDouble('map_filter_radius_km');
+      _filterPriceMin = prefs.getInt('map_filter_price_min');
+      _filterPriceMax = prefs.getInt('map_filter_price_max');
+      _filterMinBedrooms = prefs.getInt('map_filter_min_bedrooms');
+      _filterOrderBy = prefs.getString('map_filter_order_by') ?? 'recent';
     } catch (e) {
       debugPrint('No se pudo cargar cache local de geocoding: $e');
     }
@@ -107,6 +121,10 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
       await prefs.setString('geocode_cache', json.encode(map));
       await prefs.setBool('map_show_properties', _showProperties);
       await prefs.setBool('map_show_searches', _showSearches);
+      await prefs.setBool('map_filter_only_matches', _filterOnlyMatches);
+      if (_filterRadiusKm != null) await prefs.setDouble('map_filter_radius_km', _filterRadiusKm!); else await prefs.remove('map_filter_radius_km');
+      if (_filterPriceMin != null) await prefs.setInt('map_filter_price_min', _filterPriceMin!); else await prefs.remove('map_filter_price_min');
+      if (_filterPriceMax != null) await prefs.setInt('map_filter_price_max', _filterPriceMax!); else await prefs.remove('map_filter_price_max');
     } catch (e) {
       debugPrint('No se pudo guardar cache local de geocoding: $e');
     }
@@ -117,7 +135,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
     try {
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
       // Cargar propiedades activas (excluir las del usuario actual)
-      final props = await SupabaseProvider.databaseService.getProperties(limit: 200, offset: 0, excludeUserId: currentUserId);
+      var props = await SupabaseProvider.databaseService.getProperties(limit: 200, offset: 0, excludeUserId: currentUserId);
 
       // Cargar roommate searches activas
       final response = await SupabaseProvider.client
@@ -125,9 +143,70 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
           .select()
           .eq('status', 'active');
 
-      final searches = (response as List)
+      var searches = (response as List)
           .map((d) => RoommateSearch.fromJson(Map<String, dynamic>.from(d)))
           .toList();
+
+      // Apply client-side filters
+      // onlyMatches: fetch matches and build partner set
+      Set<String>? partnerIds;
+      if (_filterOnlyMatches && currentUserId != null) {
+        final matches = await SupabaseProvider.databaseService.getUserMatches(currentUserId);
+        partnerIds = <String>{};
+        for (final m in matches) {
+          if (m.userA == currentUserId) partnerIds.add(m.userB); else partnerIds.add(m.userA);
+        }
+      }
+
+      // radius filtering: use current map center if available (track via onPositionChanged)
+      LatLng center = _currentMapCenter ?? (_properties.isNotEmpty ? LatLng(_properties.first.latitude, _properties.first.longitude) : LatLng(-0.180653, -78.467834));
+      final dist = Distance();
+
+      if (partnerIds != null) {
+        searches = searches.where((s) => partnerIds!.contains(s.userId)).toList();
+        props = props.where((p) => partnerIds!.contains(p.ownerId)).toList();
+      }
+
+      if (_filterRadiusKm != null) {
+        searches = searches.where((s) {
+          final lat = s.latitude;
+          final lng = s.longitude;
+          if (lat == null || lng == null) return false;
+          final dkm = dist.as(LengthUnit.Kilometer, center, LatLng(lat, lng));
+          return dkm <= _filterRadiusKm!;
+        }).toList();
+        props = props.where((p) {
+          final dkm = dist.as(LengthUnit.Kilometer, center, LatLng(p.latitude, p.longitude));
+          return dkm <= _filterRadiusKm!;
+        }).toList();
+      }
+
+      if (_filterPriceMin != null) {
+        props = props.where((p) => p.price >= _filterPriceMin!).toList();
+        searches = searches.where((s) => s.budget >= _filterPriceMin!).toList();
+      }
+      if (_filterPriceMax != null) {
+        props = props.where((p) => p.price <= _filterPriceMax!).toList();
+        searches = searches.where((s) => s.budget <= _filterPriceMax!).toList();
+      }
+      if (_filterMinBedrooms != null) {
+        try {
+          props = props.where((p) => p.bedrooms >= _filterMinBedrooms!).toList();
+        } catch (_) {}
+      }
+
+      // Ordering
+      switch (_filterOrderBy) {
+        case 'price_asc':
+          props.sort((a,b) => a.price.compareTo(b.price));
+          break;
+        case 'price_desc':
+          props.sort((a,b) => b.price.compareTo(a.price));
+          break;
+        case 'recent':
+        default:
+          props.sort((a,b) => b.createdAt.compareTo(a.createdAt));
+      }
 
       setState(() {
         _properties = props;
@@ -196,6 +275,38 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.primary,
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () async {
+              final result = await showModalBottomSheet<FilterSheetResult>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => FilterSheet(
+                  initialShowProperties: _showProperties,
+                  initialShowSearches: _showSearches,
+                  initialOnlyMatches: _filterOnlyMatches,
+                  initialRadiusKm: _filterRadiusKm,
+                  initialPriceMin: _filterPriceMin,
+                  initialPriceMax: _filterPriceMax,
+                    initialMinBedrooms: _filterMinBedrooms,
+                ),
+              );
+              if (result != null) {
+                setState(() {
+                  _showProperties = result.showProperties;
+                  _showSearches = result.showSearches;
+                  _filterOnlyMatches = result.onlyMatches;
+                  _filterRadiusKm = result.radiusKm;
+                  _filterPriceMin = result.priceMin;
+                  _filterPriceMax = result.priceMax;
+                });
+                await _saveLocalGeocodeCache();
+                await _loadData();
+              }
+            },
+          )
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -206,6 +317,14 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   options: MapOptions(
                     initialCenter: initialCenter,
                     initialZoom: 12,
+                    onPositionChanged: (pos, _) {
+                      try {
+                        final c = pos.center;
+                        if (c != null) {
+                          setState(() => _currentMapCenter = LatLng(c.latitude, c.longitude));
+                        }
+                      } catch (_) {}
+                    },
                   ),
                   children: [
                     TileLayer(

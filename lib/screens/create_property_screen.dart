@@ -997,6 +997,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             'longitude': _longitude ?? widget.property!.longitude,
             'available_from': _availableFrom.toIso8601String(),
             'is_active': _isActive,
+            'bedrooms': _bedrooms,
           },
         );
 
@@ -1020,6 +1021,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
           longitude: _longitude ?? 0.0,
           availableFrom: _availableFrom,
           isActive: _isActive,
+          bedrooms: _bedrooms,
         );
 
         final createdProperty =

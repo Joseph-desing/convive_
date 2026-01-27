@@ -18,6 +18,8 @@ import '../models/swipe.dart';
 import '../models/match.dart';
 import '../config/supabase_provider.dart';
 import '../services/compatibility_service.dart';
+import '../widgets/filter_sheet.dart';
+import 'map_posts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -242,7 +244,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Tooltip(
                 message: 'Filtros',
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final result = await showModalBottomSheet<FilterSheetResult>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => FilterSheet(
+                        initialShowProperties: true,
+                        initialShowSearches: true,
+                        initialOnlyMatches: false,
+                        initialMinBedrooms: null,
+                      ),
+                    );
+                    if (result != null) {
+                      // Navigate to map to show filtered results
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MapPostsScreen()),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.tune_rounded),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.background,

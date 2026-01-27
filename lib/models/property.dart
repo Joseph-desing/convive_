@@ -1,9 +1,5 @@
-import 'package:json_annotation/json_annotation.dart';
 import 'package:uuid/uuid.dart';
 
-part 'property.g.dart';
-
-@JsonSerializable(fieldRename: FieldRename.snake)
 class Property {
   final String id;
   final String ownerId;
@@ -17,6 +13,7 @@ class Property {
   final bool isActive;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final int bedrooms;
 
   Property({
     String? id,
@@ -31,13 +28,45 @@ class Property {
     this.isActive = true,
     DateTime? createdAt,
     this.updatedAt,
+    this.bedrooms = 1,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
-  factory Property.fromJson(Map<String, dynamic> json) =>
-      _$PropertyFromJson(json);
+  factory Property.fromJson(Map<String, dynamic> json) {
+    return Property(
+      id: json['id'] as String?,
+      ownerId: json['owner_id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      price: (json['price'] as num).toDouble(),
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      address: json['address'] as String,
+      availableFrom: json['available_from'] != null ? DateTime.parse(json['available_from']) : DateTime.now(),
+      isActive: json['is_active'] as bool? ?? true,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      bedrooms: json['bedrooms'] is num ? (json['bedrooms'] as num).toInt() : (int.tryParse(json['bedrooms']?.toString() ?? '') ?? 1),
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$PropertyToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'owner_id': ownerId,
+      'title': title,
+      'description': description,
+      'price': price,
+      'latitude': latitude,
+      'longitude': longitude,
+      'address': address,
+      'available_from': availableFrom.toIso8601String(),
+      'is_active': isActive,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'bedrooms': bedrooms,
+    };
+  }
 
   Property copyWith({
     String? id,
@@ -52,6 +81,7 @@ class Property {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? bedrooms,
   }) {
     return Property(
       id: id ?? this.id,
@@ -66,6 +96,7 @@ class Property {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      bedrooms: bedrooms ?? this.bedrooms,
     );
   }
 }
