@@ -47,6 +47,12 @@ dependencies:
   
   # URL Launcher
   url_launcher: ^6.2.0
+  # Map
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.0
+  # Nota: Si `flutter_map_marker_cluster` causa conflictos, eliminar o reemplazar por
+  # otra solución de cluster compatible con la versión 7 de `flutter_map`.
+  flutter_map_marker_cluster: ^1.4.0
 
 dev_dependencies:
   flutter_test:

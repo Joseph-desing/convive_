@@ -18,6 +18,8 @@ class RoommateSearchProvider extends ChangeNotifier {
     required String description,
     required double budget,
     required String address,
+    double? latitude,
+    double? longitude,
     String? genderPreference,
     required List<String> habitsPreferences,
     required List<String> imageUrls,
@@ -34,6 +36,8 @@ class RoommateSearchProvider extends ChangeNotifier {
         title: title,
         description: description,
         budget: budget,
+        latitude: latitude,
+        longitude: longitude,
         address: address,
         genderPreference: genderPreference,
         habitsPreferences: habitsPreferences,
@@ -131,6 +135,8 @@ class RoommateSearchProvider extends ChangeNotifier {
     required String description,
     required double budget,
     required String address,
+    double? latitude,
+    double? longitude,
     String? genderPreference,
     required List<String> habitsPreferences,
   }) async {
@@ -139,18 +145,18 @@ class RoommateSearchProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Aquí actualizarías en Supabase
-      // await SupabaseProvider.client
-      //     .from('roommate_searches')
-      //     .update({
-      //       'title': title,
-      //       'description': description,
-      //       'budget': budget,
-      //       'address': address,
-      //       'gender_preference': genderPreference,
-      //       'habits_preferences': habitsPreferences,
-      //     })
-      //     .eq('id', searchId);
+      final updates = {
+        'title': title,
+        'description': description,
+        'budget': budget,
+        'address': address,
+        'gender_preference': genderPreference,
+        'habits_preferences': habitsPreferences,
+      };
+      if (latitude != null) updates['latitude'] = latitude;
+      if (longitude != null) updates['longitude'] = longitude;
+
+      await SupabaseProvider.databaseService.updateRoommateSearch(searchId, updates);
 
       _isLoading = false;
       notifyListeners();

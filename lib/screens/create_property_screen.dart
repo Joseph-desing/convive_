@@ -7,6 +7,7 @@ import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
 import 'package:image_picker/image_picker.dart';
+import 'map_location_picker.dart';
 
 class CreatePropertyScreen extends StatefulWidget {
   final Property? property;
@@ -261,6 +262,22 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _pickOnMap,
+                  icon: const Icon(Icons.map),
+                  label: const Text('Seleccionar en mapa'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             
@@ -909,6 +926,21 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     if (image != null) {
       setState(() {
         _imageFiles.add(image);
+      });
+    }
+  }
+
+  Future<void> _pickOnMap() async {
+    final result = await Navigator.push<Map<String, double>?>(
+      context,
+      MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
+    );
+    if (result != null) {
+      setState(() {
+        _latitude = result['lat'];
+        _longitude = result['lng'];
+        // Always update the visible address field to reflect the selected coords
+        _addressController.text = 'Lat: ${_latitude!.toStringAsFixed(5)}, Lng: ${_longitude!.toStringAsFixed(5)}';
       });
     }
   }

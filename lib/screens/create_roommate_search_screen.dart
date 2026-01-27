@@ -7,6 +7,7 @@ import '../utils/colors.dart';
 import '../models/roommate_search.dart';
 import '../providers/roommate_search_provider.dart';
 import '../config/supabase_provider.dart';
+import 'map_location_picker.dart';
 
 class CreateRoommateSearchScreen extends StatefulWidget {
   final RoommateSearch? search;
@@ -36,6 +37,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   final List<File> _selectedImages = [];
   final List<String> _existingImageUrls = []; // Para imágenes existentes en edición
   final List<String> _deletedImageUrls = []; // Para rastrear eliminadas
+  double? _latitude;
+  double? _longitude;
 
   // Listas de opciones
   final List<String> _genderOptions = [
@@ -69,6 +72,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       _descriptionController.text = search.description;
       _budgetController.text = search.budget.toStringAsFixed(0);
       _addressController.text = search.address;
+      _latitude = search.latitude;
+      _longitude = search.longitude;
       
       // Convertir gender_preference de BD (male/female/any) a opciones del dropdown
       if (search.genderPreference != null) {
@@ -304,6 +309,22 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             controller: _addressController,
             hint: 'Ej: La Mariscal, Calle Pinto con Diego de Almagro',
             maxLines: 2,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _pickOnMap,
+                icon: const Icon(Icons.map),
+                label: const Text('Seleccionar en mapa'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -815,8 +836,10 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             'budget': double.tryParse(_budgetController.text.trim()) ??
                 widget.search!.budget,
             'address': _addressController.text.trim(),
-            'gender_preference': genderPref,
-            'habits_preferences': habitsNormalized,
+              'gender_preference': genderPref,
+              'habits_preferences': habitsNormalized,
+              if (_latitude != null) 'latitude': _latitude,
+              if (_longitude != null) 'longitude': _longitude,
           },
         );
         
@@ -843,6 +866,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           description: _descriptionController.text.trim(),
           budget: double.tryParse(_budgetController.text.trim()) ?? 0,
           address: _addressController.text.trim(),
+          latitude: _latitude,
+          longitude: _longitude,
           genderPreference: genderPref,
           habitsPreferences: habitsNormalized,
           imageUrls: imageUrls,
@@ -880,6 +905,22 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             _selectedImages.add(File(file.path));
           }
         }
+      });
+    }
+  }
+
+  Future<void> _pickOnMap() async {
+    // Abrir selector de ubicación y obtener coords
+    final result = await Navigator.push<Map<String, double>?>(
+      context,
+      MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
+    );
+    if (result != null) {
+      setState(() {
+        _latitude = result['lat'];
+        _longitude = result['lng'];
+        // Actualizar el campo de dirección con la representación de coordenadas seleccionadas
+        _addressController.text = 'Lat: ${_latitude!.toStringAsFixed(5)}, Lng: ${_longitude!.toStringAsFixed(5)}';
       });
     }
   }

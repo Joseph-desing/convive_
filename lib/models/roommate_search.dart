@@ -4,6 +4,8 @@ class RoommateSearch {
   final String title;
   final String description;
   final double budget;
+  final double? latitude;
+  final double? longitude;
   final String? genderPreference;
   final String address;
   final List<String> habitsPreferences;
@@ -18,6 +20,8 @@ class RoommateSearch {
     required this.title,
     required this.description,
     required this.budget,
+    this.latitude,
+    this.longitude,
     this.genderPreference,
     required this.address,
     required this.habitsPreferences,
@@ -33,6 +37,8 @@ class RoommateSearch {
       'title': title,
       'description': description,
       'budget': budget,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
       'gender_preference': genderPreference,
       'address': address,
       'habits_preferences': habitsPreferences,
@@ -48,6 +54,8 @@ class RoommateSearch {
       title: json['title'] as String,
       description: json['description'] as String,
       budget: (json['budget'] as num).toDouble(),
+      latitude: json['latitude'] != null ? (json['latitude'] is num ? (json['latitude'] as num).toDouble() : double.tryParse(json['latitude'].toString())) : null,
+      longitude: json['longitude'] != null ? (json['longitude'] is num ? (json['longitude'] as num).toDouble() : double.tryParse(json['longitude'].toString())) : null,
       genderPreference: json['gender_preference'] as String?,
       address: json['address'] as String,
       habitsPreferences: List<String>.from(json['habits_preferences'] as List? ?? []),

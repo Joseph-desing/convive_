@@ -6,6 +6,7 @@ import '../providers/matching_provider.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
+import 'map_posts_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -157,6 +158,24 @@ class _MatchesScreenState extends State<MatchesScreen> {
             ),
           ),
           const Spacer(),
+          // Botón de mapa: abre vista con publicaciones en mapa
+          IconButton(
+            tooltip: 'Mapa',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MapPostsScreen()),
+            ),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6)],
+              ),
+              child: const Icon(Icons.location_on, color: Colors.red, size: 20),
+            ),
+          ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -272,7 +291,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 Stack(
                   children: [
                     Hero(
-                      tag: 'profile_$otherUserId',
+                      tag: 'profile_${otherUserId}_${match.id}',
                       child: Container(
                         width: 70,
                         height: 70,
