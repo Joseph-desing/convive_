@@ -112,7 +112,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () async {
+                          final auth = context.read<AuthProvider>();
+
+                          await auth.resetPassword(
+                            _emailController.text,
+                          );
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Te enviamos un enlace para cambiar tu contraseña'),
+                              ),
+                            );
+                          }
+                        },
                         child: const Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(
@@ -325,14 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Función de Google Sign-In próximamente'),
-              backgroundColor: AppColors.primary,
-            ),
-          );
-        },
+        onPressed: _onGoogleSignIn,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFFE5E7EB), width: 2),
           shape: RoundedRectangleBorder(
@@ -358,6 +365,12 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+  //Google
+  void _onGoogleSignIn() {
+  final authProvider = context.read<AuthProvider>();
+  authProvider.signInWithGoogle();
+}
+
 
   Widget _buildGoogleLogo() {
     return Container(
@@ -374,69 +387,70 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onSubmit() async {
-    if (_formKey.currentState!.validate()) {
-      if (!_acceptTerms && !_isLogin) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debes aceptar los términos')),
+  if (!_formKey.currentState!.validate()) return;
+
+  if (!_isLogin && !_acceptTerms) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Debes aceptar los términos')),
+    );
+    return;
+  }
+
+  final authProvider = context.read<AuthProvider>();
+
+  try {
+    if (_isLogin) {
+      // 🔐 LOGIN
+      await authProvider.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (!authProvider.isAuthenticated) return;
+
+      // 📧 Email NO verificado
+      if (!authProvider.isEmailVerified) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(
+              email: _emailController.text.trim(),
+            ),
+          ),
         );
         return;
       }
 
-      final authProvider = context.read<AuthProvider>();
+      // ✅ Email verificado → AuthGate se encarga
+    } else {
+      // 🆕 REGISTRO
+      await authProvider.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        fullName: _nameController.text.trim(),
+        role: UserRole.student,
+      );
 
-      try {
-        if (_isLogin) {
-          // Iniciar sesión
-          await authProvider.signIn(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
-          
-          if (mounted && authProvider.isAuthenticated) {
-            // Verificar si el email está confirmado
-            if (!authProvider.isEmailVerified) {
-              // Ir a pantalla de verificación
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => EmailVerificationScreen(
-                    email: _emailController.text,
-                  ),
-                ),
-              );
-            } else {
-              // Navegar a home
-              Navigator.of(context).pushReplacementNamed('/home');
-            }
-          }
-        } else {
-          // Registrar
-          await authProvider.signUp(
-            email: _emailController.text,
-            password: _passwordController.text,
-            fullName: _nameController.text,
-            role: UserRole.student,
-          );
-          
-          if (mounted && authProvider.isAuthenticated) {
-            // Ir a pantalla de verificación
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => EmailVerificationScreen(
-                  email: _emailController.text,
-                ),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${authProvider.error ?? e.toString()}')),
-          );
-        }
-      }
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(
+            email: _emailController.text.trim(),
+          ),
+        ),
+      );
     }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(authProvider.error ?? 'Error inesperado'),
+      ),
+    );
   }
+}
 
   @override
   void dispose() {

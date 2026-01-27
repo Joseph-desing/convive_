@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/user.dart' as convive_user;
 import '../config/supabase_provider.dart';
+import 'package:google_sign_in/google_sign_in.dart' as gsis;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Provider para autenticación
 class AuthProvider extends ChangeNotifier {
@@ -14,6 +16,25 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
   bool get isEmailVerified => _isEmailVerified;
+
+//Google
+  Future<void> signInWithGoogle() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await SupabaseProvider.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'com.example.convive_://login-callback',
+      );
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   /// Forzar refresco del estado de verificación desde Supabase
   Future<void> refreshEmailVerification() async {
@@ -63,7 +84,8 @@ class AuthProvider extends ChangeNotifier {
       // Cargar usuario de la BD (ya creado por el trigger)
       if (authResponse.user != null) {
         try {
-          final dbUser = await SupabaseProvider.databaseService.getUser(authResponse.user!.id);
+          final dbUser = await SupabaseProvider.databaseService
+              .getUser(authResponse.user!.id);
           _currentUser = dbUser;
         } catch (e) {
           // Si el trigger no lo creó, intentar crearlo manualmente
@@ -107,14 +129,15 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
-      
+
       // Verificar si el email está confirmado
       _isEmailVerified = SupabaseProvider.authService.isEmailVerified();
-      
+
       // Cargar usuario de la BD
       if (authResponse.user != null) {
         try {
-          final dbUser = await SupabaseProvider.databaseService.getUser(authResponse.user!.id);
+          final dbUser = await SupabaseProvider.databaseService
+              .getUser(authResponse.user!.id);
           _currentUser = dbUser;
         } catch (e) {
           // Si no existe en BD, intentar crearlo (por si el trigger falló)
@@ -165,19 +188,12 @@ class AuthProvider extends ChangeNotifier {
 
   /// Reestablecer contraseña
   Future<void> resetPassword(String email) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  await SupabaseProvider.client.auth.resetPasswordForEmail(
+    email,
+    redirectTo: 'com.example.convive://auth-callback',
+  );
+}
 
-    try {
-      await SupabaseProvider.authService.resetPassword(email);
-    } catch (e) {
-      _error = e.toString();
-    }
-
-    _isLoading = false;
-    notifyListeners();
-  }
 
   @override
   void dispose() {

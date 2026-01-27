@@ -13,6 +13,7 @@ import 'config/ai_service_provider.dart';
 import 'providers/index.dart';
 import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,7 +71,7 @@ class ConViveApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: const SplashScreen(),
+            home: const AuthGate(),
             routes: {
               '/home': (_) => const HomeScreen(),
               '/login': (_) => const LoginScreen(),
@@ -82,3 +83,93 @@ class ConViveApp extends StatelessWidget {
     );
   }
 }
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+
+    SupabaseProvider.client.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+
+      if (!mounted) return;
+
+      switch (event) {
+        case AuthChangeEvent.passwordRecovery:
+          _showResetPasswordDialog(context);
+          break;
+
+        case AuthChangeEvent.signedIn:
+          // Nada aquí: StreamBuilder se encarga del flujo
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: SupabaseProvider.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        final session = SupabaseProvider.client.auth.currentSession;
+
+        if (session == null) {
+          return const LoginScreen();
+        }
+
+        return const HomeScreen();
+      },
+    );
+  }
+
+  // 🔐 Modal IN-APP para cambiar contraseña
+  void _showResetPasswordDialog(BuildContext context) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Nueva contraseña'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(
+            hintText: 'Ingresa tu nueva contraseña',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SupabaseProvider.client.auth.updateUser(
+                UserAttributes(password: controller.text),
+              );
+
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
