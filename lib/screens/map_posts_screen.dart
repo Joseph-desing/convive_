@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_map/flutter_map.dart';
@@ -29,13 +30,51 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   List<RoommateSearch> _searches = [];
   final Map<String, LatLng> _geocodeCache = {};
   final MapController _mapController = MapController();
+  RealtimeChannel? _roommateChannel;
+  RealtimeChannel? _propertiesChannel;
   bool _showProperties = true;
   bool _showSearches = true;
 
   @override
   void initState() {
     super.initState();
-    _loadLocalGeocodeCache().then((_) => _loadData());
+    _loadLocalGeocodeCache().then((_) async {
+      await _loadData();
+      _subscribeToRealtimeChanges();
+    });
+  }
+
+  void _subscribeToRealtimeChanges() {
+    try {
+      // Subscribe to changes in roommate_searches
+      _roommateChannel = SupabaseProvider.client
+          .channel('roommate_searches_channel')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'roommate_searches',
+            callback: (payload) {
+              // Reload data when roommate searches change (insert/update/delete)
+              if (mounted) _loadData();
+            },
+          )
+          .subscribe();
+
+      // Subscribe to changes in properties
+      _propertiesChannel = SupabaseProvider.client
+          .channel('properties_channel')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'properties',
+            callback: (payload) {
+              if (mounted) _loadData();
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint('No se pudo subscribir a realtime: $e');
+    }
   }
 
   Future<void> _loadLocalGeocodeCache() async {
@@ -240,6 +279,21 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         onPressed: _centerOnUser,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    try {
+      if (_roommateChannel != null) {
+        SupabaseProvider.client.removeChannel(_roommateChannel!);
+        _roommateChannel = null;
+      }
+      if (_propertiesChannel != null) {
+        SupabaseProvider.client.removeChannel(_propertiesChannel!);
+        _propertiesChannel = null;
+      }
+    } catch (e) {}
+    super.dispose();
   }
 
   Future<void> _centerOnUser() async {
