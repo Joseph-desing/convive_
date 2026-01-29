@@ -37,7 +37,12 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
 
   Future<void> _loadPublications() async {
     final authProvider = context.read<AuthProvider>();
-    if (authProvider.currentUser == null) return;
+    // Si no hay usuario, no intentar cargar; mostrar estado vacío en lugar
+    // de dejar el spinner bloqueado.
+    if (authProvider.currentUser == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     setState(() => _isLoading = true);
 

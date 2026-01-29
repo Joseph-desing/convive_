@@ -135,10 +135,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.home_rounded,
-                          size: 70,
-                          color: AppColors.primary,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/logo1.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                       ),
                     ),

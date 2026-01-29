@@ -11,6 +11,7 @@ import 'help_support_screen.dart';
 import 'privacy_screen.dart';
 import 'edit_habits_screen.dart';
 import 'my_publications_screen.dart';
+import 'subscription_payment_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -1221,14 +1222,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
               _buildPriceOption(
-                '\$9.99',
+                '7.99',
                 'Mensual',
                 'Cancela cuando quieras',
                 false,
               ),
               const SizedBox(height: 12),
               _buildPriceOption(
-                '\$49.99',
+                '\$39.99',
                 'Anual',
                 'Ahorra 58% - \$4.16/mes',
                 true,
@@ -1363,16 +1364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _processPremiumPurchase() {
-    // Aquí iría la lógica de pago con Stripe/PayPal/etc
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('🎉 ¡Bienvenido a Premium+!'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+    // Navegar a la pantalla de pago donde el usuario ingresa tarjeta o usa PayPal.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const SubscriptionPaymentScreen(),
       ),
     );
   }

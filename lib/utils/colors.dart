@@ -42,6 +42,9 @@ class AppColors {
   static const textSecondary = Color(0xFF6B7280);
   static const textLight = Color(0xFF9CA3AF);
   
+  // Inputs
+  static const inputFill = Color(0xFFF6F6F9);
+  
   // Bordes
   static const borderColor = Color(0xFFE5E7EB);
 }

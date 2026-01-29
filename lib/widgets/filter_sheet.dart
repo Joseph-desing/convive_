@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/colors.dart';
 
 class FilterSheetResult {
   final bool showProperties;
@@ -103,100 +104,150 @@ class _FilterSheetState extends State<FilterSheet> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Filtros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              value: _showProperties,
-              title: const Text('Mostrar propiedades'),
-              onChanged: (v) => setState(() => _showProperties = v),
-            ),
-            SwitchListTile(
-              value: _showSearches,
-              title: const Text('Mostrar búsquedas'),
-              onChanged: (v) => setState(() => _showSearches = v),
-            ),
-            SwitchListTile(
-              value: _onlyMatches,
-              title: const Text('Solo mis matches'),
-              subtitle: const Text('Mostrar solo ubicaciones de usuarios con match mutuo'),
-              onChanged: (v) => setState(() => _onlyMatches = v),
-            ),
-            const SizedBox(height: 8),
-            Row(children: [
-              const Text('Radio (km):'),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  initialValue: _radiusKm?.toString(),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(hintText: 'ej. 5'),
-                  onChanged: (v) => setState(() => _radiusKm = double.tryParse(v)),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              const Text('Precio min:'),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  initialValue: _priceMin?.toString(),
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: 'Min'),
-                  onChanged: (v) => setState(() => _priceMin = int.tryParse(v)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text('max:'),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  initialValue: _priceMax?.toString(),
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: 'Max'),
-                  onChanged: (v) => setState(() => _priceMax = int.tryParse(v)),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              const Text('Habitaciones min:'),
-              const SizedBox(width: 8),
-              DropdownButton<int>(
-                value: _minBedrooms,
-                hint: const Text('1+'),
-                items: List.generate(6, (i) => i+1).map((n) => DropdownMenuItem(value: n, child: Text(n.toString()))).toList(),
-                onChanged: (v) => setState(() => _minBedrooms = v),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              const Text('Ordenar por:'),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _orderBy,
-                items: const [
-                  DropdownMenuItem(value: 'recent', child: Text('Más recientes')),
-                  DropdownMenuItem(value: 'price_asc', child: Text('Precio ↑')),
-                  DropdownMenuItem(value: 'price_desc', child: Text('Precio ↓')),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20)],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('Filtros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary))),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _orderBy = v ?? 'recent'),
               ),
-            ]),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+              const SizedBox(height: 6),
+              SwitchListTile(
+                value: _showProperties,
+                title: const Text('Mostrar propiedades'),
+                activeColor: AppColors.primary,
+                onChanged: (v) => setState(() => _showProperties = v),
+                contentPadding: EdgeInsets.zero,
+              ),
+              SwitchListTile(
+                value: _showSearches,
+                title: const Text('Mostrar búsquedas'),
+                activeColor: AppColors.primary,
+                onChanged: (v) => setState(() => _showSearches = v),
+                contentPadding: EdgeInsets.zero,
+              ),
+              SwitchListTile(
+                value: _onlyMatches,
+                title: const Text('Solo mis matches'),
+                subtitle: const Text('Mostrar solo ubicaciones de usuarios con match mutuo'),
+                activeColor: AppColors.primary,
+                onChanged: (v) => setState(() => _onlyMatches = v),
+                contentPadding: EdgeInsets.zero,
+              ),
+              const Divider(),
+              const SizedBox(height: 6),
+              Row(children: [
+                Expanded(child: Text('Radio (km):', style: TextStyle(color: AppColors.textSecondary))),
                 const SizedBox(width: 8),
-                ElevatedButton(onPressed: _saveAndClose, child: const Text('Aplicar')),
-              ],
-            )
-          ],
+                SizedBox(
+                  width: 120,
+                  child: TextFormField(
+                    initialValue: _radiusKm?.toString(),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(hintText: 'ej. 5', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none)),
+                    onChanged: (v) => setState(() => _radiusKm = double.tryParse(v)),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Precio min', style: TextStyle(color: AppColors.textSecondary)),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      initialValue: _priceMin?.toString(),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(hintText: 'Min', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none)),
+                      onChanged: (v) => setState(() => _priceMin = int.tryParse(v)),
+                    ),
+                  ]),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Precio max', style: TextStyle(color: AppColors.textSecondary)),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      initialValue: _priceMax?.toString(),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(hintText: 'Max', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none)),
+                      onChanged: (v) => setState(() => _priceMax = int.tryParse(v)),
+                    ),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Habitaciones min:', style: TextStyle(color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(8)),
+                    child: DropdownButton<int>(
+                      value: _minBedrooms,
+                      hint: const Text('1+'),
+                      isExpanded: true,
+                      underline: const SizedBox.shrink(),
+                      items: List.generate(6, (i) => i+1).map((n) => DropdownMenuItem(value: n, child: Text(n.toString()))).toList(),
+                      onChanged: (v) => setState(() => _minBedrooms = v),
+                    ),
+                  ),
+                ])),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Ordenar por:', style: TextStyle(color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(8)),
+                    child: DropdownButton<String>(
+                      value: _orderBy,
+                      isExpanded: true,
+                      underline: const SizedBox.shrink(),
+                      items: const [
+                        DropdownMenuItem(value: 'recent', child: Text('Más recientes')),
+                        DropdownMenuItem(value: 'price_asc', child: Text('Precio ↑')),
+                        DropdownMenuItem(value: 'price_desc', child: Text('Precio ↓')),
+                      ],
+                      onChanged: (v) => setState(() => _orderBy = v ?? 'recent'),
+                    ),
+                  ),
+                ])),
+              ]),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.primary.withOpacity(0.2)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    child: Text('Cancelar', style: TextStyle(color: AppColors.primary)),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _saveAndClose,
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: Colors.white),
+                    child: const Padding(padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: Text('Aplicar')),
+                  ),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );

@@ -36,14 +36,14 @@ class HelpSupportScreen extends StatelessWidget {
                 _buildContactTile(
                   icon: Icons.email_outlined,
                   title: 'Email',
-                  subtitle: 'soporte@convive.com',
+                  subtitle: 'changoluizajoseph0@gmail.com',
                   onTap: () => _launchEmail(),
                 ),
                 const Divider(height: 1),
                 _buildContactTile(
                   icon: Icons.phone_outlined,
                   title: 'Teléfono',
-                  subtitle: '+52 123 456 7890',
+                  subtitle: '+593 983 340 6747',
                   onTap: () => _launchPhone(),
                 ),
                 const Divider(height: 1),
