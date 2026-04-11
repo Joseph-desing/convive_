@@ -318,6 +318,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   late TextEditingController _messageController;
   late ScrollController _scrollController;
   String? _otherUserName;
+  String? _otherUserProfileImage;
 
   @override
   void initState() {
@@ -350,6 +351,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       if (mounted) {
         setState(() {
           _otherUserName = profile?.fullName ?? 'Usuario';
+          _otherUserProfileImage = profile?.profileImageUrl;
         });
       }
     } catch (e) {
@@ -418,7 +420,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_otherUserName ?? 'Cargando...'),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary.withOpacity(0.2),
+              backgroundImage: _otherUserProfileImage != null
+                  ? NetworkImage(_otherUserProfileImage!)
+                  : null,
+              child: _otherUserProfileImage == null
+                  ? Icon(
+                      Icons.person,
+                      color: AppColors.primary,
+                      size: 20,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _otherUserName ?? 'Cargando...',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppColors.primary,
         elevation: 0,
       ),
