@@ -146,129 +146,234 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         );
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: isUnread ? AppColors.primary.withOpacity(0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isUnread ? AppColors.primary : Colors.grey.withOpacity(0.2),
-            width: isUnread ? 2 : 1,
+      child: GestureDetector(
+        onTap: () {
+          notificationsProvider.markAsRead(notification.id);
+          _handleNotificationTap(notification);
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: isUnread 
+              ? _getNotificationColor(notification.type).withOpacity(0.08)
+              : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isUnread 
+                ? _getNotificationColor(notification.type).withOpacity(0.4)
+                : Colors.grey.withOpacity(0.15),
+              width: isUnread ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: _getNotificationColor(notification.type),
-                width: 2,
+          child: Column(
+          children: [
+            // Header con avatar, nombre y actions
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 12),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: _getNotificationColor(notification.type),
+                        width: 2.5,
+                      ),
+                      gradient: LinearGradient(
+                        colors: [
+                          _getNotificationColor(notification.type).withOpacity(0.1),
+                          _getNotificationColor(notification.type).withOpacity(0.05),
+                        ],
+                      ),
+                    ),
+                    child: notification.senderProfileImageUrl != null && notification.senderProfileImageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(26),
+                            child: Image.network(
+                              notification.senderProfileImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => _buildAvatarInitials(notification),
+                            ),
+                          )
+                        : _buildAvatarInitials(notification),
+                  ),
+                  const SizedBox(width: 14),
+                  // Nombre y tipo
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notification.senderName ?? 'Usuario',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (notification.publicationType != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: notification.publicationType == 'roommate'
+                                  ? Colors.blue.withOpacity(0.15)
+                                  : Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              notification.publicationType == 'roommate'
+                                  ? '👤 Buscando Roommate'
+                                  : '🏠 Departamento',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: notification.publicationType == 'roommate'
+                                    ? Colors.blue.shade700
+                                    : Colors.orange.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Menu de acciones
+                  SizedBox(
+                    width: 80,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isUnread)
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: _getNotificationColor(notification.type),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getNotificationColor(notification.type).withOpacity(0.4),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            margin: const EdgeInsets.only(right: 6),
+                          ),
+                        PopupMenuButton(
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: const Text('Eliminar'),
+                              onTap: () async {
+                                await notificationsProvider.deleteNotification(notification.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Notificación eliminada'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: Colors.grey[500],
+                            size: 20,
+                          ),
+                          position: PopupMenuPosition.under,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: notification.senderProfileImageUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: Image.network(
-                      notification.senderProfileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: _getNotificationColor(notification.type).withOpacity(0.2),
-                          child: Icon(
-                            _getNotificationIcon(notification.type),
-                            color: _getNotificationColor(notification.type),
-                            size: 24,
-                          ),
-                        );
-                      },
+            // Mensaje principal
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                notification.message,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            // Tiempo
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatTime(notification.createdAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
                     ),
-                  )
-                : Container(
-                    color: _getNotificationColor(notification.type).withOpacity(0.2),
+                  ),
+                  // Icono de acción
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _getNotificationColor(notification.type).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(
                       _getNotificationIcon(notification.type),
                       color: _getNotificationColor(notification.type),
-                      size: 24,
+                      size: 20,
                     ),
                   ),
-          ),
-          title: Text(
-            notification.title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-              color: AppColors.textPrimary,
+                ],
+              ),
             ),
+          ],
+        ),        ),      ),
+    );
+  }
+
+  Widget _buildAvatarInitials(notification_model.Notification notification) {
+    final name = notification.senderName ?? 'Usuario';
+    final initials = name
+        .split(' ')
+        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
+        .join()
+        .substring(0, 2);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: LinearGradient(
+          colors: [
+            _getNotificationColor(notification.type).withOpacity(0.3),
+            _getNotificationColor(notification.type).withOpacity(0.1),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: _getNotificationColor(notification.type),
           ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.message,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _formatTime(notification.createdAt),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing: SizedBox(
-            width: 70,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isUnread)
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    margin: const EdgeInsets.only(right: 8),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  color: Colors.grey[400],
-                  onPressed: () async {
-                    await notificationsProvider.deleteNotification(notification.id);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notificación eliminada'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
-                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          onTap: () {
-            notificationsProvider.markAsRead(notification.id);
-            _handleNotificationTap(notification);
-          },
         ),
       ),
     );
@@ -277,11 +382,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   IconData _getNotificationIcon(String type) {
     switch (type) {
       case 'match':
-        return Icons.favorite;
+        return Icons.person;
       case 'message':
         return Icons.chat_bubble_outline;
       case 'like':
-        return Icons.thumb_up;
+        return Icons.person;
       case 'system':
         return Icons.info_outline;
       default:
@@ -326,14 +431,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _handleNotificationTap(notification_model.Notification notification) {
     switch (notification.type) {
       case 'match':
-        // Navegar a chats o matches
-        Navigator.pop(context);
-        Navigator.pushNamed(context, '/chats');
+      case 'like':
+        // Navegar al perfil del usuario que dio match/like
+        if (mounted && notification.senderUserId != null) {
+          Navigator.pop(context);
+          Navigator.pushNamed(
+            context,
+            '/user-profile',
+            arguments: notification.senderUserId,
+          );
+        }
         break;
       case 'message':
         // Cerrar notificaciones y volver al chat
-        Navigator.pop(context);
-        if (notification.senderUserId != null) {
+        if (mounted && notification.senderUserId != null) {
+          Navigator.pop(context);
           // Navegar al chat con el usuario que envió el mensaje
           Navigator.pushNamed(
             context,
@@ -342,19 +454,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         }
         break;
-      case 'like':
-        // Navegar a la publicación que recibió like
-        Navigator.pop(context);
-        if (notification.publicationId != null) {
-          Navigator.pushNamed(
-            context,
-            '/property-details',
-            arguments: notification.publicationId,
-          );
-        }
-        break;
       case 'system':
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
         break;
       default:
         break;
