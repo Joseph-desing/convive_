@@ -227,15 +227,27 @@ class MessagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Agregar mensaje entrante sin recargar toda la lista
+  /// ✅ PROBLEMA 5 ARREGLADO: Agregar mensaje entrante sin duplicados
   void addIncomingMessage(String chatId, Message message) {
     if (!_messages.containsKey(chatId)) {
       _messages[chatId] = [];
     }
     
-    // Evitar duplicados
-    if (!_messages[chatId]!.any((m) => m.id == message.id)) {
+    // ✅ PREVENCIÓN ROBUSTA DE DUPLICADOS:
+    // Verificar tanto por ID como por (senderId, content, createdAt)
+    // para evitar problemas con UUIDs de cliente vs servidor
+    final isDuplicate = _messages[chatId]!.any((m) {
+      return m.id == message.id || 
+             (m.senderId == message.senderId && 
+              m.content == message.content && 
+              m.createdAt == message.createdAt);
+    });
+    
+    if (!isDuplicate) {
       _messages[chatId]!.add(message);
+      print('✅ Mensaje agregado (ID: ${message.id}, duplicado: false)');
+    } else {
+      print('⚠️ Mensaje duplicado detectado, ignorado (ID: ${message.id})');
     }
 
     // Actualizar preview
@@ -246,7 +258,7 @@ class MessagesProvider extends ChangeNotifier {
         chat: preview.chat,
         otherUserProfile: preview.otherUserProfile,
         lastMessage: message,
-        unreadCount: preview.unreadCount + 1,
+        unreadCount: !isDuplicate ? preview.unreadCount + 1 : preview.unreadCount,
       );
     }
 

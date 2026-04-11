@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification.dart';
 import '../config/supabase_provider.dart';
 
@@ -6,11 +7,18 @@ class NotificationsProvider extends ChangeNotifier {
   List<Notification> _notifications = [];
   bool _isLoading = false;
   String? _error;
+  RealtimeChannel? _channel;
 
   List<Notification> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
+
+  @override
+  void dispose() {
+    _unsubscribeFromRealtime();
+    super.dispose();
+  }
 
   Future<void> loadNotifications() async {
     _isLoading = true;
@@ -41,15 +49,72 @@ class NotificationsProvider extends ChangeNotifier {
             .map((data) => Notification.fromJson(data as Map<String, dynamic>))
             .toList();
       }
-    } catch (e) {
-      // Silenciar errores temporalmente hasta crear tabla en Supabase
+
       if (kDebugMode) {
-        // print('Error cargando notificaciones: $e');
+        print('✅ Notificaciones cargadas: ${_notifications.length}');
+      }
+
+      // Iniciar escucha de notificaciones en tiempo real
+      _subscribeToRealtimeNotifications(userId);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error cargando notificaciones: $e');
       }
       _notifications = [];
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  void _subscribeToRealtimeNotifications(String userId) {
+    _unsubscribeFromRealtime();
+
+    final channelName = 'notifications_$userId';
+    _channel = SupabaseProvider.client.channel(channelName);
+
+    _channel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          callback: (payload) {
+            if (kDebugMode) {
+              print('📨 NOTIFICACIÓN REALTIME RECIBIDA: ${payload.newRecord}');
+            }
+            try {
+              final newRecord = payload.newRecord as Map<String, dynamic>;
+              // Verificar que sea para este usuario
+              if (newRecord['recipient_user_id'] == userId) {
+                final newNotification = Notification.fromJson(newRecord);
+                // Verificar que no sea duplicado
+                final isDuplicate = _notifications.any((n) => n.id == newNotification.id);
+                if (!isDuplicate) {
+                  _notifications.insert(0, newNotification);
+                  notifyListeners();
+                  if (kDebugMode) {
+                    print('✅ Notificación agregada: ${newNotification.message}');
+                  }
+                }
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error procesando notificación realtime: $e');
+              }
+            }
+          },
+        )
+        .subscribe();
+    
+    if (kDebugMode) {
+      print('🔔 Iniciando suscripción realtime para notificaciones del usuario: $userId');
+    }
+  }
+
+  void _unsubscribeFromRealtime() {
+    if (_channel != null) {
+      SupabaseProvider.client.removeChannel(_channel!);
+      _channel = null;
     }
   }
 
@@ -65,8 +130,7 @@ class NotificationsProvider extends ChangeNotifier {
         final oldNotification = _notifications[index];
         _notifications[index] = Notification(
           id: oldNotification.id,
-          title: oldNotification.title,
-          message: oldNotification.message,
+          publicationTitle: oldNotification.publicationTitle,
           type: oldNotification.type,
           createdAt: oldNotification.createdAt,
           isRead: true,
@@ -99,8 +163,7 @@ class NotificationsProvider extends ChangeNotifier {
           final notification = _notifications[i];
           _notifications[i] = Notification(
             id: notification.id,
-            title: notification.title,
-            message: notification.message,
+            publicationTitle: notification.publicationTitle,
             type: notification.type,
             createdAt: notification.createdAt,
             isRead: true,

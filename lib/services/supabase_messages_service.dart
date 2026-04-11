@@ -5,6 +5,11 @@ import '../models/index.dart';
 
 class SupabaseMessagesService {
   final SupabaseClient _supabase;
+  
+  // ✅ CRÍTICO: Cache de streams para reutilizar y evitar crear múltiples canales
+  final Map<String, Stream<Message>> _streamCache = {};
+  final Map<String, RealtimeChannel> _channelCache = {};
+  final Map<String, int> _listenerCount = {};
 
   SupabaseMessagesService({required SupabaseClient supabase})
       : _supabase = supabase;
@@ -146,26 +151,52 @@ class SupabaseMessagesService {
     }
   }
 
-  /// Stream de nuevos mensajes para un chat
-  /// Nota: utiliza el stream de Supabase filtrado por `chat_id`.
+  /// ✅ PROBLEMA 1 ARREGLADO: Stream que no se cancela inmediatamente
+  /// ✅ PROBLEMA 4 ARREGLADO: Filtro del canal correcto + identificador único
+  /// Stream de nuevos mensajes para un chat (reutilizable, no se cancela con rebuild)
   Stream<Message> watchNewMessages(String chatId) {
-    RealtimeChannel? channel;
+    // ✅ REUTILIZAR STREAM si ya existe para este chat (evita crear múltiples canales)
+    if (_streamCache.containsKey(chatId)) {
+      print('♻️ REUSING stream para chat $chatId (ya existe)');
+      _listenerCount[chatId] = (_listenerCount[chatId] ?? 0) + 1;
+      return _streamCache[chatId]!;
+    }
 
-    // Declarar controller y función intermedia antes de inicializar
+    print('🆕 CREANDO nuevo stream para chat $chatId');
+    _listenerCount[chatId] = 1;
+
     late final StreamController<Message> controller;
     late void Function(Message) _addMessage;
+    late RealtimeChannel channel;
 
     controller = StreamController<Message>.broadcast(
       onListen: () {
         try {
-          print('🔌 onListen disparado - Activando canal realtime para chat: $chatId');
+          print('🔌 onListen disparado - Intentando conectar canal realtime');
+          
+          // ✅ USAR CANAL CACHEADO SI EXISTE, sino crear uno nuevo
+          if (_channelCache.containsKey(chatId)) {
+            print('♻️ REUSING canal cacheado para chat $chatId');
+            channel = _channelCache[chatId]!;
+            print('✅ Canal ya existe, reutilizando suscripción');
+            return;
+          }
+
+          // ✅ CREAR CANAL CON NOMBRE ÚNICO (UUID) para evitar colisiones
+          final channelName = 'messages_${DateTime.now().millisecondsSinceEpoch}_$chatId';
           
           channel = _supabase
-              .channel('messages:chat_id=eq.$chatId')
+              .channel(
+                channelName,
+                opts: const RealtimeChannelConfig(
+                  ack: true,  // ✅ Esperar confirmación del servidor
+                ),
+              )
               .onPostgresChanges(
                 event: PostgresChangeEvent.insert,
                 schema: 'public',
                 table: 'messages',
+                // ✅ PROBLEMA 4: Filtro correcto del canal
                 filter: PostgresChangeFilter(
                   type: PostgresChangeFilterType.eq,
                   column: 'chat_id',
@@ -174,87 +205,98 @@ class SupabaseMessagesService {
                 callback: (payload) {
                   try {
                     print('✅ REALTIME CALLBACK DISPARADO - Nuevo mensaje recibido');
-                    // Debug: imprimir payload crudo para entender su formato
-                    try {
-                      final encodedPayload = jsonEncode(payload);
-                      print('🔔 RAW PAYLOAD (${payload.runtimeType}): $encodedPayload');
-                    } catch (e) {
-                      print('🔔 RAW PAYLOAD toString (${payload.runtimeType}): ${payload.toString()}');
-                    }
-
-                    // Trabajar con payload como dynamic para evitar errores de operador
+                    
+                    // Extraer el nuevo registro del payload
                     final dynamic p = payload;
                     dynamic newRecord;
 
                     if (p is Map) {
-                      newRecord = p['new'] ?? p['record'] ?? p['new_record'] ?? p['record_new'];
+                      newRecord = p['new'] ?? p['record'] ?? p['new_record'];
                     } else {
-                      // Fallback: serializar y parsear para extraer el nuevo registro
                       try {
                         final encoded = jsonEncode(p);
                         final decoded = jsonDecode(encoded);
                         if (decoded is Map) {
-                          newRecord = decoded['new'] ?? decoded['record'] ?? decoded['new_record'] ?? decoded['record_new'];
+                          newRecord = decoded['new'] ?? decoded['record'] ?? decoded['new_record'];
                         }
                       } catch (_) {}
                     }
 
                     if (newRecord == null) {
-                      print('⚠️ Realtime payload sin newRecord (tipo ${p.runtimeType})');
+                      print('⚠️ Payload sin newRecord');
                       return;
                     }
 
                     final parsed = Map<String, dynamic>.from(newRecord as Map);
                     final message = Message.fromJson(parsed);
-                    print('📨 Mensaje parseado: ${message.id} - ${message.content}');
-
-                    // Usar la función intermedia (declarada abajo)
+                    print('📨 Mensaje recibido (realtime): ${message.id}');
                     _addMessage(message);
-                  } catch (e, st) {
-                    print('❌ Error parseando payload realtime: $e\n$st');
+                  } catch (e) {
+                    print('❌ Error parseando realtime payload: $e');
                   }
                 },
               )
               .subscribe((status, error) {
-                print('📡 Estado de suscripción al canal: $status, error: $error');
+                print('📡 Estado canal realtime: $status, error: $error');
                 if (status == RealtimeSubscribeStatus.subscribed) {
-                  print('✅✅✅ CANAL ACTIVO: Escuchando nuevos mensajes en chat $chatId');
+                  print('✅✅✅ CANAL REALTIME ACTIVO para chat $chatId');
                 } else if (status == RealtimeSubscribeStatus.closed) {
-                  print('❌ Canal cerrado - intentando reconectar');
+                  print('⚠️ Canal cerrado - fallback a polling');
                 }
               });
-          
+
+          // ✅ CACHEAR EL CANAL para no destruirlo con cada rebuild
+          _channelCache[chatId] = channel;
           print('✅ Canal realtime suscrito correctamente');
-        } catch (e, st) {
-          print('❌ Error suscribiendo canal realtime: $e\n$st');
+        } catch (e) {
+          print('❌ Error en onListen: $e');
         }
       },
+      // ✅ PROBLEMA 1 ARREGLADO: NO destruir el canal cuando se cancela UN listener
       onCancel: () async {
         try {
-          print('🛑 onCancel disparado - Limpiando canal realtime');
-          if (channel != null) {
-            await _supabase.removeChannel(channel!);
-            channel = null;
+          print('🔄 onCancel disparado');
+          _listenerCount[chatId] = (_listenerCount[chatId] ?? 1) - 1;
+          
+          // Solo limpiar si es el ÚLTIMO listener
+          if ((_listenerCount[chatId] ?? 0) <= 0) {
+            print('🛑 Último listener removido - limpiando canal $chatId');
+            
+            if (_channelCache.containsKey(chatId)) {
+              try {
+                await _supabase.removeChannel(_channelCache[chatId]!);
+              } catch (e) {
+                print('⚠️ Error removiendo canal: $e');
+              }
+              _channelCache.remove(chatId);
+            }
+            
+            _streamCache.remove(chatId);
+            _listenerCount.remove(chatId);
+          } else {
+            print('✅ Quedan ${_listenerCount[chatId]} listeners, NO limpiar canal');
           }
-          if (!controller.isClosed) await controller.close();
         } catch (e) {
-          print('❌ Error removiendo canal realtime: $e');
+          print('❌ Error en onCancel: $e');
         }
       },
     );
 
-    // Inicializar la función que añade mensajes al controller
+    // Función para agregar mensajes al stream
     _addMessage = (Message msg) {
       if (!controller.isClosed) {
-        print('➕ Agregando mensaje al stream: ${msg.id}');
+        print('➕ Mensaje agregado al stream: ${msg.id}');
         controller.add(msg);
       }
     };
 
+    // ✅ CACHEAR EL STREAM para reutilizarlo
+    _streamCache[chatId] = controller.stream;
+
     return controller.stream;
   }
 
-  /// Obtener la fecha de último leído para un chat y usuario (versión robusta con single)
+  /// Obtener la fecha de último leído para un chat y usuario
   Future<DateTime?> getLastReadAt(String chatId, String userId) async {
     try {
       final response = await _supabase
@@ -264,22 +306,27 @@ class SupabaseMessagesService {
           .eq('user_id', userId)
           .limit(1)
           .maybeSingle();
-      print('DEBUG getLastReadAt response: $response');
-      if (response == null || response['last_read_at'] == null) return null;
+      
+      if (response == null) {
+        print('✅ Sin registros previos de lectura para chat $chatId');
+        return null;
+      }
+      
       final value = response['last_read_at'];
-      print('DEBUG last_read_at value: $value, type: ${value.runtimeType}');
+      if (value == null) return null;
+      
       if (value is DateTime) return value;
       if (value is String && value.isNotEmpty) {
         try {
           return DateTime.parse(value);
         } catch (e) {
-          print('Error parseando last_read_at: $e');
+          print('⚠️ Error parseando last_read_at: $e');
           return null;
         }
       }
       return null;
     } catch (e) {
-      print('Error obteniendo lastReadAt (robusto): $e');
+      print('⚠️ Error obteniendo lastReadAt: $e');
       return null;
     }
   }

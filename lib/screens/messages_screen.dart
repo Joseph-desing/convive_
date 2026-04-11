@@ -246,17 +246,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _messageController = TextEditingController();
     _scrollController = ScrollController();
     
-    // ✅ Cargar datos sin el addPostFrameCallback
+    // ✅ PROBLEMA 2 ARREGLADO: Setup listener PRIMERO (antes de cargar mensajes)
+    _setupRealtimeListener();
+    
+    // Cargar datos en paralelo sin esperar al listener
     _markChatAsRead();
     _loadMessages();
     _loadOtherUserName();
-    
-    // ✅ Configurar listener en tiempo real (después del build)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _setupRealtimeListener();
-      }
-    });
   }
 
   /// ✅ Configurar listener para mensajes en tiempo real

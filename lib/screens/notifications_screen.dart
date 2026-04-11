@@ -66,15 +66,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             return _buildEmptyState();
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: notificationsProvider.notifications.length,
-            itemBuilder: (context, index) {
-              return _buildNotificationTile(
-                notificationsProvider.notifications[index],
-                notificationsProvider,
-              );
-            },
+          return RefreshIndicator(
+            onRefresh: () => notificationsProvider.loadNotifications(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: notificationsProvider.notifications.length,
+              itemBuilder: (context, index) {
+                return _buildNotificationTile(
+                  notificationsProvider.notifications[index],
+                  notificationsProvider,
+                );
+              },
+            ),
           );
         },
       ),
@@ -145,7 +148,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
         title: Text(
-          notification.title ?? _getNotificationTitle(notification.type),
+          notification.title,
           style: TextStyle(
             fontSize: 15,
             fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
@@ -255,34 +258,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _handleNotificationTap(notification_model.Notification notification) {
-    // Aquí puedes navegar a la pantalla correspondiente
     switch (notification.type) {
       case 'match':
-      case 'like':
+        // Navegar a chats o matches
         Navigator.pop(context);
-        // Navigator.pushNamed(context, '/matches');
+        Navigator.pushNamed(context, '/chats');
         break;
       case 'message':
+        // Cerrar notificaciones y volver al chat
         Navigator.pop(context);
-        // Navigator.pushNamed(context, '/messages', arguments: notification.relatedChatId);
+        if (notification.senderUserId != null) {
+          // Navegar al chat con el usuario que envió el mensaje
+          Navigator.pushNamed(
+            context,
+            '/chat-detail',
+            arguments: notification.senderUserId,
+          );
+        }
         break;
-      default:
-        break;
-    }
-  }
-
-  String _getNotificationTitle(String type) {
-    switch (type) {
-      case 'match':
-        return '¡Nuevo match!';
       case 'like':
-        return 'Nuevo like';
-      case 'message':
-        return 'Nuevo mensaje';
+        // Navegar a la publicación que recibió like
+        Navigator.pop(context);
+        if (notification.publicationId != null) {
+          Navigator.pushNamed(
+            context,
+            '/property-details',
+            arguments: notification.publicationId,
+          );
+        }
+        break;
       case 'system':
-        return 'Notificación';
+        Navigator.pop(context);
+        break;
       default:
-        return 'Notificación';
+        break;
     }
   }
 }
