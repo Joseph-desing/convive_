@@ -158,6 +158,8 @@ class SupabaseMessagesService {
     controller = StreamController<Message>.broadcast(
       onListen: () {
         try {
+          print('🔌 onListen disparado - Activando canal realtime para chat: $chatId');
+          
           channel = _supabase
               .channel('messages:chat_id=eq.$chatId')
               .onPostgresChanges(
@@ -171,6 +173,7 @@ class SupabaseMessagesService {
                 ),
                 callback: (payload) {
                   try {
+                    print('✅ REALTIME CALLBACK DISPARADO - Nuevo mensaje recibido');
                     // Debug: imprimir payload crudo para entender su formato
                     try {
                       final encodedPayload = jsonEncode(payload);
@@ -203,6 +206,7 @@ class SupabaseMessagesService {
 
                     final parsed = Map<String, dynamic>.from(newRecord as Map);
                     final message = Message.fromJson(parsed);
+                    print('📨 Mensaje parseado: ${message.id} - ${message.content}');
 
                     // Usar la función intermedia (declarada abajo)
                     _addMessage(message);
@@ -211,13 +215,23 @@ class SupabaseMessagesService {
                   }
                 },
               )
-              .subscribe();
+              .subscribe((status, error) {
+                print('📡 Estado de suscripción al canal: $status, error: $error');
+                if (status == RealtimeSubscribeStatus.subscribed) {
+                  print('✅✅✅ CANAL ACTIVO: Escuchando nuevos mensajes en chat $chatId');
+                } else if (status == RealtimeSubscribeStatus.closed) {
+                  print('❌ Canal cerrado - intentando reconectar');
+                }
+              });
+          
+          print('✅ Canal realtime suscrito correctamente');
         } catch (e, st) {
           print('❌ Error suscribiendo canal realtime: $e\n$st');
         }
       },
       onCancel: () async {
         try {
+          print('🛑 onCancel disparado - Limpiando canal realtime');
           if (channel != null) {
             await _supabase.removeChannel(channel!);
             channel = null;
@@ -231,7 +245,10 @@ class SupabaseMessagesService {
 
     // Inicializar la función que añade mensajes al controller
     _addMessage = (Message msg) {
-      if (!controller.isClosed) controller.add(msg);
+      if (!controller.isClosed) {
+        print('➕ Agregando mensaje al stream: ${msg.id}');
+        controller.add(msg);
+      }
     };
 
     return controller.stream;

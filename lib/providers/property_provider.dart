@@ -20,7 +20,8 @@ class PropertyProvider extends ChangeNotifier {
   Future<void> loadProperties({int limit = 20, int offset = 0, String? excludeUserId}) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       _properties = await SupabaseProvider.databaseService
@@ -37,7 +38,8 @@ class PropertyProvider extends ChangeNotifier {
   Future<void> loadUserProperties(String userId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       _userProperties =
@@ -54,7 +56,8 @@ class PropertyProvider extends ChangeNotifier {
   Future<void> getProperty(String propertyId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       _selectedProperty =
@@ -71,7 +74,8 @@ class PropertyProvider extends ChangeNotifier {
   Future<void> createProperty(Property property) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       final newProperty =
@@ -90,7 +94,8 @@ class PropertyProvider extends ChangeNotifier {
       Map<String, dynamic> updates) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       await SupabaseProvider.databaseService.updateProperty(propertyId, updates);

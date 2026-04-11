@@ -26,7 +26,8 @@ class RoommateSearchProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+    Future.microtask(() => notifyListeners());
 
     try {
       print('📝 Creando roommate search con ${imageUrls.length} imágenes');
@@ -78,7 +79,8 @@ class RoommateSearchProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       // Buscar desde Supabase
       var query = SupabaseProvider.client
@@ -143,7 +145,8 @@ class RoommateSearchProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       final updates = {
         'title': title,
@@ -174,7 +177,8 @@ class RoommateSearchProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       // Aquí eliminarías en Supabase
       // await SupabaseProvider.client

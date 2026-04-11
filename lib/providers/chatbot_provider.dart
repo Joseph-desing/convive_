@@ -30,7 +30,8 @@ class ChatbotProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       // Obtener nombre completo del perfil si no viene en parámetro
       String userName = fullName ?? 'Usuario';
@@ -69,7 +70,8 @@ class ChatbotProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       // Agregar mensaje del usuario
       _messages.add(
@@ -165,7 +167,8 @@ class ChatbotProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
+      Future.microtask(() => notifyListeners());
 
       // Usar hábitos proporcionados o utilizar valores por defecto
       final habits = userHabits ?? {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../models/message.dart';
@@ -20,6 +21,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Profile? _otherUserProfile;
   bool _isLoading = true;
   String? _chatId;
+  StreamSubscription<Message>? _messagesSubscription;
+  Timer? _pollingTimer;  // ✅ NUEVO: Fallback polling timer
 
   @override
   void initState() {
@@ -67,6 +70,9 @@ class _ChatScreenState extends State<ChatScreen> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scrollToBottom();
           });
+
+          // ✅ NUEVO: Suscribirse a nuevos mensajes en realtime
+          _subscribeToNewMessages();
         }
       } else {
         print('❌ Match no encontrado');
@@ -75,6 +81,103 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       print('❌ Error cargando chat: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// ✅ NUEVO: Escuchar nuevos mensajes en tiempo real
+  void _subscribeToNewMessages() {
+    if (_chatId == null) return;
+    
+    print('🔔 Iniciando escucha de realtime para chat: $_chatId');
+    
+    // ✅ IMPORTANTE: Limpiar TODO antes de crear nuevas suscripciones
+    _cleanupListeners();
+    
+    print('⏱️ POLLING FALLBACK INICIADO - verificando mensajes cada 3 segundos');
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        _checkNewMessagesWithPolling();
+      }
+    });
+
+    // Intentar realtime EN PARALELO
+    _messagesSubscription = SupabaseProvider.messagesService
+        .watchNewMessages(_chatId!)
+        .listen(
+          (newMessage) {
+            print('📨 ✅ Nuevo mensaje recibido en REALTIME: ${newMessage.id}');
+            
+            if (mounted) {
+              setState(() {
+                // Evitar duplicados
+                if (!_messages.any((m) => m.id == newMessage.id)) {
+                  _messages.add(newMessage);
+                  print('📨 Mensaje agregado a lista. Total: ${_messages.length}');
+                }
+              });
+              
+              // Scroll automático al nuevo mensaje
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _scrollToBottom();
+              });
+            }
+          },
+          onError: (error) {
+            print('❌ Error en stream realtime: $error');
+          },
+          cancelOnError: false, // ✅ NUEVO: No cancelar el stream si hay error
+        );
+  }
+
+  /// ✅ NUEVO: Limpiar todos los listeners activos
+  void _cleanupListeners() {
+    try {
+      if (_messagesSubscription != null) {
+        print('🧹 Cancelando suscripción realtime anterior');
+        _messagesSubscription?.cancel();
+        _messagesSubscription = null;
+      }
+      
+      if (_pollingTimer != null) {
+        print('🧹 Cancelando timer de polling anterior');
+        _pollingTimer?.cancel();
+        _pollingTimer = null;
+      }
+    } catch (e) {
+      print('⚠️ Error limpiando listeners: $e');
+    }
+  }
+
+  /// ✅ NUEVO: Verificar nuevos mensajes usando polling
+  Future<void> _checkNewMessagesWithPolling() async {
+    if (_chatId == null) return;
+    
+    try {
+      final newMessages = await SupabaseProvider.messagesService.getChatMessages(_chatId!);
+      
+      if (mounted) {
+        int newCount = 0;
+        setState(() {
+          // Agregar solo mensajes nuevos (que no existan en la lista)
+          for (final msg in newMessages) {
+            if (!_messages.any((m) => m.id == msg.id)) {
+              print('📨 ⏱️ POLLING: Nuevo mensaje detectado: ${msg.id} - ${msg.content}');
+              _messages.add(msg);
+              newCount++;
+            }
+          }
+          _messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        });
+        
+        if (newCount > 0) {
+          print('📨 ⏱️ Se encontraron $newCount mensajes nuevos por polling');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error en polling: $e');
     }
   }
 
@@ -100,14 +203,31 @@ class _ChatScreenState extends State<ChatScreen> {
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
       if (currentUserId == null) return;
 
-      await SupabaseProvider.messagesService.sendMessage(
+      // Crear mensaje localmente para feedback inmediato
+      final localMessage = Message(
         chatId: _chatId!,
         senderId: currentUserId,
         content: text,
       );
 
-      // Recargar mensajes
-      if (mounted) await _loadChat();
+      // Agregar a la lista local inmediatamente (feedback instantáneo)
+      if (mounted) {
+        setState(() {
+          _messages.add(localMessage);
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+
+      // Enviar al servidor (el realtime traerá la versión confirmada)
+      await SupabaseProvider.messagesService.sendMessage(
+        chatId: _chatId!,
+        senderId: currentUserId,
+        content: text,
+      );
+      
+      print('✅ Mensaje enviado al servidor');
     } catch (e) {
       print('❌ Error enviando mensaje: $e');
       if (mounted) {
@@ -355,8 +475,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    print('🛑 Limpiando ChatScreen - disponiéndose');
+    
     _messageController.dispose();
     _scrollController.dispose();
+    
+    // ✅ MEJORADO: Limpieza exhaustiva de listeners
+    _cleanupListeners();
+    
     super.dispose();
   }
 }
