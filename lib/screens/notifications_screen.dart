@@ -417,22 +417,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'Justo ahora';
-    } else if (difference.inHours < 1) {
-      return 'Hace ${difference.inMinutes} min';
-    } else if (difference.inDays < 1) {
-      return 'Hace ${difference.inHours}h';
-    } else if (difference.inDays == 1) {
-      return 'Ayer';
-    } else if (difference.inDays < 7) {
-      return 'Hace ${difference.inDays} días';
-    } else {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    }
+    final dateFormat = '${dateTime.day}/${dateTime.month}';
+    final timeFormat = '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    return '$dateFormat - $timeFormat';
   }
 
   void _handleNotificationTap(notification_model.Notification notification) {

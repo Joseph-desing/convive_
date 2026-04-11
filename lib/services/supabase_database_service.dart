@@ -586,7 +586,7 @@ class SupabaseDatabaseService {
         'publication_title': publicationTitle,
         'publication_type': publicationType,
         'read': false,
-        'created_at': DateTime.now().toIso8601String(),
+        // Supabase generará created_at con now() automáticamente en el servidor
       });
       print('📨 Notificación creada: $type para $recipientUserId');
     } catch (e) {
