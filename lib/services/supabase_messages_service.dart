@@ -104,8 +104,9 @@ class SupabaseMessagesService {
       );
 
       final messageData = message.toJson();
-      messageData.remove('createdAt');
-      messageData.remove('updatedAt');
+      // Remover createdAt para que Supabase asigne la hora del servidor
+      messageData.remove('created_at');
+      messageData.remove('updated_at');
 
       final response = await _supabase
           .from('messages')
