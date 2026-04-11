@@ -6,6 +6,7 @@ class Notification {
   final bool isRead;
   final String? senderUserId;
   final String? senderName;
+  final String? senderProfileImageUrl;
   final String? publicationId;
   final String? publicationType; // 'roommate' o 'departamento'
 
@@ -17,6 +18,7 @@ class Notification {
     this.isRead = false,
     this.senderUserId,
     this.senderName,
+    this.senderProfileImageUrl,
     this.publicationId,
     this.publicationType,
   });
@@ -30,6 +32,7 @@ class Notification {
       isRead: json['read'] as bool? ?? false,
       senderUserId: json['sender_user_id'] as String?,
       senderName: json['sender_user_name'] as String?,
+      senderProfileImageUrl: json['sender_profile_image_url'] as String?,
       publicationId: json['publication_id'] as String?,
       publicationType: json['publication_type'] as String?,
     );
@@ -41,10 +44,11 @@ class Notification {
       case 'match':
         return '${senderName ?? 'Alguien'} te dió match ❤️';
       case 'like':
+        final pubType = publicationType == 'roommate' ? ' (Roommate)' : ' (Departamento)';
         if (publicationType == 'roommate') {
-          return '${senderName ?? 'Alguien'} dio ❤️ a tu perfil';
+          return '${senderName ?? 'Alguien'} dio ❤️ a tu perfil$pubType';
         } else if (publicationType == 'departamento') {
-          return '${senderName ?? 'Alguien'} dio ❤️ a: ${publicationTitle ?? 'tu departamento'}';
+          return '${senderName ?? 'Alguien'} dio ❤️ a: ${publicationTitle ?? 'tu departamento'}$pubType';
         }
         return '${senderName ?? 'Alguien'} dio ❤️';
       case 'system':
@@ -75,7 +79,8 @@ class Notification {
     'created_at': createdAt.toIso8601String(),
     'read': isRead,
     'sender_user_id': senderUserId,
-    'sender_name': senderName,
+    'sender_user_name': senderName,
+    'sender_profile_image_url': senderProfileImageUrl,
     'publication_id': publicationId,
     'publication_type': publicationType,
   };
@@ -88,6 +93,7 @@ class Notification {
     bool? isRead,
     String? senderUserId,
     String? senderName,
+    String? senderProfileImageUrl,
     String? publicationId,
     String? publicationType,
   }) {
@@ -99,6 +105,7 @@ class Notification {
       isRead: isRead ?? this.isRead,
       senderUserId: senderUserId ?? this.senderUserId,
       senderName: senderName ?? this.senderName,
+      senderProfileImageUrl: senderProfileImageUrl ?? this.senderProfileImageUrl,
       publicationId: publicationId ?? this.publicationId,
       publicationType: publicationType ?? this.publicationType,
     );

@@ -803,6 +803,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         type: 'like',
         senderUserId: currentUserId,
         senderName: senderProfile?.fullName ?? 'Alguien',
+        senderProfileImageUrl: senderProfile?.profileImageUrl,
         publicationId: contextId,
         publicationTitle: property.title,
         publicationType: 'departamento',
@@ -833,6 +834,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           type: 'match',
           senderUserId: currentUserId,
           senderName: senderProfile?.fullName ?? 'Alguien',
+          senderProfileImageUrl: senderProfile?.profileImageUrl,
         );
         
         await SupabaseProvider.databaseService.createNotification(
@@ -840,6 +842,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           type: 'match',
           senderUserId: targetUserId,
           senderName: targetProfile?.fullName ?? 'Alguien',
+          senderProfileImageUrl: targetProfile?.profileImageUrl,
         );
 
         try {
@@ -904,6 +907,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         type: 'like',
         senderUserId: currentUserId,
         senderName: senderProfile?.fullName ?? 'Alguien',
+        senderProfileImageUrl: senderProfile?.profileImageUrl,
         publicationId: contextId,
         publicationTitle: search.title,
         publicationType: 'roommate',

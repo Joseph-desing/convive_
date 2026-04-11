@@ -564,6 +564,7 @@ class SupabaseDatabaseService {
     required String type, // 'match', 'like', 'system'
     String? senderUserId,
     String? senderName,
+    String? senderProfileImageUrl,
     String? publicationId,
     String? publicationTitle,
     String? publicationType, // 'roommate' o 'departamento'
@@ -574,6 +575,7 @@ class SupabaseDatabaseService {
         'type': type,
         'sender_user_id': senderUserId,
         'sender_user_name': senderName,
+        'sender_profile_image_url': senderProfileImageUrl,
         'publication_id': publicationId,
         'publication_title': publicationTitle,
         'publication_type': publicationType,

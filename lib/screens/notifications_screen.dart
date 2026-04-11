@@ -162,14 +162,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: _getNotificationColor(notification.type).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: _getNotificationColor(notification.type),
+                width: 2,
+              ),
             ),
-            child: Icon(
-              _getNotificationIcon(notification.type),
-              color: _getNotificationColor(notification.type),
-              size: 24,
-            ),
+            child: notification.senderProfileImageUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: Image.network(
+                      notification.senderProfileImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: _getNotificationColor(notification.type).withOpacity(0.2),
+                          child: Icon(
+                            _getNotificationIcon(notification.type),
+                            color: _getNotificationColor(notification.type),
+                            size: 24,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    color: _getNotificationColor(notification.type).withOpacity(0.2),
+                    child: Icon(
+                      _getNotificationIcon(notification.type),
+                      color: _getNotificationColor(notification.type),
+                      size: 24,
+                    ),
+                  ),
           ),
           title: Text(
             notification.title,
