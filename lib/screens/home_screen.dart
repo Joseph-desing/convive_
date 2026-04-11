@@ -25,6 +25,7 @@ import '../config/supabase_provider.dart';
 import '../services/compatibility_service.dart';
 import '../widgets/filter_sheet.dart';
 import 'map_posts_screen.dart';
+import '../providers/notifications_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -338,19 +339,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(width: 8),
               Tooltip(
                 message: 'Notificaciones',
-                child: IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NotificationsScreen(),
-                      ),
+                child: Consumer<NotificationsProvider>(
+                  builder: (context, notificationsProvider, _) {
+                    final unreadCount = notificationsProvider.notifications
+                        .where((n) => !n.isRead)
+                        .length;
+                    
+                    return Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.notifications_outlined),
+                          style: IconButton.styleFrom(
+                            backgroundColor: ThemeHelper.secondaryBackground(context),
+                          ),
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 20,
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     );
                   },
-                  icon: const Icon(Icons.notifications_outlined),
-                  style: IconButton.styleFrom(
-                    backgroundColor: ThemeHelper.secondaryBackground(context),
-                  ),
                 ),
               ),
             ],
