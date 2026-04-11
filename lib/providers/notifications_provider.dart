@@ -70,37 +70,51 @@ class NotificationsProvider extends ChangeNotifier {
   void _subscribeToRealtimeNotifications(String userId) {
     _unsubscribeFromRealtime();
 
-    final channelName = 'notifications_$userId';
-    _channel = SupabaseProvider.client.channel(channelName);
+    final channelName = 'notifications_${DateTime.now().millisecondsSinceEpoch}_$userId';
+    _channel = SupabaseProvider.client.channel(
+      channelName,
+      opts: const RealtimeChannelConfig(
+        ack: true,
+      ),
+    );
 
     _channel!
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'notifications',
+          // ✅ FILTRO EXPLÍCITO para evitar procesar todas las inserciones
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'recipient_user_id',
+            value: userId,
+          ),
           callback: (payload) {
             try {
               final newRecord = payload.newRecord;
               // Validar que sea un Map válido
               if (newRecord is! Map<String, dynamic>) {
+                if (kDebugMode) {
+                  print('⚠️ Payload inválido: $newRecord');
+                }
                 return;
               }
-              // Verificar que sea para este usuario
-              if (newRecord['recipient_user_id'] == userId) {
-                final newNotification = Notification.fromJson(newRecord);
-                // Verificar que no sea duplicado
-                final isDuplicate = _notifications.any((n) => n.id == newNotification.id);
-                if (!isDuplicate) {
-                  _notifications.insert(0, newNotification);
-                  notifyListeners();
-                  if (kDebugMode) {
-                    print('📨 Notificación recibida: ${newNotification.message}');
-                  }
+              
+              final newNotification = Notification.fromJson(newRecord);
+              // Verificar que no sea duplicado
+              final isDuplicate = _notifications.any((n) => n.id == newNotification.id);
+              if (!isDuplicate) {
+                _notifications.insert(0, newNotification);
+                notifyListeners();
+                if (kDebugMode) {
+                  print('✅ 📨 REALTIME: Notificación recibida: ${newNotification.message}');
                 }
+              } else if (kDebugMode) {
+                print('⚠️ Notificación duplicada ignorada: ${newNotification.id}');
               }
             } catch (e) {
               if (kDebugMode) {
-                print('Error procesando notificación realtime: $e');
+                print('❌ Error procesando notificación realtime: $e');
               }
             }
           },
@@ -109,6 +123,11 @@ class NotificationsProvider extends ChangeNotifier {
           event: PostgresChangeEvent.delete,
           schema: 'public',
           table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'recipient_user_id',
+            value: userId,
+          ),
           callback: (payload) {
             try {
               final oldRecord = payload.oldRecord;
@@ -124,15 +143,22 @@ class NotificationsProvider extends ChangeNotifier {
               }
             } catch (e) {
               if (kDebugMode) {
-                print('Error en DELETE realtime: $e');
+                print('❌ Error en DELETE realtime: $e');
               }
             }
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+          if (kDebugMode) {
+            print('📡 Estado del canal realtime: $status');
+            if (error != null) {
+              print('❌ Error de suscripción: $error');
+            }
+          }
+        });
     
     if (kDebugMode) {
-      print('🔔 Iniciando suscripción realtime para notificaciones del usuario: $userId');
+      print('🔔 ✅ Suscripción realtime ACTIVADA para usuario: $userId');
     }
   }
 
