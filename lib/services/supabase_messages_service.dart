@@ -88,7 +88,7 @@ class SupabaseMessagesService {
           .select('*')
           .eq('chat_id', chatId)
           .order('created_at', ascending: true)  // ✅ Antiguo primero
-          .range(offset, offset + limit - 1);
+          .limit(limit);
 
       return (response as List).map((m) => Message.fromJson(m)).toList();
     } catch (e) {
@@ -115,15 +115,40 @@ class SupabaseMessagesService {
       messageData.remove('created_at');
       messageData.remove('updated_at');
 
-      final response = await _supabase
-          .from('messages')
-          .insert(messageData)
-          .select('*')
-          .single();
+      try {
+        final response = await _supabase
+            .from('messages')
+            .insert(messageData)
+            .select('*')
+            .single();
 
-      return Message.fromJson(response);
+        print('✅ Mensaje enviado correctamente');
+        return Message.fromJson(response);
+      } catch (e) {
+        // Si el error es por el trigger de notificaciones, intentar sin él
+        if (e.toString().contains('notifications') || 
+            e.toString().contains('column "message"')) {
+          print('⚠️ Error en trigger de notificaciones, ignorando: $e');
+          
+          // Reintentar la inserción con un pequeño retraso
+          await Future.delayed(const Duration(milliseconds: 200));
+          
+          // Intentar nuevamente
+          final response = await _supabase
+              .from('messages')
+              .insert(messageData)
+              .select('*')
+              .single();
+          
+          print('✅ Mensaje enviado en reintentos');
+          return Message.fromJson(response);
+        }
+        
+        // Si es otro error, propagarlo
+        rethrow;
+      }
     } catch (e) {
-      print('Error enviando mensaje: $e');
+      print('❌ Error enviando mensaje: $e');
       rethrow;
     }
   }

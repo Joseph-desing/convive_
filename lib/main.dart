@@ -13,6 +13,8 @@ import 'screens/email_verification_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/chatbot_screen.dart';
+import 'screens/user_profile_screen.dart';
+import 'screens/chat_screen.dart';
 import 'utils/colors.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
@@ -134,6 +136,11 @@ class _ConViveAppState extends State<ConViveApp> {
         if (location.startsWith('/auth-callback')) {
           return null;
         }
+        
+        // Si es perfil público o chat, permitir si hay sesión
+        if (location.startsWith('/user-profile') || location.startsWith('/chat')) {
+          return null;
+        }
 
         // Si no hay sesión, ir a login
         if (session == null && !location.startsWith('/login')) {
@@ -247,6 +254,20 @@ class _ConViveAppState extends State<ConViveApp> {
         GoRoute(
           path: '/chatbot',
           builder: (context, state) => const ChatbotScreen(),
+        ),
+        GoRoute(
+          path: '/user-profile',
+          builder: (context, state) {
+            final userId = state.extra as String? ?? '';
+            return UserProfileScreen(userId: userId);
+          },
+        ),
+        GoRoute(
+          path: '/chat',
+          builder: (context, state) {
+            final matchId = state.extra as String? ?? '';
+            return ChatScreen(matchId: matchId);
+          },
         ),
       ],
     );

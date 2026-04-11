@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../models/notification.dart' as notification_model;
 import '../providers/notifications_provider.dart';
@@ -350,11 +351,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildAvatarInitials(notification_model.Notification notification) {
     final name = notification.senderName ?? 'Usuario';
-    final initials = name
-        .split(' ')
-        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
-        .join()
-        .substring(0, 2);
+    final words = name.split(' ').where((w) => w.isNotEmpty).toList();
+    
+    // Obtener iniciales de las primeras 2 palabras
+    String initials;
+    if (words.isEmpty) {
+      initials = 'U';
+    } else if (words.length == 1) {
+      initials = (words[0][0] + words[0][0]).toUpperCase();
+    } else {
+      initials = (words[0][0] + words[1][0]).toUpperCase();
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -368,7 +375,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       child: Center(
         child: Text(
-          initials,
+          initials.substring(0, 2.clamp(0, initials.length)),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -435,23 +442,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         // Navegar al perfil del usuario que dio match/like
         if (mounted && notification.senderUserId != null) {
           Navigator.pop(context);
-          Navigator.pushNamed(
-            context,
-            '/user-profile',
-            arguments: notification.senderUserId,
-          );
+          context.push('/user-profile', extra: notification.senderUserId);
         }
         break;
       case 'message':
-        // Cerrar notificaciones y volver al chat
-        if (mounted && notification.senderUserId != null) {
+        // Cerrar notificaciones
+        if (mounted) {
           Navigator.pop(context);
-          // Navegar al chat con el usuario que envió el mensaje
-          Navigator.pushNamed(
-            context,
-            '/chat-detail',
-            arguments: notification.senderUserId,
-          );
         }
         break;
       case 'system':

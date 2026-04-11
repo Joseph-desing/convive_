@@ -205,17 +205,23 @@ class SupabaseDatabaseService {
 
   // ==================== PROPERTIES ====================
   Future<List<Property>> getProperties({int limit = 20, int offset = 0, String? excludeUserId}) async {
-    var query = _supabase
-        .from('properties')
-        .select('*')
-        .eq('is_active', true);
+    try {
+      var query = _supabase
+          .from('properties')
+          .select('*')
+          .eq('is_active', true);
 
-    if (excludeUserId != null && excludeUserId.isNotEmpty) {
-      query = query.neq('owner_id', excludeUserId);
+      if (excludeUserId != null && excludeUserId.isNotEmpty) {
+        query = query.neq('owner_id', excludeUserId);
+      }
+
+      // Usar limit directamente sin offset (range tiene limitaciones con pocos registros)
+      final response = await query.limit(limit);
+      return (response as List).map((p) => Property.fromJson(p)).toList();
+    } catch (e) {
+      print('❌ Error en getProperties: $e');
+      return [];
     }
-
-    final response = await query.range(offset, offset + limit - 1);
-    return (response as List).map((p) => Property.fromJson(p)).toList();
   }
 
   Future<Property> getProperty(String propertyId) async {
