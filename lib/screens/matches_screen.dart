@@ -6,7 +6,6 @@ import '../providers/matching_provider.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
-import 'map_posts_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -15,16 +14,29 @@ class MatchesScreen extends StatefulWidget {
   State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class _MatchesScreenState extends State<MatchesScreen> {
+class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateMixin {
   bool _isLoading = true;
   List<Match> _matches = [];
   final Map<String, Profile> _profileCache = {};
   final Map<String, String> _userTypeCache = {}; // 'property' o 'search'
+  TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
     _loadMatches();
+  }
+
+  void _initializeTabController() {
+    if (_tabController == null) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMatches() async {
@@ -100,6 +112,32 @@ class _MatchesScreenState extends State<MatchesScreen> {
     }
   }
 
+  List<Match> _getCompaneroMatches() {
+    // Filtra matches por contextType='property' (busca compañero/a para propiedad)
+    // Si contextType no existe, usa fallback a userTypeCache
+    return _matches.where((m) {
+      if (m.contextType != null && m.contextType!.isNotEmpty) {
+        return m.contextType == 'property';
+      }
+      // Fallback: si no hay contextType, usar userTypeCache
+      final otherUserId = m.userA == SupabaseProvider.client.auth.currentUser?.id ? m.userB : m.userA;
+      return _userTypeCache[otherUserId] == 'property';
+    }).toList();
+  }
+
+  List<Match> _getDepartamentoMatches() {
+    // Filtra matches por contextType='search' (busca departamento)
+    // Si contextType no existe, usa fallback a userTypeCache
+    return _matches.where((m) {
+      if (m.contextType != null && m.contextType!.isNotEmpty) {
+        return m.contextType == 'search';
+      }
+      // Fallback: si no hay contextType, usar userTypeCache
+      final otherUserId = m.userA == SupabaseProvider.client.auth.currentUser?.id ? m.userB : m.userA;
+      return _userTypeCache[otherUserId] == 'search';
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,9 +152,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : _matches.isEmpty
-                        ? _buildEmptyState()
-                        : _buildMatchesList(),
+                    : _buildTabContent(),
               ),
             ],
           ),
@@ -125,74 +161,63 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ShaderMask(
-            shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-            child: const Icon(
-              Icons.favorite,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Text(
-            'Matches',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const Spacer(),
-          // Botón de mapa: abre vista con publicaciones en mapa
-          IconButton(
-            tooltip: 'Mapa',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MapPostsScreen()),
-            ),
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6)],
-              ),
-              child: const Icon(Icons.location_on, color: Colors.red, size: 20),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${_matches.length}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+  Widget _buildTabContent() {
+    _initializeTabController();
+    
+    final companeroMatches = _getCompaneroMatches();
+    final departamentoMatches = _getDepartamentoMatches();
+    final totalMatches = companeroMatches.length + departamentoMatches.length;
+
+    if (totalMatches == 0) {
+      return _buildEmptyState();
+    }
+
+    final controller = _tabController!; // Garantizado no-null después de _initializeTabController()
+
+    return Column(
+      children: [
+        TabBar(
+          controller: controller,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.people_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Compañero/a (${companeroMatches.length})'),  
+                ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.apartment, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Departamento (${departamentoMatches.length})'),
+                ],
+              ),
+            ),
+          ],
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: controller,
+            children: [
+              companeroMatches.isEmpty
+                  ? _buildEmptyTab('Aún no tienes matches de compañero/a')
+                  : _buildMatchesListTab(companeroMatches),
+              departamentoMatches.isEmpty
+                  ? _buildEmptyTab('Aún no tienes matches de departamento')
+                  : _buildMatchesListTab(departamentoMatches),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -238,15 +263,111 @@ class _MatchesScreenState extends State<MatchesScreen> {
       ),
     );
   }
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ShaderMask(
+            shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
+            child: const Icon(
+              Icons.favorite,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Matches',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${_matches.length}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildMatchesList() {
+  Widget _buildEmptyTab(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary.withOpacity(0.1),
+            ),
+            child: const Icon(
+              Icons.favorite_border,
+              size: 64,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Empieza a dar likes en el inicio para encontrar tu compañero/a ideal',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchesListTab(List<Match> matches) {
     return RefreshIndicator(
       onRefresh: _loadMatches,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _matches.length,
+        itemCount: matches.length,
         itemBuilder: (context, index) {
-          final match = _matches[index];
+          final match = matches[index];
           return _buildMatchCard(match);
         },
       ),
@@ -286,6 +407,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Avatar con badge de match
                 Stack(
@@ -328,7 +450,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   ],
                 ),
                 const SizedBox(width: 16),
-                // Información
+                // Información - Expanded para que ocupe espacio disponible
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,8 +481,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                       const SizedBox(height: 4),
                       // Badges (wrap para evitar overflow en pantallas angostas)
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
+                        spacing: 6,
+                        runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           // Badge de compatibilidad
@@ -413,16 +535,19 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    match.contextType == 'property'
-                                        ? '📦 Busca compañero/a'
-                                        : '🔍 Busca departamento',
-                                    style: TextStyle(
-                                      color: match.contextType == 'property'
-                                          ? Colors.blue.shade700
-                                          : Colors.orange.shade700,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                  Flexible(
+                                    child: Text(
+                                      match.contextType == 'property'
+                                          ? '📦 Busca compañero/a'
+                                          : '🔍 Busca departamento',
+                                      style: TextStyle(
+                                        color: match.contextType == 'property'
+                                            ? Colors.blue.shade700
+                                            : Colors.orange.shade700,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -452,16 +577,19 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    _userTypeCache[otherUserId] == 'property'
-                                        ? 'Busca compañero/a'
-                                        : 'Busca depa',
-                                    style: TextStyle(
-                                      color: _userTypeCache[otherUserId] == 'property'
-                                          ? Colors.blue.shade700
-                                          : Colors.orange.shade700,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                                  Flexible(
+                                    child: Text(
+                                      _userTypeCache[otherUserId] == 'property'
+                                          ? 'Busca compañero/a'
+                                          : 'Busca depa',
+                                      style: TextStyle(
+                                        color: _userTypeCache[otherUserId] == 'property'
+                                            ? Colors.blue.shade700
+                                            : Colors.orange.shade700,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -482,40 +610,47 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     ],
                   ),
                 ),
-                // Botones de acciones: chat y eliminar
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chat_bubble,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    InkWell(
-                      onTap: () => _confirmDeleteMatch(match),
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Icon(
-                          Icons.delete_outline,
-                          color: Colors.red.shade600,
-                          size: 20,
+                const SizedBox(width: 12),
+                // Botones de acciones: chat y eliminar - SizedBox para mantener ancho fijo
+                SizedBox(
+                  width: 50,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _openChat(match),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: () => _confirmDeleteMatch(match),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Icon(
+                            Icons.delete_outline,
+                            color: Colors.red.shade600,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

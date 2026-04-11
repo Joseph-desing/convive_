@@ -164,12 +164,12 @@ class _PropertyCardState extends State<PropertyCard> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
+                      color: Colors.pink.shade600,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.4),
-                          blurRadius: 10,
+                          color: Colors.pink.shade600.withOpacity(0.4),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],

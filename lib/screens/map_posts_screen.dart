@@ -19,10 +19,19 @@ import 'create_property_screen.dart';
 import 'create_roommate_search_screen.dart';
 import 'user_profile_screen.dart';
 import 'property_details_screen.dart';
-import 'user_profile_screen.dart';
+import 'roommate_search_details_screen.dart';
 
 class MapPostsScreen extends StatefulWidget {
-  const MapPostsScreen({Key? key}) : super(key: key);
+  final LatLng? initialLocation;
+  final Property? singleProperty;
+  final RoommateSearch? singleRoommate;
+
+  const MapPostsScreen({
+    Key? key,
+    this.initialLocation,
+    this.singleProperty,
+    this.singleRoommate,
+  }) : super(key: key);
 
   @override
   State<MapPostsScreen> createState() => _MapPostsScreenState();
@@ -50,8 +59,40 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   void initState() {
     super.initState();
     _loadLocalGeocodeCache().then((_) async {
-      await _loadData();
-      _subscribeToRealtimeChanges();
+      // Si se pasa una propiedad o compañero específico, mostrar solo ese
+      if (widget.singleProperty != null) {
+        setState(() {
+          _properties = [widget.singleProperty!];
+          _searches = [];
+          _showProperties = true;
+          _showSearches = false;
+          _loading = false;
+        });
+        // Centrar en esa propiedad
+        final lat = widget.singleProperty!.latitude;
+        final lng = widget.singleProperty!.longitude;
+        if (lat != null && lng != null) {
+          _mapController.move(LatLng(lat, lng), 15);
+        }
+      } else if (widget.singleRoommate != null) {
+        setState(() {
+          _properties = [];
+          _searches = [widget.singleRoommate!];
+          _showProperties = false;
+          _showSearches = true;
+          _loading = false;
+        });
+        // Centrar en esa búsqueda de compañero
+        final lat = widget.singleRoommate!.latitude;
+        final lng = widget.singleRoommate!.longitude;
+        if (lat != null && lng != null) {
+          _mapController.move(LatLng(lat, lng), 15);
+        }
+      } else {
+        // Cargar todos los datos normalmente
+        await _loadData();
+        _subscribeToRealtimeChanges();
+      }
     });
   }
 
@@ -504,40 +545,126 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   void _openPropertyBottomSheet(Property p) {
     showModalBottomSheet<void>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext ctx) {
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(p.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(p.address),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Ir al detalle de la propiedad (solo lectura)
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(builder: (BuildContext ctx) => PropertyDetailsScreen(property: p)),
-                    );
-                  },
-                  child: const Text('Ver publicación'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Línea decorativa superior
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
+              ),
+              const SizedBox(height: 20),
+              // Título
+              Text(
+                p.title ?? 'Departamento',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
+              ),
+              const SizedBox(height: 12),
+              // Dirección con ícono
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    color: Colors.pink,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      p.address ?? 'Ubicación no disponible',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Precio si está disponible
+              if (p.price != null && p.price != 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '\$${p.price}/mes',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.pink,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext ctx) => PropertyDetailsScreen(property: p),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.visibility),
+                      label: const Text('Ver publicación'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pink,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 50,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.grey[800],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Icon(Icons.close),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
       },
     );
   }
@@ -545,40 +672,126 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   void _openSearchBottomSheet(RoommateSearch s) {
     showModalBottomSheet<void>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext ctx) {
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(s.address),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Abrir perfil público del autor de la búsqueda
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(builder: (BuildContext ctx) => UserProfileScreen(userId: s.userId)),
-                    );
-                  },
-                  child: const Text('Ver perfil'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Línea decorativa superior
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
+              ),
+              const SizedBox(height: 20),
+              // Título
+              Text(
+                s.title ?? 'Búsqueda de compañero/a',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
+              ),
+              const SizedBox(height: 12),
+              // Dirección con ícono
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      s.address ?? 'Ubicación no disponible',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Presupuesto si está disponible
+              if (s.budget != null && s.budget != 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Presupuesto: \$${s.budget}/mes',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext ctx) => RoommateSearchDetailsScreen(search: s),
+                          ),
+                        );
+                      },
+        icon: const Icon(Icons.person),
+                      label: const Text('Ver búsqueda'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 50,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.grey[800],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Icon(Icons.close),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
       },
     );
   }

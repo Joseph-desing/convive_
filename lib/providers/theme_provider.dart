@@ -37,11 +37,29 @@ class ThemeProvider extends ChangeNotifier {
           seedColor: const Color(0xFFE91E63),
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: Colors.grey[50],
+        scaffoldBackgroundColor: Colors.white,
+        canvasColor: Colors.white,
+        cardColor: Colors.white,
+        dialogBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black87,
           elevation: 0,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.black87),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.black87),
+          bodyMedium: TextStyle(color: Colors.black87),
+          bodySmall: TextStyle(color: Colors.black54),
+          labelLarge: TextStyle(color: Colors.white),
         ),
       );
 
@@ -52,15 +70,33 @@ class ThemeProvider extends ChangeNotifier {
           seedColor: const Color(0xFFE91E63),
           brightness: Brightness.dark,
         ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor: const Color(0xFF0F0F0F),
+        canvasColor: const Color(0xFF1A1A1A),
+        cardColor: const Color(0xFF1A1A1A),
+        dialogBackgroundColor: const Color(0xFF1A1A1A),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E1E1E),
+          backgroundColor: Color(0xFF1A1A1A),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         cardTheme: const CardThemeData(
-          color: const Color(0xFF1E1E1E),
+          color: Color(0xFF1A1A1A),
           elevation: 2,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white70),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white70),
+          bodySmall: TextStyle(color: Colors.white54),
+          labelLarge: TextStyle(color: Colors.black),
         ),
       );
 }

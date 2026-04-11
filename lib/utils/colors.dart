@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 class AppColors {
   // Colores principales - Inspirados en el rosado/fucsia
   static const primary = Color(0xFFD91E78); // Fucsia/Rosa fuerte
-  static const secondary = Color(0xFF9C27B0); // Púrpura
+  static const secondary = Color(0xFFE85A97); // Rosa más claro
   static const accent = Color(0xFFE91E63); // Rosa accent
   
   // Gradientes actualizados
   static const primaryGradient = LinearGradient(
-    colors: [Color(0xFFD91E78), Color(0xFF9C27B0)], // Fucsia a Púrpura
+    colors: [Color(0xFFD91E78), Color(0xFFE85A97)], // Fucsia a Rosa
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -20,7 +20,7 @@ class AppColors {
   );
   
   static const pinkGradient = LinearGradient(
-    colors: [Color(0xFFE91E63), Color(0xFFD91E78), Color(0xFF9C27B0)], // Degradado completo
+    colors: [Color(0xFFE91E63), Color(0xFFD91E78), Color(0xFFE85A97)], // Degradado completo en tonos rosa
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

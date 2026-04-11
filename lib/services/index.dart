@@ -5,3 +5,4 @@ export 'supabase_realtime_service.dart';
 export 'supabase_storage_service.dart';
 export 'supabase_messages_service.dart';
 export 'ai_service.dart';
+export 'chatbot_service.dart';

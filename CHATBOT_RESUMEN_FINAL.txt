@@ -1,0 +1,427 @@
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                    ║
+║                        🤖 CHATBOT IA CONVIVE - IMPLEMENTADO ✅                      ║
+║                                                                                    ║
+║                    Bienvenida + Búsqueda Inteligente + Ubicación                   ║
+║                                                                                    ║
+╚════════════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 RESUMEN DE IMPLEMENTACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 7 ARCHIVOS CREADOS
+   ├── lib/models/chatbot_message.dart
+   ├── lib/models/chatbot_message.g.dart (serialización)
+   ├── lib/services/chatbot_service.dart
+   ├── lib/providers/chatbot_provider.dart
+   ├── lib/screens/chatbot_screen.dart
+   ├── chatbot_backend_mock.py (backend FastAPI)
+   └── CHATBOT_GUIA_USO.md (documentación)
+
+✅ 4 ARCHIVOS MODIFICADOS
+   ├── lib/main.dart (agregado ChatbotProvider + ruta)
+   ├── lib/screens/home_screen.dart (botón de acceso)
+   ├── lib/models/index.dart (exportes)
+   ├── lib/services/index.dart (exportes)
+   └── lib/providers/index.dart (exportes)
+
+✅ 2 GUÍAS TÉCNICAS
+   ├── CHATBOT_IA_INTEGRATION.md (arquitectura)
+   └── CHATBOT_GUIA_USO.md (uso y troubleshooting)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 CARACTERÍSTICAS IMPLEMENTADAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣  BIENVENIDA PERSONALIZADA
+    └─ Mensajes únicas según el usuario
+    └─ Ejemplo: "¡Hola Juan! Bienvenido a ConVive Assistant..."
+
+2️⃣  CONVERSACIÓN INTELIGENTE
+    ├─ El usuario envía mensajes libres
+    ├─ IA procesa y responde inteligentemente
+    └─ Historial scrollable con timestamps
+
+3️⃣  BÚSQUEDA CON IA
+    ├─ Usuario describe sus preferencias
+    ├─ IA analiza hábitos y perfil
+    └─ Recomienda compañero/a más compatible
+
+4️⃣  RECOMENDACIÓN CON SCORE
+    ├─ Avatar del usuario recomendado
+    ├─ Nombre y descripción
+    ├─ Score de compatibilidad: 0-100% ❤️
+    └─ Card interactivo con gradiente
+
+5️⃣  VER PERFIL COMPLETO
+    ├─ Modal bottom sheet
+    ├─ Información detallada del usuario
+    ├─ Bio, hábitos, preferencias
+    └─ Botón cerrar
+
+6️⃣  VER UBICACIÓN EN MAPA
+    ├─ Integración con MapLocationPicker
+    ├─ Muestra ubicación con marcador
+    ├─ Dirección del departamento
+    └─ Modo lectura (no editable)
+
+7️⃣  UI/UX MODERNA
+    ├─ Burbujas de chat (user vs bot)
+    ├─ Colores primarios ConVive
+    ├─ Animaciones y transiciones suaves
+    ├─ Indicadores de carga
+    ├─ Manejo de errores amigable
+    └─ Totalmente responsive
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏗️  ARQUITECTURA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CAPA DE PRESENTACIÓN (UI)
+┌─────────────────────────────────────┐
+│ ChatbotScreen                       │
+│ • Historial de mensajes             │
+│ • Input de texto                    │
+│ • Cards de recomendación            │
+│ • Botones: Ver Perfil / Ubicación   │
+└────────────┬────────────────────────┘
+             │
+CAPA DE ESTADO (State Management)
+┌────────────▼────────────────────────┐
+│ ChatbotProvider (ChangeNotifier)    │
+│ • messages: List<ChatbotMessage>    │
+│ • isLoading: bool                   │
+│ • error: String?                    │
+│ • currentRecommendation: Map        │
+└────────────┬────────────────────────┘
+             │
+CAPA DE SERVICIOS (Lógica & HTTP)
+┌────────────▼────────────────────────┐
+│ ChatbotService                      │
+│ • processUserMessage()              │
+│ • getCompatibilityRecommendation()  │
+│ • getWelcomeMessage()               │
+└────────────┬────────────────────────┘
+             │
+            HTTP (REST)
+             │
+┌────────────▼────────────────────────┐
+│ Backend IA (FastAPI - Python)       │
+│ • /chatbot/welcome                  │
+│ • /chatbot/process                  │
+│ • /chatbot/recommend                │
+│ • Simula NLP y compatibilidad       │
+└─────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 CÓMO EMPEZAR (3 PASOS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASO 1️⃣ : Instalar dependencias Python
+┌─────────────────────────────────────────────────┐
+│ > pip install fastapi uvicorn                   │
+└─────────────────────────────────────────────────┘
+
+PASO 2️⃣ : Ejecutar Backend Mock
+┌─────────────────────────────────────────────────┐
+│ > cd c:\....\convive_                           │
+│ > python chatbot_backend_mock.py                │
+│                                                 │
+│ 🚀 Iniciando Chatbot IA Backend Mock...         │
+│ 📍 URL: http://localhost:8000                   │
+│ 📊 Docs: http://localhost:8000/docs            │
+│ ✅ Presiona Ctrl+C para detener                │
+└─────────────────────────────────────────────────┘
+
+PASO 3️⃣ : Ejecutar App Flutter
+┌─────────────────────────────────────────────────┐
+│ > flutter run                                   │
+│                                                 │
+│ En la app:                                      │
+│ 1. Login                                        │
+│ 2. Home Screen                                  │
+│ 3. Botón 🤖 "Chat IA" en header                 │
+│ 4. ¡Conversa!                                   │
+└─────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💬 EJEMPLO DE CONVERSACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────┐
+│                  CHATBOT IA CONVIVE                      │
+│            "Encuentra tu compañero ideal"                │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  🤖: ¡Hola Juan! 👋 Bienvenido a ConVive Assistant     │
+│                                                         │
+│  🤖: ¿Estás buscando compañero/a de habitación o      │
+│      departamento?                                      │
+│                                                         │
+│  👤: Busco un compañero para compartir apartamento      │
+│                                                         │
+│  🤖: ¡Excelente! ¿Qué características son importantes  │
+│      para ti en un compañero?                           │
+│                                                         │
+│  👤: Alguien limpio, tranquilo y responsable            │
+│                                                         │
+│  🤖: 🎉 ¡RECOMENDACIÓN PERFECTA!                        │
+│                                                         │
+│  ┌─────────────────────────────────────────┐           │
+│  │ ✨ Recomendación Perfecta para ti       │           │
+│  │                                         │           │
+│  │ 👤 María García                         │           │
+│  │ ❤️ 92% Compatible                       │           │
+│  │                                         │           │
+│  │ "Estudiante de ingeniería, limpia,     │           │
+│  │ tranquila y amable"                     │           │
+│  │                                         │           │
+│  │ [Ver Perfil]  [Ver Ubicación 📍]       │           │
+│  └─────────────────────────────────────────┘           │
+│                                                         │
+│ [Input: Escribe tu pregunta...] [Enviar]              │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📱 FLUJO EN LA APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HomeScreen
+    └─ Header con botones
+       ├─ [+] Publicar
+       ├─ [⚙️] Filtros
+       ├─ [🤖] Chat IA  ← AQUÍ
+       └─ [🔔] Notificaciones
+
+    └─ Al presionar [🤖]
+       └─> GoRouter.push('/chatbot')
+           └─> ChatbotScreen
+               └─ Conversación IA
+                  ├─ Recibe bienvenida
+                  ├─ Envía mensajes
+                  ├─ Recibe recomendaciones
+                  └─ Ver perfil / ubicación
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎨 CARACTERÍSTICAS UI/UX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ Burbujas de Chat
+   ├─ Mensaje del usuario: Fondo azul (AppColors.primary), texto blanco
+   ├─ Respuesta bot: Fondo gris claro, texto oscuro
+   └─ Alineación: User derecha, Bot izquierda
+
+✨ Cards de Recomendación
+   ├─ Gradiente ConVive (primary + secondary)
+   ├─ Border decorativo
+   ├─ Avatar circular con shadow
+   ├─ Nombre en bold, score en rojo
+   ├─ Descripción con ellipsis
+   └─ Botones coloridos (primary / secondary)
+
+✨ Indicadores
+   ├─ Loading spinner en input mientras procesa
+   ├─ Error banner rojo si falla
+   └─ Timestamps en cada mensaje
+
+✨ Animations
+   ├─ Scroll automático al nuevo mensaje
+   ├─ Fade-in de cards
+   └─ Transición suave al abrir modal
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 CONFIGURACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Base URL del Backend:
+┌──────────────────────────────────────────────┐
+│ lib/services/chatbot_service.dart:           │
+│                                              │
+│ this.baseUrl = 'http://localhost:8000'       │
+│                                              │
+│ Para dispositivo físico con IP local X:      │
+│ this.baseUrl = 'http://X.X.X.X:8000'        │
+└──────────────────────────────────────────────┘
+
+Timeout (segundos):
+┌──────────────────────────────────────────────┐
+│ const Duration(seconds: 15)                  │
+│ ↑ Cambiar si necesitas más tiempo            │
+└──────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 DATOS SIMULADOS EN BACKEND MOCK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. María García
+   ├─ Score: 92% Compatible
+   ├─ Bio: Estudiante de ingeniería, limpia, tranquila
+   └─ Ubicación: La Candelaria, Caracas
+
+2. Carlos López
+   ├─ Score: 78% Compatible
+   ├─ Bio: Profesional, sociable, hace eventos
+   └─ Ubicación: Chacao, Caracas
+
+3. Ana Martínez
+   ├─ Score: 88% Compatible
+   ├─ Bio: Diseñadora, madrugadora, responsable
+   └─ Ubicación: Las Mercedes, Caracas
+
+4. Pedro Rodríguez
+   ├─ Score: 85% Compatible
+   ├─ Bio: Chef, le gusta cocinar, ordenado
+   └─ Ubicación: Altamira, Caracas
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 DOCUMENTACIÓN GENERADA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. CHATBOT_GUIA_USO.md (¡LEER PRIMERO!)
+   └─ Guía práctica con:
+      ├─ Cómo ejecutar (3 pasos)
+      ├─ Flujo de conversación
+      ├─ Estructura de archivos
+      ├─ Pruebas recomendadas
+      ├─ Endpoints del backend
+      ├─ Troubleshooting
+      └─ Mejoras futuras
+
+2. CHATBOT_IA_INTEGRATION.md (TÉCNICO)
+   └─ Documentación detallada con:
+      ├─ Arquitectura
+      ├─ Componentes
+      ├─ Modelo de datos
+      ├─ Métodos del servicio
+      ├─ Configuración backend
+      ├─ Integración con mapa
+      └─ Solución de problemas
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ CHECKLIST DE VALIDACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Antes de usar:
+
+☑️ Backend mock instalado:
+   pip list | findstr fastapi
+
+☑️ Backend corriendo en puerto 8000:
+   http://localhost:8000/ (en navegador)
+
+☑️ App compilada sin errores:
+   flutter run (sin errores compilation)
+
+☑️ Botón visible en home:
+   Look para icono 🤖 en header derecha
+
+☑️ Chatbot abre correctamente:
+   Presiona botón → debe abrir ChatbotScreen
+
+☑️ Mensaje de bienvenida aparece:
+   Debe haber conversación inicial
+
+☑️ Puedes enviar mensajes:
+   Input funciona, mensajes aparecen
+
+☑️ Recibes recomendaciones:
+   Envía "busco compañero" → debe recomendarse alguien
+
+☑️ Ver Perfil abre modal:
+   Presiona "Ver Perfil" en card
+
+☑️ Ver Ubicación abre mapa:
+   Presiona "Ver Ubicación" → se abre MapLocationPicker
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 PRÓXIMAS FASES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FASE 2: Backend Real
+├─ Conectar con tu microservicio Python/FastAPI real
+├─ Implementar algoritmo ML de compatibilidad
+├─ Conectar con Supabase (PostgreSQL)
+└─ NLP más avanzado
+
+FASE 3: Persistencia
+├─ Guardar historial en Supabase
+├─ Recuperar chats anteriores
+├─ Estadísticas de conversación
+└─ Feedback de usuario
+
+FASE 4: Notificaciones
+├─ OneSignal push cuando hay match
+├─ Avisos de nuevas recomendaciones
+└─ Recordatorios
+
+FASE 5: UX Mejorada
+├─ Typing indicators (...... )
+├─ Lottie animations
+├─ Voice messages
+└─ Video chat preview
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 TIPS IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Ports y Firewalls
+   └─ Si usas localhost OK ✓
+   └─ Si usas IP local, asegúrate que puerta 8000 esté abierta
+
+2. Emulador vs Dispositivo Real
+   ├─ Emulador: localhost funciona directo
+   └─ Real: necesitas IP local de tu PC
+
+3. Debuggear Backend
+   └─ http://localhost:8000/docs (Swagger UI)
+   └─ Prueba endpoints desde ahí
+
+4. Debuggear App
+   └─ flutter logs para ver mensajes
+   └─ print() statements en providers/services
+
+5. Desconexión
+   └─ Si se desconecta, revisar logs
+   └─ Puede ser timeout o IP incorrecta
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 ¡FELICIDADES!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Has implementado exitosamente el Chatbot IA para ConVive con:
+
+✨ 7 archivos nuevos
+✨ Arquitectura limpia y escalable
+✨ UI/UX moderna e intuitiva
+✨ Backend mock listo para testing
+✨ Documentación completa
+✨ Flujo de conversación inteligente
+✨ Recomendaciones con score de compatibilidad
+✨ Integración con mapa
+
+El chatbot está LISTO para usar y expandir. ¡Ahora a divertirse! 🚀
+
+
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                    ║
+║              Para empezar: Lee CHATBOT_GUIA_USO.md (3 pasos simples)              ║
+║                                                                                    ║
+║                    ¡Que disfrutes tu chatbot IA impresionante! 🤖                  ║
+║                                                                                    ║
+╚════════════════════════════════════════════════════════════════════════════════════╝

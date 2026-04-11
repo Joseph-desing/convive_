@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/colors.dart'; // Asegúrate de que esto exista
 import '../providers/auth_provider.dart';
 import '../models/user.dart'; // A veces no es necesario importar el modelo aquí si se usa el provider
 import 'email_verification_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -146,23 +149,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () async {
-                            if (_emailController.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Ingresa tu correo primero')));
-                              return;
-                            }
-                            final auth = context.read<AuthProvider>();
-                            await auth.resetPassword(_emailController.text);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Enlace enviado a tu correo')),
-                              );
-                            }
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
                           },
                           child: const Text(
                             '¿Olvidaste tu contraseña?',
@@ -432,18 +425,18 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (!authProvider.isEmailVerified) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => EmailVerificationScreen(
-                email: _emailController.text.trim(),
-              ),
-            ),
-          );
+          context.go('/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
+          return;
         }
+        
+        // Si el email está verificado, ir al home
+        context.go('/home');
       } else {
         // --- LOGICA REGISTRO ---
         // Aquí pasamos el nombre explícitamente
-        print("Registrando usuario: ${_nameController.text.trim()}");
+        if (kDebugMode) {
+          print("Registrando usuario: ${_nameController.text.trim()}");
+        }
 
         await authProvider.signUp(
           email: _emailController.text.trim(),
@@ -454,20 +447,48 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => EmailVerificationScreen(
-              email: _emailController.text.trim(),
-            ),
-          ),
-        );
+        context.go('/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
       }
     } catch (e) {
       if (!mounted) return;
+
+      // --- MEJORAR MENSAJES DE ERROR ---
+      String errorMessage = "Ocurrió un error";
+
+      final errorStr = e.toString().toLowerCase();
+
+      // Debug: mostrar el error completo para análisis
+      if (kDebugMode) {
+        print('Error capturado: $e');
+        print('Error string: $errorStr');
+      }
+
+      // Detectar errores específicos
+      if (errorStr.contains('invalid login') ||
+          errorStr.contains('invalid password') ||
+          errorStr.contains('invalid_credentials') ||
+          errorStr.contains('invalid credentials')) {
+        errorMessage = '❌ Contraseña incorrecta o email no registrado';
+      } else if (errorStr.contains('email') && errorStr.contains('already')) {
+        errorMessage = '⚠️ Este email ya está registrado';
+      } else if (errorStr.contains('password')) {
+        errorMessage = '🔐 La contraseña debe tener al menos 6 caracteres';
+      } else if (errorStr.contains('network') || errorStr.contains('timeout')) {
+        errorMessage = '🌐 Error de conexión. Verifica tu internet';
+      } else if (errorStr.contains('user')) {
+        errorMessage = '👤 Usuario no encontrado';
+      } else if (errorStr.contains('already exists')) {
+        errorMessage = '⚠️ Este email ya está registrado';
+      } else if (authProvider.error != null &&
+          authProvider.error!.isNotEmpty) {
+        errorMessage = authProvider.error!;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.error ?? 'Error: ${e.toString()}'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {

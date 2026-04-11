@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/user_provider.dart';
 import '../utils/colors.dart';
 import '../models/index.dart';
@@ -122,22 +123,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Cerrar sesión'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Ícono de advertencia
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Título
+              Text(
+                'Cerrar sesión',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Descripción
+              Text(
+                '¿Estás seguro de que quieres cerrar sesión?',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[700],
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.grey[800],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pink.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Cerrar sesión',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
 
@@ -145,8 +230,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         await SupabaseProvider.authService.signOut();
         if (mounted) {
-          // Navegar a la pantalla de login o inicio
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          // Navegar a la pantalla de login usando GoRouter
+          context.go('/login');
         }
       } catch (e) {
         if (mounted) {
@@ -232,14 +317,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SliverToBoxAdapter(
           child: Column(
             children: [
+              const SizedBox(height: 8),
               _buildProfileInfo(profile, user),
-              const SizedBox(height: 16),
-              _buildPremiumSection(user),
-              const SizedBox(height: 16),
-              _buildHabitsSection(habits),
-              const SizedBox(height: 16),
-              _buildSettingsSection(),
-              const SizedBox(height: 100), // Espacio para bottom nav
+              const SizedBox(height: 12),
+              _buildSettingsSection(habits),
+              const SizedBox(height: 80), // Espacio para bottom nav
             ],
           ),
         ),
@@ -249,48 +331,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildHeader(Profile profile) {
     return SliverAppBar(
-      expandedHeight: 300,
+      expandedHeight: 260,
       pinned: true,
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.white,
+      elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Fondo siempre en gradiente (sin ocupar la foto completa)
+            // Fondo blanco limpio
             Container(
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
+                color: Colors.white,
               ),
             ),
-            // Gradiente oscuro en la parte inferior
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
+            // Avatar CENTRADO
+            _buildAvatar(profile),
+            // Badge de verificación integrado
+            if (profile.verified)
+              Positioned(
+                bottom: 15,
+                right: 25,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            _buildAvatar(profile),
-            // Badge de verificación
-            if (profile.verified)
-              const Positioned(
-                top: 60,
-                right: 20,
-                child: Icon(
-                  Icons.verified,
-                  color: Colors.blue,
-                  size: 32,
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Colors.blue,
+                    size: 24,
+                  ),
                 ),
               ),
           ],
@@ -305,17 +384,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
           ),
         IconButton(
-          icon: const Icon(Icons.camera_alt_outlined),
+          icon: const Icon(Icons.camera_alt_outlined, size: 22, color: Colors.black87),
           tooltip: 'Cambiar foto',
           onPressed: _uploadingImage ? null : _pickAndUploadProfileImage,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
         IconButton(
-          icon: const Icon(Icons.edit),
+          icon: const Icon(Icons.edit_rounded, size: 22, color: Colors.black87),
+          tooltip: 'Editar perfil',
           onPressed: _profile == null
               ? null
               : () async {
@@ -331,11 +412,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   );
                   if (result == true && mounted) {
-                    // Pequeña espera para asegurar que Supabase procese
                     await Future.delayed(const Duration(milliseconds: 300));
                     await _loadUserData();
                   }
                 },
+          padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
       ],
     );
@@ -344,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAvatar(Profile profile) {
     final hasImage = profile.profileImageUrl != null;
     final width = MediaQuery.of(context).size.width;
-    final avatarSize = width * 0.45; // responsive
+    final avatarSize = width * 0.40; // Avatar agrandado
     final clampedSize = avatarSize.clamp(140.0, 220.0);
     
     // Agregar timestamp para evitar caché de imagen
@@ -352,19 +433,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? '${profile.profileImageUrl!}?t=${DateTime.now().millisecondsSinceEpoch}'
         : null;
     
-    return Positioned(
-      bottom: 12,
-      left: 12,
+    return Center(
       child: Container(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.28),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -381,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ? profile.fullName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                      fontSize: 42,
+                      fontSize: 52,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -396,16 +475,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final age = profile.birthDate != null
         ? DateTime.now().year - profile.birthDate!.year
         : null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -423,206 +503,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(
                       profile.fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
+                      style: TextStyle(
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (age != null)
-                      Text(
-                        '$age años',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '$age años',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
               if (user != null)
-                _buildRoleBadge(user.role),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: _buildRoleBadge(user.role),
+                ),
             ],
           ),
           if (profile.bio != null && profile.bio!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
             Text(
               profile.bio!,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 color: AppColors.textPrimary,
-                height: 1.5,
+                height: 1.4,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
-          _buildInfoRow(
-            Icons.email_outlined,
-            'Email',
-            user?.email ?? 'No disponible',
-          ),
           const SizedBox(height: 12),
-          _buildInfoRow(
-            Icons.cake_outlined,
-            'Fecha de nacimiento',
-            profile.birthDate != null
-                ? '${profile.birthDate!.day}/${profile.birthDate!.month}/${profile.birthDate!.year}'
-                : 'No especificado',
-          ),
+          const Divider(height: 1),
           const SizedBox(height: 12),
-          _buildInfoRow(
-            Icons.wc_outlined,
-            'Género',
-            _getGenderText(profile.gender),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHabitsSection(Habits? habits) {
-    if (habits == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.psychology_outlined,
-                  color: Colors.white,
-                  size: 20,
+              Expanded(
+                child: _buildInfoCard(
+                  Icons.email_outlined,
+                  'Email',
+                  user?.email ?? 'No disponible',
+                  const Color(0xFFFF6B6B),
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Mis Hábitos',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: _buildInfoCard(
+                  Icons.cake_outlined,
+                  'Nacimiento',
+                  profile.birthDate != null
+                      ? '${profile.birthDate!.day}/${profile.birthDate!.month}/${profile.birthDate!.year}'
+                      : 'No especificado',
+                  AppColors.primary,
                 ),
               ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                color: AppColors.primary,
-                tooltip: 'Editar hábitos',
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditHabitsScreen(
-                        habits: _habits!,
-                      ),
-                    ),
-                  );
-                  if (result == true && mounted) {
-                    await _loadUserData();
-                  }
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInfoCard(
+                  Icons.wc_outlined,
+                  'Género',
+                  _getGenderText(profile.gender),
+                  const Color(0xFF51CF66),
+                ),
               ),
             ],
-          ),
-          const SizedBox(height: 20),
-          _buildHabitSlider(
-            'Nivel de limpieza',
-            habits.cleanlinessLevel,
-            Icons.cleaning_services_outlined,
-          ),
-          const SizedBox(height: 16),
-          _buildHabitSlider(
-            'Tolerancia al ruido',
-            habits.noiseTolerance,
-            Icons.volume_up_outlined,
-          ),
-          const SizedBox(height: 16),
-          _buildHabitSlider(
-            'Frecuencia de fiestas (días/semana)',
-            habits.partyFrequency,
-            Icons.celebration_outlined,
-          ),
-          const SizedBox(height: 16),
-          _buildHabitSlider(
-            'Tolerancia a invitados',
-            habits.guestsTolerance,
-            Icons.people_outline,
-          ),
-          const SizedBox(height: 16),
-          _buildHabitSlider(
-            'Tiempo en casa',
-            habits.timeAtHome,
-            Icons.home_outlined,
-          ),
-          const SizedBox(height: 16),
-          _buildHabitSlider(
-            'Nivel de responsabilidad',
-            habits.responsibilityLevel,
-            Icons.verified_user_outlined,
-          ),
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 16),
-          _buildInfoChip(
-            Icons.bedtime_outlined,
-            'Horario de sueño',
-            '${_formatHour(habits.sleepStart)} - ${_formatHour(habits.sleepEnd)}',
-          ),
-          const SizedBox(height: 12),
-          _buildInfoChip(
-            Icons.work_outline,
-            'Modo de trabajo',
-            _getWorkModeText(habits.workMode),
-          ),
-          if (habits.pets) ...[
-            const SizedBox(height: 12),
-            _buildInfoChip(
-              Icons.pets_outlined,
-              'Tiene mascotas',
-              'Sí',
-            ),
-          ],
-          const SizedBox(height: 12),
-          _buildHabitSlider(
-            'Tolerancia a mascotas',
-            habits.petTolerance,
-            Icons.pets_outlined,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsSection() {
+  Widget _buildSettingsSection(Habits? habits) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -650,6 +618,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const Divider(),
           _buildSettingsTile(
+            icon: Icons.psychology_outlined,
+            title: 'Mis hábitos',
+            onTap: () async {
+              if (habits == null) return;
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditHabitsScreen(
+                    habits: habits,
+                  ),
+                ),
+              );
+              if (result == true && mounted) {
+                await _loadUserData();
+              }
+            },
+          ),
+          const Divider(),
+          _buildSettingsTile(
             icon: Icons.settings_outlined,
             title: 'Configuración',
             onTap: () {
@@ -657,32 +644,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const SettingsScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          _buildSettingsTile(
-            icon: Icons.help_outline,
-            title: 'Ayuda y soporte',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HelpSupportScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          _buildSettingsTile(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacidad',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PrivacyScreen(),
                 ),
               );
             },
@@ -736,118 +697,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHabitSlider(String label, int value, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Text(
-              '$value/10',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: value / 10,
-            minHeight: 8,
-            backgroundColor: AppColors.background,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              value >= 7 ? Colors.green : value >= 4 ? Colors.orange : Colors.red,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String label, String value) {
+  Widget _buildInfoCard(IconData icon, String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
+          ],
+        ),
+        border: Border.all(
+          color: color.withOpacity(0.15),
+          width: 1,
+        ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
+
 
   Widget _buildSettingsTile({
     required IconData icon,
@@ -947,431 +852,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  Widget _buildPremiumSection(User? user) {
-    final isPremium = user?.role == 'premium' || user?.role == 'premium+';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isPremium
-              ? [
-                  const Color(0xFFFFD700),
-                  const Color(0xFFFFB800),
-                ]
-              : [
-                  AppColors.primary,
-                  const Color(0xFFFF1493),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.workspace_premium,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isPremium ? 'ConVive Premium+' : 'Hazte Premium+',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        isPremium
-                            ? 'Disfrutando beneficios exclusivos'
-                            : 'Destaca y encuentra más rápido',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildPremiumBenefit(
-              Icons.star,
-              'Publicaciones destacadas',
-              'Aparece primero en búsquedas',
-            ),
-            const SizedBox(height: 12),
-            _buildPremiumBenefit(
-              Icons.chat,
-              'Chats ilimitados',
-              'Sin límites de conversaciones',
-            ),
-            const SizedBox(height: 12),
-            _buildPremiumBenefit(
-              Icons.visibility,
-              'Ver quién te vio',
-              'Conoce quién visitó tu perfil',
-            ),
-            const SizedBox(height: 12),
-            _buildPremiumBenefit(
-              Icons.flash_on,
-              'Match prioritario',
-              'Conecta más rápido con compañeros/as',
-            ),
-            const SizedBox(height: 12),
-            _buildPremiumBenefit(
-              Icons.block,
-              'Sin anuncios',
-              'Experiencia limpia y fluida',
-            ),
-            const SizedBox(height: 20),
-            if (!isPremium)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _showPremiumDialog();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ShaderMask(
-                        shaderCallback: (bounds) =>
-                            AppColors.primaryGradient.createShader(bounds),
-                        child: const Text(
-                          'Actualizar a Premium+',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ShaderMask(
-                        shaderCallback: (bounds) =>
-                            AppColors.primaryGradient.createShader(bounds),
-                        child: const Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Suscripción activa',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPremiumBenefit(IconData icon, String title, String description) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 18,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showPremiumDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary.withOpacity(0.1),
-                const Color(0xFFFF1493).withOpacity(0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.workspace_premium,
-                  color: Colors.white,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'ConVive Premium+',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Encuentra tu compañero/a ideal más rápido',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildPriceOption(
-                '7.99',
-                'Mensual',
-                'Cancela cuando quieras',
-                false,
-              ),
-              const SizedBox(height: 12),
-              _buildPriceOption(
-                '\$39.99',
-                'Anual',
-                'Ahorra 58% - \$4.16/mes',
-                true,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _processPremiumPurchase();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Suscribirme',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceOption(
-    String price,
-    String period,
-    String description,
-    bool recommended,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: recommended ? AppColors.primary.withOpacity(0.1) : Colors.white,
-        border: Border.all(
-          color: recommended ? AppColors.primary : AppColors.borderColor,
-          width: recommended ? 2 : 1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      period,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: recommended ? AppColors.primary : AppColors.textSecondary,
-                    fontWeight: recommended ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (recommended)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'POPULAR',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _processPremiumPurchase() {
-    // Navegar a la pantalla de pago donde el usuario ingresa tarjeta o usa PayPal.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const SubscriptionPaymentScreen(),
-      ),
-    );
-  }
-
   String _getGenderText(Gender? gender) {
     if (gender == null) return 'No especificado';
     switch (gender) {
@@ -1382,21 +862,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case Gender.other:
         return 'Otro';
     }
-  }
-
-  String _getWorkModeText(WorkMode? workMode) {
-    if (workMode == null) return 'No especificado';
-    switch (workMode) {
-      case WorkMode.remote:
-        return 'Remoto';
-      case WorkMode.office:
-        return 'Presencial';
-      case WorkMode.hybrid:
-        return 'Híbrido';
-    }
-  }
-
-  String _formatHour(int hour) {
-    return '${hour.toString().padLeft(2, '0')}:00';
   }
 }

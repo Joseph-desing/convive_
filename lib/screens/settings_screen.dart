@@ -4,6 +4,7 @@ import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/locale_provider.dart';
+import 'change_password_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -35,7 +36,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        elevation: 0,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[900]
+            : Colors.white,
       ),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.black
+          : Colors.white,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,24 +230,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
     Color? textColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ListTile(
-      leading: Icon(icon, color: textColor ?? AppColors.primary),
+      leading: Icon(
+        icon,
+        color: textColor ?? AppColors.primary,
+      ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: textColor ?? Colors.black87,
+          color: textColor ?? (isDark ? Colors.white : Colors.black87),
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 13,
-          color: Colors.grey[600],
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
         ),
       ),
-      trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+      trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey[600] : Colors.grey[400]),
       onTap: onTap,
     );
   }
@@ -279,82 +292,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cambiar contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña actual',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Nueva contraseña',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirmar contraseña',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (newPasswordController.text != confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Las contraseñas no coinciden')),
-                );
-                return;
-              }
-              try {
-                await SupabaseProvider.authService.updatePassword(
-                  newPasswordController.text,
-                );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Contraseña actualizada')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: ${e.toString()}')),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-            child: const Text('Cambiar'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ChangePasswordScreen(),
       ),
     );
   }

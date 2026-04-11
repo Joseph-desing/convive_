@@ -1,58 +1,56 @@
 import 'package:flutter/material.dart';
-import '../models/property.dart';
+import '../models/roommate_search.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/match.dart';
 import 'chat_screen.dart';
 import '../models/profile.dart';
+import 'user_profile_screen.dart';
 
-class PropertyDetailsScreen extends StatefulWidget {
-  final Property property;
-  const PropertyDetailsScreen({Key? key, required this.property}) : super(key: key);
+class RoommateSearchDetailsScreen extends StatefulWidget {
+  final RoommateSearch search;
+  const RoommateSearchDetailsScreen({Key? key, required this.search}) : super(key: key);
 
   @override
-  State<PropertyDetailsScreen> createState() => _PropertyDetailsScreenState();
+  State<RoommateSearchDetailsScreen> createState() => _RoommateSearchDetailsScreenState();
 }
 
-class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
-  Profile? _ownerProfile;
+class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScreen> {
+  Profile? _authorProfile;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadOwner();
+    _loadAuthor();
   }
 
-  Future<void> _loadOwner() async {
+  Future<void> _loadAuthor() async {
     try {
-      final profile = await SupabaseProvider.databaseService.getProfile(widget.property.ownerId);
-      if (mounted) setState(() { _ownerProfile = profile; _loading = false; });
+      final profile = await SupabaseProvider.databaseService.getProfile(widget.search.userId);
+      if (mounted) setState(() { _authorProfile = profile; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _loading = false; });
     }
   }
 
-  Future<void> _openChatWithOwner() async {
+  Future<void> _openChatWithAuthor() async {
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inicia sesión para enviar mensajes')));
       return;
     }
 
-    // Revisar si ya existe match en contexto de esta propiedad
     try {
-      final existing = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.property.ownerId, 'property', widget.property.id);
+      final existing = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.search.userId, 'search', widget.search.id);
       Match match;
       if (existing != null) {
         match = existing;
       } else {
-        // Crear match (compatibility 0 por defecto)
-        final m = Match(userA: currentUserId, userB: widget.property.ownerId, compatibilityScore: 0.0, contextType: 'property', contextId: widget.property.id);
+        final m = Match(userA: currentUserId, userB: widget.search.userId, compatibilityScore: 0.0, contextType: 'search', contextId: widget.search.id);
         match = await SupabaseProvider.databaseService.createMatch(m);
       }
 
-      // Navegar al chat
       if (mounted) {
         Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(matchId: match.id)));
       }
@@ -63,10 +61,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.property;
+    final s = widget.search;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Propiedad'),
+        title: const Text('Búsqueda de Compañero'),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.primary,
         elevation: 0,
@@ -79,20 +77,20 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Encabezado con imagen o color
+            // Encabezado con gradiente
             Container(
               width: double.infinity,
               height: 200,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.pink.shade300, Colors.pink.shade100],
+                  colors: [Colors.orange.shade300, Colors.orange.shade100],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
               ),
               child: Center(
                 child: Icon(
-                  Icons.apartment_rounded,
+                  Icons.person_search_rounded,
                   size: 80,
                   color: Colors.white.withOpacity(0.8),
                 ),
@@ -107,7 +105,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 children: [
                   // Título
                   Text(
-                    p.title,
+                    s.title,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -119,23 +117,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   // Badges con información clave
                   Row(
                     children: [
-                      if (p.bedrooms != null && p.bedrooms! > 0)
+                      if (s.genderPreference != null && s.genderPreference!.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.pink.withOpacity(0.1),
+                            color: Colors.pink.shade700.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.pink.withOpacity(0.3)),
+                            border: Border.all(color: Colors.pink.shade700.withOpacity(0.3)),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.bed_rounded, size: 18, color: Colors.pink),
+                              Icon(Icons.person_rounded, size: 18, color: Colors.pink.shade700),
                               const SizedBox(width: 6),
                               Text(
-                                '${p.bedrooms} hab',
-                                style: const TextStyle(
+                                s.genderPreference!,
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.pink,
+                                  color: Colors.pink.shade700,
                                 ),
                               ),
                             ],
@@ -145,20 +143,20 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
+                          color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.attach_money_rounded, size: 18, color: Colors.green),
+                            Icon(Icons.attach_money_rounded, size: 18, color: Colors.orange),
                             const SizedBox(width: 6),
                             Text(
-                              '\$${p.price.toStringAsFixed(0)}/mes',
+                              '\$${s.budget.toStringAsFixed(0)}/mes',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
-                                color: Colors.green,
+                                color: Colors.orange,
                               ),
                             ),
                           ],
@@ -179,7 +177,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    p.description,
+                    s.description,
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey[700],
@@ -188,7 +186,47 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Tarjeta del propietario
+                  // Preferencias de hábitos
+                  if (s.habitsPreferences.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Preferencias de Hábitos',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: s.habitsPreferences.map((habit) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                habit,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Tarjeta del autor
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -220,15 +258,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           children: [
                             CircleAvatar(
                               radius: 32,
-                              backgroundColor: Colors.pink.withOpacity(0.2),
-                              backgroundImage: _ownerProfile?.profileImageUrl != null ? NetworkImage(_ownerProfile!.profileImageUrl!) : null,
-                              child: _ownerProfile?.profileImageUrl == null
+                              backgroundColor: Colors.orange.withOpacity(0.2),
+                              backgroundImage: _authorProfile?.profileImageUrl != null ? NetworkImage(_authorProfile!.profileImageUrl!) : null,
+                              child: _authorProfile?.profileImageUrl == null
                                   ? Text(
-                                      (_ownerProfile?.fullName ?? 'U').substring(0, 1).toUpperCase(),
+                                      (_authorProfile?.fullName ?? 'U').substring(0, 1).toUpperCase(),
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.pink,
+                                        color: Colors.orange,
                                       ),
                                     )
                                   : null,
@@ -239,7 +277,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _ownerProfile?.fullName ?? 'Propietario',
+                                    _authorProfile?.fullName ?? 'Usuario',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -248,7 +286,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    _ownerProfile?.bio ?? 'Sin biografía',
+                                    _authorProfile?.bio ?? 'Sin biografía',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey[600],
@@ -264,11 +302,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: _openChatWithOwner,
+                            onPressed: _openChatWithAuthor,
                             icon: const Icon(Icons.chat_bubble_outline_rounded),
                             label: const Text('Enviar mensaje'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.pink,
+                              backgroundColor: Colors.orange,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -313,7 +351,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                p.address,
+                                s.address,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
@@ -345,7 +383,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}',
+                                '${s.latitude?.toStringAsFixed(5) ?? 'N/A'}, ${s.longitude?.toStringAsFixed(5) ?? 'N/A'}',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontFamily: 'monospace',

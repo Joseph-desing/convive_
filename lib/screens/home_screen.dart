@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import '../utils/colors.dart';
+import '../utils/theme_helper.dart';
 import '../widgets/property_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'profile_screen.dart';
@@ -8,6 +11,8 @@ import 'create_roommate_search_screen.dart';
 import 'create_property_screen.dart';
 import 'messages_screen.dart';
 import 'matches_screen.dart';
+import 'notifications_screen.dart';
+import 'map_posts_screen.dart';
 import '../providers/property_provider.dart';
 import '../providers/roommate_search_provider.dart';
 import '../models/property.dart';
@@ -33,6 +38,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   int _currentCardIndex = 0;
+  int _currentRoommateCardIndex = 0;
   List<Property> _properties = [];
   List<RoommateSearch> _roommateSearches = [];
   bool _isLoading = true;
@@ -40,11 +46,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final Map<String, Habits> _habitsCache = {};
   final Map<String, List<String>> _propertyImagesCache = {};
   final Map<String, List<String>> _roommateImagesCache = {};
+  TabController? _tabController;
 
   // Overlay de acción (estrella / corazón)
   bool _overlayVisible = false;
   IconData? _overlayIcon;
   Color _overlayColor = Colors.white;
+
+  void _initializeTabController() {
+    if (_tabController == null) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
+  }
 
   void _showActionOverlay(IconData icon, Color color, {int durationMs = 800}) {
     setState(() {
@@ -56,6 +69,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Future.delayed(Duration(milliseconds: durationMs), () {
       if (mounted) setState(() => _overlayVisible = false);
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
 
@@ -163,15 +182,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Fondo con gradiente
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppColors.backgroundGradient,
-            ),
-          ),
-          
           // Contenido principal
           SafeArea(
             child: Column(
@@ -198,6 +211,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
             ),
           ),
+          
+          // Floating Action Button - Chatbot (Siempre visible)
+          Positioned(
+            bottom: 100,
+            right: 20,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 600),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade600,
+                      borderRadius: BorderRadius.circular(60),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.pink.shade600.withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          context.push('/chatbot');
+                        },
+                        borderRadius: BorderRadius.circular(60),
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(60),
+                          ),
+                          child: const Icon(
+                            Icons.smart_toy_rounded,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
 
@@ -208,10 +270,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Theme.of(context).appBarTheme.backgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: ThemeHelper.border(context).withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -246,19 +308,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Tooltip(
-                message: 'Publicar',
-                child: IconButton(
-                  onPressed: () {
-                    _showPublishMenu(context);
-                  },
-                  icon: const Icon(Icons.add_circle_outline),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.background,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Tooltip(
                 message: 'Filtros',
                 child: IconButton(
                   onPressed: () async {
@@ -282,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   },
                   icon: const Icon(Icons.tune_rounded),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.background,
+                    backgroundColor: ThemeHelper.secondaryBackground(context),
                   ),
                 ),
               ),
@@ -290,10 +339,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Tooltip(
                 message: 'Notificaciones',
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.notifications_outlined),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.background,
+                    backgroundColor: ThemeHelper.secondaryBackground(context),
                   ),
                 ),
               ),
@@ -305,7 +361,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSwipeSection() {
-    // Mostrar loading mientras carga
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -314,22 +369,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Combinar propiedades y búsquedas de roommate
-    final List<PropertyData> displayProperties = [];
+    _initializeTabController();
     
-    // Agregar propiedades
-    displayProperties.addAll(
-      _properties.map((prop) => _convertToPropertyData(prop)).toList()
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.apartment, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Departamentos (${_properties.length})'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.people_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Compañero/a (${_roommateSearches.length})'),
+                ],
+              ),
+            ),
+          ],
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildPropertiesTab(),
+              _buildRoommateSearchesTab(),
+            ],
+          ),
+        ),
+      ],
     );
-    
-    // Agregar búsquedas de roommate
-    displayProperties.addAll(
-      _roommateSearches.map((search) => _convertRoommateToPropertyData(search)).toList()
-    );
+  }
+
+  Widget _buildPropertiesTab() {
+    if (_properties.isEmpty) {
+      return _buildNoMoreCards();
+    }
+
+    final displayProperties = _properties.map((prop) => _convertToPropertyData(prop)).toList();
 
     if (_currentCardIndex >= displayProperties.length) {
       return _buildNoMoreCards();
     }
+
+    final currentProperty = _properties[_currentCardIndex];
 
     return Stack(
       children: [
@@ -343,13 +439,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: PropertyCard(
                 property: displayProperties[i],
-                onSwipeLeft: () => _handleSwipe(false),
-                onSwipeRight: () => _handleSwipe(true),
+                onSwipeLeft: () => _handleSwipeProperties(false),
+                onSwipeRight: () => _handleSwipeProperties(true),
               ),
             ),
           ),
         
-        // Overlay de acción (estrella/corazón)
+        // Overlay de acción
         Positioned.fill(
           child: IgnorePointer(
             child: Center(
@@ -379,41 +475,160 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
 
-        // Action buttons
+        // Action buttons con referencia a propiedad actual
         Positioned(
           bottom: 120,
           left: 0,
           right: 0,
-          child: _buildActionButtons(),
+          child: _buildActionButtonsForProperty(currentProperty),
         ),
       ],
     );
   }
 
-  Widget _buildActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionButton(
-            icon: Icons.close_rounded,
-            color: Colors.red,
-            onPressed: () => _handleSwipe(false),
+  Widget _buildRoommateSearchesTab() {
+    if (_roommateSearches.isEmpty) {
+      return _buildNoMoreCards();
+    }
+
+    final displayRoommates = _roommateSearches.map((search) => _convertRoommateToPropertyData(search)).toList();
+
+    if (_currentRoommateCardIndex >= displayRoommates.length) {
+      return _buildNoMoreCards();
+    }
+
+    final currentRoommate = _roommateSearches[_currentRoommateCardIndex];
+
+    return Stack(
+      children: [
+        // Cards stack
+        for (int i = displayRoommates.length - 1; i >= _currentRoommateCardIndex; i--)
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: (i - _currentRoommateCardIndex) * 10.0,
+                bottom: 100,
+              ),
+              child: PropertyCard(
+                property: displayRoommates[i],
+                onSwipeLeft: () => _handleSwipeRoommates(false),
+                onSwipeRight: () => _handleSwipeRoommates(true),
+              ),
+            ),
           ),
-          _buildActionButton(
-            icon: Icons.star_rounded,
-            color: AppColors.primary,
-            onPressed: () => _handleSuperLike(),
-            size: 70,
+        
+        // Overlay de acción
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Center(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _overlayVisible ? 1.0 : 0.0,
+                child: AnimatedScale(
+                  scale: _overlayVisible ? 1.0 : 0.6,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: Icon(_overlayIcon ?? Icons.star, color: _overlayColor, size: 48),
+                  ),
+                ),
+              ),
+            ),
           ),
-          _buildActionButton(
-            icon: Icons.favorite_rounded,
-            color: Colors.green,
-            onPressed: () => _handleSwipe(true),
-          ),
-        ],
-      ),
+        ),
+
+        // Action buttons con referencia a roommate actual
+        Positioned(
+          bottom: 120,
+          left: 0,
+          right: 0,
+          child: _buildActionButtonsForRoommate(currentRoommate),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtonsForProperty(Property property) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildActionButton(
+          icon: Icons.close_rounded,
+          color: Colors.red,
+          onPressed: () => _handleSwipeProperties(false),
+        ),
+        _buildActionButton(
+          icon: Icons.location_on,
+          color: Colors.blue,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MapPostsScreen(
+                  initialLocation: LatLng(
+                    property.latitude ?? 0.0,
+                    property.longitude ?? 0.0,
+                  ),
+                  singleProperty: property,
+                ),
+              ),
+            );
+          },
+          size: 70,
+        ),
+        _buildActionButton(
+          icon: Icons.favorite_rounded,
+          color: Colors.green,
+          onPressed: () => _handleSwipeProperties(true),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtonsForRoommate(RoommateSearch roommate) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildActionButton(
+          icon: Icons.close_rounded,
+          color: Colors.red,
+          onPressed: () => _handleSwipeRoommates(false),
+        ),
+        _buildActionButton(
+          icon: Icons.location_on,
+          color: Colors.blue,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MapPostsScreen(
+                  initialLocation: LatLng(
+                    roommate.latitude ?? 0.0,
+                    roommate.longitude ?? 0.0,
+                  ),
+                  singleRoommate: roommate,
+                ),
+              ),
+            );
+          },
+          size: 70,
+        ),
+        _buildActionButton(
+          icon: Icons.favorite_rounded,
+          color: Colors.green,
+          onPressed: () => _handleSwipeRoommates(true),
+        ),
+      ],
     );
   }
 
@@ -472,7 +687,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 20),
           const Text(
-            '¡Has visto todas las propiedades!',
+            '¡Has visto todas las opciones!',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -490,7 +705,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: () {
-              setState(() => _currentCardIndex = 0);
+              setState(() {
+                // Resetear ambos índices
+                _currentCardIndex = 0;
+                _currentRoommateCardIndex = 0;
+              });
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -533,49 +752,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _handleSwipe(bool isLike) async {
-    if (_currentCardIndex >= _getAllProperties().length) return;
+  void _handleSwipeProperties(bool isLike) async {
+    if (_currentCardIndex >= _properties.length) return;
     
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) return;
     
-    final allProperties = _getAllProperties();
-    final currentProperty = allProperties[_currentCardIndex];
-    
-    // Obtener targetUserId buscando en properties o roommate searches
-    String? targetUserId;
-    String? contextType;
-    String? contextId;
-    
-    // Buscar en properties
-    final property = _properties.where((p) => p.id == currentProperty.id).firstOrNull;
-    if (property != null) {
-      targetUserId = property.ownerId;
-      contextType = 'property';
-      contextId = property.id;
-      print('🏠 Contexto detectado: PROPERTY (${property.id})');
-    } else {
-      // Buscar en roommate searches
-      final search = _roommateSearches.where((r) => r.id == currentProperty.id).firstOrNull;
-      if (search != null) {
-        targetUserId = search.userId;
-        contextType = 'roommate_search';
-        contextId = search.id;
-        print('🔍 Contexto detectado: ROOMMATE_SEARCH (${search.id})');
-      }
-    }
-    
-    if (targetUserId == null) {
-      print('❌ No se pudo determinar el targetUserId');
-      return;
-    }
+    final property = _properties[_currentCardIndex];
+    final targetUserId = property.ownerId;
+    final contextType = 'property';
+    final contextId = property.id;
     
     setState(() {
       _currentCardIndex++;
     });
 
     if (!isLike) {
-      // Solo guardar el dislike sin verificar match
       try {
         await SupabaseProvider.databaseService.createSwipe(
           Swipe(
@@ -584,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             direction: SwipeDirection.dislike,
           ),
         );
-        print('👎 Dislike guardado');
+        print('👎 Dislike en propiedad guardado');
       } catch (e) {
         print('❌ Error guardando dislike: $e');
       }
@@ -593,10 +785,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // Like - guardar y verificar si hay match
     try {
-      // Mostrar corazón como feedback inmediato
       _showActionOverlay(Icons.favorite_rounded, Colors.green);
 
-      // Guardar el swipe
       await SupabaseProvider.databaseService.createSwipe(
         Swipe(
           swiperId: currentUserId,
@@ -604,52 +794,104 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           direction: SwipeDirection.like,
         ),
       );
-      print('❤️ Like guardado');
+      print('❤️ Like en propiedad guardado');
 
-      // Crear match incluso si solo tú diste like (mostrar conexión al receptor)
       final existingMatch = await SupabaseProvider.databaseService
           .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
 
       if (existingMatch == null) {
-        print('🎉 ¡MATCH/CONEXIÓN CREADA!');
-
-        // Calcular compatibilidad
         final compatibility = _calculateCompatibility(targetUserId);
 
-        // Crear el match con contexto
-        final match = await SupabaseProvider.databaseService.createMatch(
+        await SupabaseProvider.databaseService.createMatch(
           Match(
             userA: currentUserId,
             userB: targetUserId,
             compatibilityScore: compatibility.toDouble(),
-            contextType: contextType ?? 'general',
+            contextType: contextType,
             contextId: contextId,
           ),
         );
 
-        // Crear chat automáticamente
         try {
-          await SupabaseProvider.messagesService.getOrCreateChat(match.id);
-          print('✅ Chat creado automáticamente');
+          await SupabaseProvider.messagesService.getOrCreateChat(existingMatch?.id ?? '');
         } catch (e) {
           print('⚠️ Error creando chat: $e');
         }
-
-        // No mostrar diálogo
-      } else {
-        print('ℹ️ Match ya existente, no se duplica');
       }
     } catch (e) {
       print('❌ Error en el proceso de like: $e');
     }
   }
 
-  List<PropertyData> _getAllProperties() {
-    final List<PropertyData> all = [];
-    all.addAll(_properties.map((p) => _convertToPropertyData(p)));
-    all.addAll(_roommateSearches.map((r) => _convertRoommateToPropertyData(r)));
-    print('📋 _getAllProperties: ${_properties.length} propiedades + ${_roommateSearches.length} roommate = ${all.length} total');
-    return all;
+  void _handleSwipeRoommates(bool isLike) async {
+    if (_currentRoommateCardIndex >= _roommateSearches.length) return;
+    
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    
+    final search = _roommateSearches[_currentRoommateCardIndex];
+    final targetUserId = search.userId;
+    final contextType = 'search';
+    final contextId = search.id;
+    
+    setState(() {
+      _currentRoommateCardIndex++;
+    });
+
+    if (!isLike) {
+      try {
+        await SupabaseProvider.databaseService.createSwipe(
+          Swipe(
+            swiperId: currentUserId,
+            targetUserId: targetUserId,
+            direction: SwipeDirection.dislike,
+          ),
+        );
+        print('👎 Dislike en búsqueda guardado');
+      } catch (e) {
+        print('❌ Error guardando dislike: $e');
+      }
+      return;
+    }
+
+    // Like - guardar y verificar si hay match
+    try {
+      _showActionOverlay(Icons.favorite_rounded, Colors.green);
+
+      await SupabaseProvider.databaseService.createSwipe(
+        Swipe(
+          swiperId: currentUserId,
+          targetUserId: targetUserId,
+          direction: SwipeDirection.like,
+        ),
+      );
+      print('❤️ Like en búsqueda guardado');
+
+      final existingMatch = await SupabaseProvider.databaseService
+          .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
+
+      if (existingMatch == null) {
+        final compatibility = _calculateCompatibility(targetUserId);
+
+        await SupabaseProvider.databaseService.createMatch(
+          Match(
+            userA: currentUserId,
+            userB: targetUserId,
+            compatibilityScore: compatibility.toDouble(),
+            contextType: contextType,
+            contextId: contextId,
+          ),
+        );
+
+        try {
+          await SupabaseProvider.messagesService.getOrCreateChat(existingMatch?.id ?? '');
+        } catch (e) {
+          print('⚠️ Error creando chat: $e');
+        }
+      }
+    } catch (e) {
+      print('❌ Error en el proceso de like: $e');
+    }
   }
 
   void _showMatchDialog(String otherUserId, int compatibility) {
@@ -775,302 +1017,134 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _handleSuperLike() {
-    () async {
-      if (_currentCardIndex >= _getAllProperties().length) return;
-
-      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
-      if (currentUserId == null) return;
-
-      final allProperties = _getAllProperties();
-      final currentProperty = allProperties[_currentCardIndex];
-
-      String? targetUserId;
-      String? contextType;
-      String? contextId;
-
-      final property = _properties.where((p) => p.id == currentProperty.id).firstOrNull;
-      if (property != null) {
-        targetUserId = property.ownerId;
-        contextType = 'property';
-        contextId = property.id;
-      } else {
-        final search = _roommateSearches.where((r) => r.id == currentProperty.id).firstOrNull;
-        if (search != null) {
-          targetUserId = search.userId;
-          contextType = 'roommate_search';
-          contextId = search.id;
-        }
-      }
-
-      if (targetUserId == null) return;
-
-      setState(() => _currentCardIndex++);
-
-      // Mostrar estrella como feedback inmediato
-      _showActionOverlay(Icons.star_rounded, AppColors.primary);
-
-      try {
-        // Guardar super-like (se almacena como 'like' en la tabla)
-        await SupabaseProvider.databaseService.createSuperLike(currentUserId, targetUserId);
-        print('⭐ Super-like enviado');
-
-        // Verificar si el otro ya te había dado like
-        final otherLiked = await SupabaseProvider.databaseService.hasSwipedLikeOrSuper(targetUserId, currentUserId);
-
-        if (otherLiked) {
-          final existingMatch = await SupabaseProvider.databaseService
-              .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
-
-          if (existingMatch == null) {
-            final compatibility = _calculateCompatibility(targetUserId);
-            final match = await SupabaseProvider.databaseService.createMatch(
-              Match(
-                userA: currentUserId,
-                userB: targetUserId,
-                compatibilityScore: compatibility.toDouble(),
-                contextType: contextType ?? 'general',
-                contextId: contextId,
-              ),
-            );
-
-            // Crear chat y enviar mensaje automático
-            try {
-              final chat = await SupabaseProvider.messagesService.getOrCreateChat(match.id);
-              await SupabaseProvider.messagesService.sendMessage(
-                chatId: chat.id,
-                senderId: currentUserId,
-                content: 'Estoy muy interesado/a',
-              );
-              print('✉️ Mensaje automático enviado tras super-like + match');
-            } catch (e) {
-              print('⚠️ Error creando chat/enviando mensaje automático: $e');
-            }
-
-            _showMatchDialog(targetUserId, _calculateCompatibility(targetUserId));
-          } else {
-            print('ℹ️ Match ya existente tras super-like');
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Has enviado un Super-like ⭐'),
-            duration: Duration(seconds: 2),
-          ));
-        }
-      } catch (e) {
-        print('❌ Error en super-like: $e');
-      }
-    }();
+    // El botón de star ahora es igual a like (simplificado con tabs)
+    // Si es necesario super-like diferenciado, se puede implementar después
+    final isProperty = _tabController?.index == 0;
+    if (isProperty) {
+      _handleSwipeProperties(true);
+    } else {
+      _handleSwipeRoommates(true);
+    }
   }
 
   PropertyData _convertToPropertyData(Property property) {
-    final ownerProfile = _profileCache[property.ownerId];
-    final ownerImage = ownerProfile?.profileImageUrl ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(ownerProfile?.fullName ?? 'Usuario')}&background=FF69B4&color=fff';
-    final ownerName = ownerProfile?.fullName ?? 'Propietario';
-    final ownerAge = _calculateAge(ownerProfile?.birthDate);
-    final verified = ownerProfile?.verified ?? property.isActive;
+    try {
+      final ownerProfile = _profileCache[property.ownerId];
+      final fullName = ownerProfile?.fullName ?? 'Propietario';
+      final ownerImage = ownerProfile?.profileImageUrl ??
+          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=FF69B4&color=fff';
+      final ownerName = fullName;
+      final ownerAge = _calculateAge(ownerProfile?.birthDate);
+      final verified = ownerProfile?.verified ?? property.isActive;
 
-    final cachedImages = _propertyImagesCache[property.id];
-    final imageList = (cachedImages != null && cachedImages.isNotEmpty)
-        ? List<String>.from(cachedImages)
-        : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(property.title)}'];
+      final cachedImages = _propertyImagesCache[property.id];
+      final imageList = (cachedImages != null && cachedImages.isNotEmpty)
+          ? List<String>.from(cachedImages)
+          : <String>['https://via.placeholder.com/800x600?text=Departamento'];
 
-    // Calcular compatibilidad real
-    final compatibility = _calculateCompatibility(property.ownerId);
+      // Calcular compatibilidad real
+      final compatibility = _calculateCompatibility(property.ownerId);
+      final propertyTitle = property.title ?? 'Sin título';
+      final propertyAddress = property.address ?? 'Sin ubicación';
+      final propertyPrice = property.price ?? 0.0;
 
-    return PropertyData(
-      id: property.id,
-      images: imageList,
-      title: property.title,
-      price: property.price,
-      location: property.address,
-      distance: 0.0, // TODO: Calcular distancia real
-      ownerName: ownerName,
-      ownerAge: ownerAge,
-      ownerImage: ownerImage,
-      compatibility: compatibility,
-      isVerified: verified,
-      bedrooms: 1, // TODO: Agregar a modelo Property
-      amenities: [], // TODO: Agregar a modelo Property
-      habits: _getHabitDataFromOwner(property.ownerId),
-    );
+      return PropertyData(
+        id: property.id,
+        images: imageList,
+        title: propertyTitle,
+        price: propertyPrice,
+        location: propertyAddress,
+        distance: 0.0, // TODO: Calcular distancia real
+        ownerName: ownerName,
+        ownerAge: ownerAge,
+        ownerImage: ownerImage,
+        compatibility: compatibility,
+        isVerified: verified,
+        bedrooms: 1,
+        amenities: [],
+        habits: _getHabitDataFromOwner(property.ownerId),
+      );
+    } catch (e) {
+      print('❌ Error en _convertToPropertyData: $e');
+      // Retornar PropertyData por defecto
+      return PropertyData(
+        id: 'error',
+        images: ['https://via.placeholder.com/800x600?text=Error'],
+        title: 'Error cargando propiedad',
+        price: 0.0,
+        location: 'Sin ubicación',
+        distance: 0.0,
+        ownerName: 'Error',
+        ownerAge: 0,
+        ownerImage: 'https://via.placeholder.com/200',
+        compatibility: 0,
+        isVerified: false,
+        bedrooms: 1,
+        amenities: [],
+        habits: HabitData(cleanliness: 5, noiseLevel: 5, socialLevel: 5),
+      );
+    }
   }
 
   PropertyData _convertRoommateToPropertyData(RoommateSearch search) {
-    final ownerProfile = _profileCache[search.userId];
-    final ownerImage = ownerProfile?.profileImageUrl ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(ownerProfile?.fullName ?? 'User')}&background=9C27B0&color=fff';
-    final ownerName = ownerProfile?.fullName ?? 'Buscando Compañero/a';
-    final ownerAge = _calculateAge(ownerProfile?.birthDate);
-    final verified = ownerProfile?.verified ?? search.status == 'active';
+    try {
+      final ownerProfile = _profileCache[search.userId];
+      final fullName = ownerProfile?.fullName ?? 'Compañero/a';
+      final ownerImage = ownerProfile?.profileImageUrl ??
+          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=9C27B0&color=fff';
+      final ownerName = fullName;
+      final ownerAge = _calculateAge(ownerProfile?.birthDate);
+      final verified = ownerProfile?.verified ?? (search.status?.isNotEmpty ?? false);
 
-    // Usar imágenes cacheadas con copia defensiva para evitar dartx_get
-    final cachedImages = search.id != null ? _roommateImagesCache[search.id] : null;
-    final imageList = (cachedImages != null && cachedImages.isNotEmpty)
-        ? List<String>.from(cachedImages)
-        : <String>['https://via.placeholder.com/800x600?text=${Uri.encodeComponent(search.title)}'];
+      // Usar imágenes cacheadas de forma segura
+      final searchId = search.id ?? '';
+      final cachedImages = searchId.isNotEmpty ? _roommateImagesCache[searchId] : null;
+      final imageList = (cachedImages != null && cachedImages.isNotEmpty)
+          ? List<String>.from(cachedImages)
+          : <String>['https://via.placeholder.com/800x600?text=Compañero'];
 
-    // Calcular compatibilidad real
-    final compatibility = _calculateCompatibility(search.userId);
+      // Calcular compatibilidad real
+      final compatibility = _calculateCompatibility(search.userId);
+      final searchTitle = search.title ?? 'Buscando compañero/a';
+      final searchAddress = search.address ?? 'Sin ubicación';
+      final searchBudget = search.budget ?? 0.0;
 
-    return PropertyData(
-      id: search.id ?? '',
-      images: imageList,
-      title: search.title,
-      price: search.budget,
-      location: search.address,
-      distance: 0.0, // TODO: Calcular distancia real
-      ownerName: ownerName,
-      ownerAge: ownerAge,
-      ownerImage: ownerImage,
-      compatibility: compatibility,
-      isVerified: verified,
-      bedrooms: 1,
-      amenities: search.habitsPreferences,
-      habits: _getHabitDataFromOwner(search.userId),
-    );
-  }
-
-  void _showPublishMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              '¿Qué quieres publicar?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildMenuOption(
-              context,
-              icon: Icons.home_work,
-              title: 'Publicar Propiedad',
-              description: 'Tengo un cuarto para alquilar',
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreatePropertyScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildMenuOption(
-              context,
-              icon: Icons.group_add,
-              title: 'Buscar Roommate',
-              description: 'Necesito un compañero/a',
-              gradient: AppColors.primaryGradient,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateRoommateSearchScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuOption(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String description,
-    required Gradient gradient,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
+      return PropertyData(
+        id: searchId,
+        images: imageList,
+        title: searchTitle,
+        price: searchBudget,
+        location: searchAddress,
+        distance: 0.0, // TODO: Calcular distancia real
+        ownerName: ownerName,
+        ownerAge: ownerAge,
+        ownerImage: ownerImage,
+        compatibility: compatibility,
+        isVerified: verified,
+        bedrooms: 1,
+        amenities: search.habitsPreferences ?? [],
+        habits: _getHabitDataFromOwner(search.userId),
+      );
+    } catch (e) {
+      print('❌ Error en _convertRoommateToPropertyData: $e');
+      // Retornar un PropertyData por defecto
+      return PropertyData(
+        id: 'error',
+        images: ['https://via.placeholder.com/800x600?text=Error'],
+        title: 'Error cargando búsqueda',
+        price: 0.0,
+        location: 'Sin ubicación',
+        distance: 0.0,
+        ownerName: 'Error',
+        ownerAge: 0,
+        ownerImage: 'https://via.placeholder.com/200',
+        compatibility: 0,
+        isVerified: false,
+        bedrooms: 1,
+        amenities: [],
+        habits: HabitData(cleanliness: 5, noiseLevel: 5, socialLevel: 5),
+      );
+    }
   }
 
   int _calculateAge(DateTime? birthDate) {

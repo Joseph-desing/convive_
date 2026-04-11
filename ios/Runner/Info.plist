@@ -45,5 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Deep Linking Configuration -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.example.convive</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.example.convive</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
