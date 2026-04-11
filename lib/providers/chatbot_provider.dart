@@ -40,10 +40,10 @@ class ChatbotProvider extends ChangeNotifier {
         try {
           // Cargar perfil desde BD para obtener nombre completo
           final profile = await _databaseService.getProfile(user.id);
-          userName = profile?.fullName ?? user.email?.split('@').first ?? 'Usuario';
+          userName = profile?.fullName ?? user.email.split('@').first ?? 'Usuario';
         } catch (e) {
           // Si falla, usar email
-          userName = user.email?.split('@').first ?? 'Usuario';
+          userName = user.email.split('@').first ?? 'Usuario';
         }
       }
       

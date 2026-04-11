@@ -7,8 +7,6 @@ import '../utils/theme_helper.dart';
 import '../widgets/property_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'profile_screen.dart';
-import 'create_roommate_search_screen.dart';
-import 'create_property_screen.dart';
 import 'messages_screen.dart';
 import 'matches_screen.dart';
 import 'notifications_screen.dart';
@@ -24,7 +22,6 @@ import '../models/match.dart';
 import '../config/supabase_provider.dart';
 import '../services/compatibility_service.dart';
 import '../widgets/filter_sheet.dart';
-import 'map_posts_screen.dart';
 import '../providers/notifications_provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -614,8 +611,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               MaterialPageRoute(
                 builder: (_) => MapPostsScreen(
                   initialLocation: LatLng(
-                    property.latitude ?? 0.0,
-                    property.longitude ?? 0.0,
+                    property.latitude,
+                    property.longitude,
                   ),
                   singleProperty: property,
                 ),
@@ -978,139 +975,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _showMatchDialog(String otherUserId, int compatibility) {
-    final otherProfile = _profileCache[otherUserId];
-    final name = otherProfile?.fullName ?? 'Usuario';
-    final imageUrl = otherProfile?.profileImageUrl ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=9C27B0&color=fff';
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        final maxH = MediaQuery.of(context).size.height * 0.85;
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          child: SizedBox(
-            height: maxH,
-            child: SingleChildScrollView(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 72,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '¡Conexión encontrada!',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Tú y $name son compatibles para compartir depa o habitación',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$compatibility% Compatible',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(imageUrl),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white, width: 2),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: const Text(
-                              'Seguir viendo',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              setState(() => _currentIndex = 1);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: const Text(
-                              'Ver match',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _handleSuperLike() {
-    // El botón de star ahora es igual a like (simplificado con tabs)
-    // Si es necesario super-like diferenciado, se puede implementar después
-    final isProperty = _tabController?.index == 0;
-    if (isProperty) {
-      _handleSwipeProperties(true);
-    } else {
-      _handleSwipeRoommates(true);
-    }
-  }
-
   PropertyData _convertToPropertyData(Property property) {
     try {
       final ownerProfile = _profileCache[property.ownerId];
@@ -1128,9 +992,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Calcular compatibilidad real
       final compatibility = _calculateCompatibility(property.ownerId);
-      final propertyTitle = property.title ?? 'Sin título';
-      final propertyAddress = property.address ?? 'Sin ubicación';
-      final propertyPrice = property.price ?? 0.0;
+      final propertyTitle = property.title;
+      final propertyAddress = property.address;
+      final propertyPrice = property.price;
 
       return PropertyData(
         id: property.id,
@@ -1178,7 +1042,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=9C27B0&color=fff';
       final ownerName = fullName;
       final ownerAge = _calculateAge(ownerProfile?.birthDate);
-      final verified = ownerProfile?.verified ?? (search.status?.isNotEmpty ?? false);
+      final verified = ownerProfile?.verified ?? (search.status.isNotEmpty);
 
       // Usar imágenes cacheadas de forma segura
       final searchId = search.id ?? '';
@@ -1189,9 +1053,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Calcular compatibilidad real
       final compatibility = _calculateCompatibility(search.userId);
-      final searchTitle = search.title ?? 'Buscando compañero/a';
-      final searchAddress = search.address ?? 'Sin ubicación';
-      final searchBudget = search.budget ?? 0.0;
+      final searchTitle = search.title;
+      final searchAddress = search.address;
+      final searchBudget = search.budget;
 
       return PropertyData(
         id: searchId,

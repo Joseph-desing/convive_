@@ -15,9 +15,6 @@ import '../models/property.dart';
 import '../models/roommate_search.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
-import 'create_property_screen.dart';
-import 'create_roommate_search_screen.dart';
-import 'user_profile_screen.dart';
 import 'property_details_screen.dart';
 import 'roommate_search_details_screen.dart';
 
@@ -71,9 +68,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         // Centrar en esa propiedad
         final lat = widget.singleProperty!.latitude;
         final lng = widget.singleProperty!.longitude;
-        if (lat != null && lng != null) {
-          _mapController.move(LatLng(lat, lng), 15);
-        }
+        _mapController.move(LatLng(lat, lng), 15);
       } else if (widget.singleRoommate != null) {
         setState(() {
           _properties = [];
@@ -364,9 +359,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                     onPositionChanged: (pos, _) {
                       try {
                         final c = pos.center;
-                        if (c != null) {
-                          setState(() => _currentMapCenter = LatLng(c.latitude, c.longitude));
-                        }
+                        setState(() => _currentMapCenter = LatLng(c.latitude, c.longitude));
                       } catch (_) {}
                     },
                   ),
@@ -569,7 +562,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               const SizedBox(height: 20),
               // Título
               Text(
-                p.title ?? 'Departamento',
+                p.title,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -589,7 +582,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      p.address ?? 'Ubicación no disponible',
+                      p.address,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -601,7 +594,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               ),
               const SizedBox(height: 16),
               // Precio si está disponible
-              if (p.price != null && p.price != 0)
+              if (p.price != 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -696,7 +689,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               const SizedBox(height: 20),
               // Título
               Text(
-                s.title ?? 'Búsqueda de compañero/a',
+                s.title,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -716,7 +709,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      s.address ?? 'Ubicación no disponible',
+                      s.address,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -728,7 +721,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               ),
               const SizedBox(height: 16),
               // Presupuesto si está disponible
-              if (s.budget != null && s.budget != 0)
+              if (s.budget != 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(

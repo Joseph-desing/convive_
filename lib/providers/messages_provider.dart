@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/index.dart';
 import '../config/supabase_provider.dart';
 
@@ -33,7 +34,6 @@ class MessagesProvider extends ChangeNotifier {
   /// ✅ Consolida múltiples chats del mismo usuario en uno solo
   Future<void> loadChatPreviews(String userId) async {
     _error = null;
-    notifyListeners();
 
     try {
       _chats = await SupabaseProvider.messagesService.getUserChats(userId);
@@ -133,7 +133,11 @@ class MessagesProvider extends ChangeNotifier {
   /// Cargar mensajes de un chat específico
   Future<void> loadChatMessages(String chatId, {int limit = 50}) async {
     _loadingChats[chatId] = true;
-    notifyListeners();
+    
+    // Defer notification to post-frame to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
 
     try {
       final messages =

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/user_provider.dart';
 import '../utils/colors.dart';
 import '../models/index.dart';
 import '../config/supabase_provider.dart';
 import 'complete_profile_screen.dart';
 import 'settings_screen.dart';
-import 'help_support_screen.dart';
 import 'privacy_screen.dart';
 import 'edit_habits_screen.dart';
 import 'my_publications_screen.dart';
@@ -456,8 +453,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: hasImage
                 ? null
                 : Text(
-                    profile.fullName.isNotEmpty
-                        ? profile.fullName[0].toUpperCase()
+                    (profile.fullName?.isNotEmpty ?? false)
+                        ? (profile.fullName?[0] ?? '?').toUpperCase()
                         : '?',
                     style: const TextStyle(
                       fontSize: 52,
@@ -502,7 +499,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      profile.fullName,
+                      profile.fullName ?? '',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

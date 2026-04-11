@@ -10,6 +10,7 @@ class SupabaseMessagesService {
   final Map<String, Stream<Message>> _streamCache = {};
   final Map<String, RealtimeChannel> _channelCache = {};
   final Map<String, int> _listenerCount = {};
+  final Map<String, DateTime> _lastProcessedTime = {}; // Rastrear último mensaje procesado
 
   SupabaseMessagesService({required SupabaseClient supabase})
       : _supabase = supabase;
@@ -191,8 +192,6 @@ class SupabaseMessagesService {
     _listenerCount[chatId] = 1;
 
     late final StreamController<Message> controller;
-    late void Function(Message) _addMessage;
-    late RealtimeChannel channel;
 
     controller = StreamController<Message>.broadcast(
       onListen: () {
@@ -202,7 +201,7 @@ class SupabaseMessagesService {
           // ✅ USAR CANAL CACHEADO SI EXISTE, sino crear uno nuevo
           if (_channelCache.containsKey(chatId)) {
             print('♻️ REUSING canal cacheado para chat $chatId');
-            channel = _channelCache[chatId]!;
+            final channel = _channelCache[chatId]!;
             print('✅ Canal ya existe, reutilizando suscripción');
             return;
           }
@@ -210,7 +209,7 @@ class SupabaseMessagesService {
           // ✅ CREAR CANAL CON NOMBRE ÚNICO (UUID) para evitar colisiones
           final channelName = 'messages_${DateTime.now().millisecondsSinceEpoch}_$chatId';
           
-          channel = _supabase
+          final channel = _supabase
               .channel(
                 channelName,
                 opts: const RealtimeChannelConfig(
@@ -227,37 +226,153 @@ class SupabaseMessagesService {
                   column: 'chat_id',
                   value: chatId,
                 ),
-                callback: (payload) {
+                callback: (payload) async {
                   try {
                     print('✅ REALTIME CALLBACK DISPARADO - Nuevo mensaje recibido');
                     
-                    // Extraer el nuevo registro del payload
-                    final dynamic p = payload;
-                    dynamic newRecord;
-
-                    if (p is Map) {
-                      newRecord = p['new'] ?? p['record'] ?? p['new_record'];
-                    } else {
-                      try {
-                        final encoded = jsonEncode(p);
-                        final decoded = jsonDecode(encoded);
-                        if (decoded is Map) {
-                          newRecord = decoded['new'] ?? decoded['record'] ?? decoded['new_record'];
-                        }
-                      } catch (_) {}
-                    }
-
+                    // Extraer el nuevo registro del payload (PostgresChangePayload)
+                    final newRecord = payload.newRecord;
+                    print('📦 newRecord: $newRecord');
+                    
                     if (newRecord == null) {
-                      print('⚠️ Payload sin newRecord');
+                      print('⚠️ Payload.newRecord es null - obteniendo mensajes más nuevos del chat...');
+                      // Fallback: obtener mensajes más nuevos que el último procesado
+                      try {
+                        final lastTime = _lastProcessedTime[chatId] ?? DateTime.now().subtract(const Duration(seconds: 30));
+                        print('🔍 Buscando mensajes después de: $lastTime');
+                        
+                        final lastMessages = await _supabase
+                            .from('messages')
+                            .select('*')
+                            .eq('chat_id', chatId)
+                            .gt('created_at', lastTime.toIso8601String())
+                            .order('created_at', ascending: false)
+                            .limit(5); // Obtener hasta 5 últimos para detectar múltiples
+                        
+                        print('📨 Encontrados ${lastMessages.length} mensajes nuevos');
+                        
+                        if (lastMessages.isNotEmpty) {
+                          // Procesar en orden inverso (más antiguos primero)
+                          for (int i = lastMessages.length - 1; i >= 0; i--) {
+                            final msg = Message.fromJson(lastMessages[i]);
+                            
+                            // Actualizar el tiempo procesado
+                            if (msg.createdAt.isAfter(_lastProcessedTime[chatId] ?? DateTime(1970))) {
+                              _lastProcessedTime[chatId] = msg.createdAt;
+                            }
+                            
+                            if (!controller.isClosed) {
+                              controller.add(msg);
+                            }
+                            print('✅ Mensaje agregado via fallback: ${msg.id}');
+                          }
+                        }
+                      } catch (fallbackErr) {
+                        print('❌ Error en fallback: $fallbackErr');
+                      }
                       return;
                     }
 
-                    final parsed = Map<String, dynamic>.from(newRecord as Map);
-                    final message = Message.fromJson(parsed);
-                    print('📨 Mensaje recibido (realtime): ${message.id}');
-                    _addMessage(message);
+                    // Si tenemos el newRecord completo, usarlo directamente
+                    if (newRecord is Map<String, dynamic>) {
+                      try {
+                        final message = Message.fromJson(newRecord);
+                        
+                        // Actualizar el tiempo del último procesado
+                        if (message.createdAt.isAfter(_lastProcessedTime[chatId] ?? DateTime(1970))) {
+                          _lastProcessedTime[chatId] = message.createdAt;
+                        }
+                        
+                        print('📨 Mensaje recibido (realtime): ${message.id}');
+                        if (!controller.isClosed) {
+                          controller.add(message);
+                        }
+                      } catch (e) {
+                        print('❌ Error parseando mensaje: $e');
+                        // Si no se puede parsear, obtener de la BD por ID
+                        final messageId = newRecord['id'] as String?;
+                        if (messageId != null) {
+                          try {
+                            final response = await _supabase
+                                .from('messages')
+                                .select('*')
+                                .eq('id', messageId)
+                                .single();
+                            final message = Message.fromJson(response);
+                            
+                            if (message.createdAt.isAfter(_lastProcessedTime[chatId] ?? DateTime(1970))) {
+                              _lastProcessedTime[chatId] = message.createdAt;
+                            }
+                            
+                            if (!controller.isClosed) {
+                              controller.add(message);
+                            }
+                          } catch (err) {
+                            print('❌ Error obteniendo mensaje de BD: $err');
+                          }
+                        }
+                      }
+                    } else {
+                      print('⚠️ newRecord no es Map, obteniendo mensajes más nuevos de la BD...');
+                      // Fallback: obtener últimos mensajes del chat
+                      try {
+                        final lastTime = _lastProcessedTime[chatId] ?? DateTime.now().subtract(const Duration(seconds: 30));
+                        final newerMessages = await _supabase
+                            .from('messages')
+                            .select('*')
+                            .eq('chat_id', chatId)
+                            .gt('created_at', lastTime.toIso8601String())
+                            .order('created_at', ascending: true)
+                            .limit(10);
+                        
+                        if (newerMessages.isNotEmpty) {
+                          for (final msgData in newerMessages) {
+                            final message = Message.fromJson(msgData);
+                            
+                            if (message.createdAt.isAfter(_lastProcessedTime[chatId] ?? DateTime(1970))) {
+                              _lastProcessedTime[chatId] = message.createdAt;
+                            }
+                            
+                            if (!controller.isClosed) {
+                              controller.add(message);
+                            }
+                            print('✅ Mensaje obtenido como fallback: ${message.id}');
+                          }
+                        }
+                      } catch (fallbackErr) {
+                        print('❌ Error en fallback: $fallbackErr');
+                      }
+                    }
                   } catch (e) {
-                    print('❌ Error parseando realtime payload: $e');
+                    print('❌ Error en realtime callback: $e');
+                    // Fallback extremo: obtener mensajes nuevos si todo falla
+                    try {
+                      final lastTime = _lastProcessedTime[chatId] ?? DateTime.now().subtract(const Duration(seconds: 30));
+                      final lastMessages = await _supabase
+                          .from('messages')
+                          .select('*')
+                          .eq('chat_id', chatId)
+                          .gt('created_at', lastTime.toIso8601String())
+                          .order('created_at', ascending: true)
+                          .limit(10);
+                      
+                      if (lastMessages.isNotEmpty) {
+                        for (final msgData in lastMessages) {
+                          final message = Message.fromJson(msgData);
+                          
+                          if (message.createdAt.isAfter(_lastProcessedTime[chatId] ?? DateTime(1970))) {
+                            _lastProcessedTime[chatId] = message.createdAt;
+                          }
+                          
+                          if (!controller.isClosed) {
+                            controller.add(message);
+                          }
+                        }
+                        print('✅ ${lastMessages.length} mensajes agregados via fallback extremo');
+                      }
+                    } catch (fallbackErr) {
+                      print('❌ Error en fallback extremo: $fallbackErr');
+                    }
                   }
                 },
               )
@@ -277,7 +392,6 @@ class SupabaseMessagesService {
           print('❌ Error en onListen: $e');
         }
       },
-      // ✅ PROBLEMA 1 ARREGLADO: NO destruir el canal cuando se cancela UN listener
       onCancel: () async {
         try {
           print('🔄 onCancel disparado');
@@ -306,14 +420,6 @@ class SupabaseMessagesService {
         }
       },
     );
-
-    // Función para agregar mensajes al stream
-    _addMessage = (Message msg) {
-      if (!controller.isClosed) {
-        print('➕ Mensaje agregado al stream: ${msg.id}');
-        controller.add(msg);
-      }
-    };
 
     // ✅ CACHEAR EL STREAM para reutilizarlo
     _streamCache[chatId] = controller.stream;

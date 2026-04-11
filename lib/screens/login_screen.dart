@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../utils/colors.dart'; // Asegúrate de que esto exista
 import '../providers/auth_provider.dart';
 import '../models/user.dart'; // A veces no es necesario importar el modelo aquí si se usa el provider
-import 'email_verification_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {

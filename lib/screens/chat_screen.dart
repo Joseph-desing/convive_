@@ -22,6 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   String? _chatId;
   StreamSubscription<Message>? _messagesSubscription;  // ✅ SOLO realtime, sin polling
+  bool _isSending = false;  // ✅ NUEVO: Estado de envío
 
   @override
   void initState() {
@@ -151,25 +152,41 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _chatId == null) return;
+    
+    // ✅ VALIDACIÓN MEJORADA
+    if (!_validateMessage(text)) return;
+    if (_chatId == null) {
+      _showError('Error: Chat no cargado');
+      return;
+    }
+    if (_isSending) {
+      _showError('Espera a que se envíe el mensaje anterior');
+      return;
+    }
 
+    // Limpiar input
     _messageController.clear();
 
     try {
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
-      if (currentUserId == null) return;
+      if (currentUserId == null) {
+        _showError('Usuario no autenticado');
+        return;
+      }
 
-      // Crear mensaje localmente para feedback inmediato
+      // ✅ CREAR MENSAJE CON ESTADO "pending"
       final localMessage = Message(
         chatId: _chatId!,
         senderId: currentUserId,
         content: text,
+        status: 'pending',  // ✅ Marcar como pendiente
       );
 
       // Agregar a la lista local inmediatamente (feedback instantáneo)
       if (mounted) {
         setState(() {
           _messages.add(localMessage);
+          _isSending = true;  // ✅ NUEVO: Mostrar estado de envío
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
@@ -177,21 +194,77 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       // Enviar al servidor (el realtime traerá la versión confirmada)
-      await SupabaseProvider.messagesService.sendMessage(
+      final sentMessage = await SupabaseProvider.messagesService.sendMessage(
         chatId: _chatId!,
         senderId: currentUserId,
         content: text,
       );
       
-      print('✅ Mensaje enviado al servidor');
+      print('✅ Mensaje enviado: ${sentMessage.id}');
+
+      // ✅ REEMPLAZAR EL MENSAJE LOCAL CON EL DEL SERVIDOR
+      if (mounted) {
+        final index = _messages.indexWhere((m) => m.id == localMessage.id);
+        if (index != -1) {
+          setState(() {
+            _messages[index] = sentMessage.copyWith(status: 'sent');
+          });
+        }
+        
+        setState(() => _isSending = false);
+      }
     } catch (e) {
       print('❌ Error enviando mensaje: $e');
+      
+      // ✅ MARCAR MENSAJE COMO FALLIDO
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error enviando mensaje')),
-        );
+        setState(() {
+          _isSending = false;
+          // Marcar el último mensaje como fallido
+          if (_messages.isNotEmpty) {
+            _messages[_messages.length - 1] = 
+              _messages[_messages.length - 1].copyWith(status: 'failed');
+          }
+        });
+        
+        _showError('Error al enviar mensaje. Intenta de nuevo.');
       }
     }
+  }
+
+  /// ✅ NUEVO: Validar mensaje antes de enviar
+  bool _validateMessage(String text) {
+    // No vacío
+    if (text.isEmpty) {
+      _showError('El mensaje no puede estar vacío');
+      return false;
+    }
+
+    // Máximo 500 caracteres
+    const maxLength = 500;
+    if (text.length > maxLength) {
+      _showError('El mensaje es muy largo (máx. $maxLength caracteres)');
+      return false;
+    }
+
+    // Verificar que no sea solo espacios
+    if (text.replaceAll(RegExp(r'\s'), '').isEmpty) {
+      _showError('El mensaje no puede contener solo espacios');
+      return false;
+    }
+
+    return true;
+  }
+
+  /// ✅ NUEVO: Mostrar error amigable
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -231,7 +304,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         radius: 18,
                         backgroundImage: NetworkImage(
                           _otherUserProfile!.profileImageUrl ??
-                              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_otherUserProfile!.fullName)}&background=9C27B0&color=fff',
+                              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_otherUserProfile!.fullName ?? 'Usuario')}&background=9C27B0&color=fff',
                         ),
                       ),
                     const SizedBox(width: 12),
@@ -335,6 +408,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   offset: const Offset(0, 2),
                 ),
               ],
+              // ✅ NUEVO: Borde rojo si falló
+              border: message.isFailed ? Border.all(color: Colors.red, width: 0.5) : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,14 +422,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  _formatTime(message.createdAt),
-                  style: TextStyle(
-                    color: isMe
-                        ? Colors.white.withOpacity(0.7)
-                        : AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatTime(message.createdAt),
+                      style: TextStyle(
+                        color: isMe
+                            ? Colors.white.withOpacity(0.7)
+                            : AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    // ✅ NUEVO: Indicador de estado para mensajes propios
+                    if (isMe) ...[
+                      const SizedBox(width: 6),
+                      _buildMessageStatusIcon(message),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -362,6 +447,40 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       },
     );
+  }
+
+  /// ✅ NUEVO: Indicador visual de estado del mensaje
+  Widget _buildMessageStatusIcon(Message message) {
+    if (message.isPending) {
+      return SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          valueColor: AlwaysStoppedAnimation<Color>(
+            Colors.white.withOpacity(0.7),
+          ),
+        ),
+      );
+    } else if (message.isFailed) {
+      return Icon(
+        Icons.error_outline,
+        size: 12,
+        color: Colors.white.withOpacity(0.7),
+      );
+    } else if (message.isDelivered) {
+      return Icon(
+        Icons.done_all,
+        size: 12,
+        color: Colors.white.withOpacity(0.9),
+      );
+    } else {
+      return Icon(
+        Icons.done,
+        size: 12,
+        color: Colors.white.withOpacity(0.7),
+      );
+    }
   }
 
   Widget _buildMessageInput() {
@@ -395,6 +514,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
+                enabled: !_isSending,  // ✅ NUEVO: Deshabilitar mientras envía
               ),
             ),
           ),
@@ -405,8 +525,17 @@ class _ChatScreenState extends State<ChatScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: _sendMessage,
+              icon: _isSending
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white),
+              onPressed: _isSending ? null : _sendMessage,  // ✅ NUEVO: Deshabilitar botón
             ),
           ),
         ],

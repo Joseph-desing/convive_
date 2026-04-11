@@ -17,8 +17,6 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  bool _isChecking = false;
-
   @override
   void initState() {
     super.initState();

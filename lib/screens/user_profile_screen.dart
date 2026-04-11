@@ -149,7 +149,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  _profile!.fullName,
+                                                  _profile!.fullName ?? 'Usuario',
                                                   style: const TextStyle(
                                                     fontSize: 28,
                                                     fontWeight: FontWeight.w800,

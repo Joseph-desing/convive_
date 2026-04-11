@@ -9,7 +9,6 @@ import '../models/chat_preview.dart';
 import '../models/message.dart';
 import 'package:intl/intl.dart';
 import '../config/supabase_provider.dart';
-import '../models/profile.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({Key? key}) : super(key: key);
@@ -22,7 +21,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadChats();
+    // Posponer la carga hasta después del primer frame para evitar setState() durante build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChats();
+    });
   }
 
   Future<void> _loadChats() async {
@@ -37,8 +39,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.read<AuthProvider>();
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

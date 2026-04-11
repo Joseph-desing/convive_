@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/user.dart' as convive_user;
 import '../config/supabase_provider.dart';
-import 'package:google_sign_in/google_sign_in.dart' as gsis;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Provider para autenticación
@@ -61,7 +60,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final session = SupabaseProvider.client.auth.currentSession;
       
-      if (session != null && session.user != null) {
+      if (session != null) {
         // Hay sesión activa, cargar usuario de la BD
         try {
           _currentUser = await SupabaseProvider.databaseService

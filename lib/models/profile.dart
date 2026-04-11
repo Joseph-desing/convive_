@@ -17,7 +17,7 @@ class Profile {
   final String userId;
   
   @JsonKey(name: 'full_name')
-  final String fullName;
+  final String? fullName;
   
   @JsonKey(name: 'birth_date')
   final DateTime? birthDate;

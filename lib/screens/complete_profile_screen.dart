@@ -67,7 +67,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final profile = widget.existingProfile;
     final habits = widget.existingHabits;
     if (profile != null) {
-      _fullNameController.text = profile.fullName;
+      _fullNameController.text = profile.fullName ?? '';
       _bioController.text = profile.bio ?? '';
       _birthDate = profile.birthDate;
       _gender = profile.gender;
@@ -1134,19 +1134,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         return 'office';
       case WorkMode.hybrid:
         return 'hybrid';
-    }
-  }
-
-  WorkMode _mapWorkModeFromDb(WorkMode mode) {
-    // The model may already map, but ensure alignment with allowed values
-    switch (mode) {
-      case WorkMode.remote:
-        return WorkMode.remote;
-      case WorkMode.office:
-        return WorkMode.office;
-      case WorkMode.hybrid:
-      default:
-        return WorkMode.hybrid;
     }
   }
 

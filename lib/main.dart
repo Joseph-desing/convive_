@@ -9,13 +9,11 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/email_verification_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/user_profile_screen.dart';
 import 'screens/chat_screen.dart';
-import 'utils/colors.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
 import 'providers/index.dart';
@@ -25,7 +23,6 @@ import 'providers/notifications_provider.dart';
 import 'providers/chatbot_provider.dart';
 import 'services/chatbot_service.dart';
 import 'services/supabase_database_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
