@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../utils/colors.dart';
 import '../providers/messages_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/chat.dart';
+import '../models/chat_preview.dart';
 import '../models/message.dart';
 import 'package:intl/intl.dart';
 import '../config/supabase_provider.dart';
-import '../models/match.dart' as models;
 import '../models/profile.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -18,8 +19,6 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-    // Mapa local para guardar el lastReadAt actualizado tras leer un chat
-    Map<String, DateTime> _localLastReadAt = <String, DateTime>{};
   @override
   void initState() {
     super.initState();
@@ -29,14 +28,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _loadChats() async {
     final authProvider = context.read<AuthProvider>();
     final messagesProvider = context.read<MessagesProvider>();
-    messagesProvider.clearMessagesCache();
+    
     if (authProvider.currentUser != null) {
-      await messagesProvider.loadUserChats(authProvider.currentUser!.id);
+      // ✅ Nueva forma: cargar previews en lugar de hacer queries en UI
+      await messagesProvider.loadChatPreviews(authProvider.currentUser!.id);
     }
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -55,11 +51,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
               Expanded(
                 child: Consumer<MessagesProvider>(
                   builder: (context, messagesProvider, _) {
-                    if (messagesProvider.chats.isEmpty) {
+                    if (messagesProvider.chatPreviews.isEmpty) {
                       return _buildEmptyState();
                     }
 
-                    return _buildChatList(messagesProvider.chats);
+                    return _buildChatList(messagesProvider.chatPreviews);
                   },
                 ),
               ),
@@ -93,23 +89,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
-  Widget _buildChatList(List<Chat> chats) {
-    final authProvider = context.read<AuthProvider>();
-    final currentUserId = authProvider.currentUser?.id;
-    final messagesProvider = context.read<MessagesProvider>();
-    // Filtrar chats donde hay al menos un mensaje (conversaciones activas)
-    final filteredChats = chats.where((chat) {
-      final messages = messagesProvider.getMessagesForChat(chat.id);
-      return messages.isNotEmpty; // Mostrar todos los chats con al menos un mensaje
-    }).toList();
+  Widget _buildChatList(List<ChatPreview> previews) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      itemCount: filteredChats.length,
+      itemCount: previews.length,
       itemBuilder: (context, index) {
-        final chat = filteredChats[index];
+        final preview = previews[index];
         return _ChatTile(
-          chat: chat,
-          onTap: () => _showChatDetail(chat),
+          preview: preview,
+          onTap: () => _showChatDetail(preview.chat),
         );
       },
     );
@@ -149,157 +137,87 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void _showChatDetail(Chat chat) async {
     final authProvider = context.read<AuthProvider>();
+    final messagesProvider = context.read<MessagesProvider>();
     final currentUserId = authProvider.currentUser?.id;
-    final now = DateTime.now().toUtc();
-    // Guardar localmente el lastReadAt actualizado
-    if (currentUserId != null) {
-      _localLastReadAt[chat.id] = now;
-    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatDetailScreen(chat: chat),
       ),
     );
-    // Esperar a que Supabase refleje el nuevo lastReadAt antes de recargar la lista
-    if (currentUserId != null) {
-      int retries = 0;
-      const int maxRetries = 5;
-      const Duration retryDelay = Duration(milliseconds: 300);
-      bool actualizado = false;
-      while (retries < maxRetries && !actualizado) {
-        await Future.delayed(retryDelay);
-        final remoteLastReadAt = await SupabaseProvider.messagesService.getLastReadAt(chat.id, currentUserId);
-        if (remoteLastReadAt != null && !remoteLastReadAt.isBefore(now)) {
-          actualizado = true;
-        } else {
-          retries++;
-        }
-      }
-      if (!actualizado) {
-        print('ADVERTENCIA: lastReadAt no se actualizó en Supabase tras $maxRetries reintentos.');
-      }
+
+    // ✅ Recargar previews al volver (en lugar de hacer reintentos)
+    if (currentUserId != null && mounted) {
+      await messagesProvider.loadChatPreviews(currentUserId);
     }
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadChats();
-    });
   }
 }
 
 /// Widget para mostrar un chat en la lista
+/// ✅ OPTIMIZADO: Sin FutureBuilders, sin queries
 class _ChatTile extends StatelessWidget {
-  final Chat chat;
+  final ChatPreview preview;
   final VoidCallback onTap;
 
   const _ChatTile({
-    required this.chat,
+    required this.preview,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final currentUserId = authProvider.currentUser?.id;
-
-    if (currentUserId == null) {
-      return const ListTile(title: Text('Cargando...'));
-    }
-
-    // Acceso al mapa local de lastReadAt
-    final messagesScreenState = context.findAncestorStateOfType<_MessagesScreenState>();
-    final Map<String, DateTime> localMap = (messagesScreenState?._localLastReadAt) ?? <String, DateTime>{};
-    return FutureBuilder<models.Match?>(
-      future: SupabaseProvider.databaseService.getMatch(chat.matchId),
-      builder: (context, matchSnapshot) {
-        if (!matchSnapshot.hasData || matchSnapshot.data == null) {
-          return const ListTile(title: Text('Cargando...'));
-        }
-        final match = matchSnapshot.data!;
-        final otherUserId = match.userA == currentUserId ? match.userB : match.userA;
-        return FutureBuilder<Profile?>(
-          future: SupabaseProvider.databaseService.getProfile(otherUserId),
-          builder: (context, profileSnapshot) {
-            final profile = profileSnapshot.data;
-            final imageUrl = profile?.profileImageUrl;
-            final name = profile?.fullName ?? 'Usuario';
-            // Usar el lastReadAt local si existe, si no, consultar Supabase
-            DateTime? localLastReadAt;
-            if (localMap.containsKey(chat.id)) {
-              localLastReadAt = localMap[chat.id];
-            }
-            return FutureBuilder<DateTime?>(
-              key: ValueKey('lastReadAt_${chat.id}_$currentUserId'),
-              future: localLastReadAt != null
-                  ? Future.value(localLastReadAt)
-                  : SupabaseProvider.messagesService.getLastReadAt(chat.id, currentUserId),
-              builder: (context, readSnapshot) {
-                final lastReadAt = readSnapshot.data;
-                return FutureBuilder<List<Message>>(
-                  future: SupabaseProvider.messagesService.getChatMessages(chat.id, limit: 50),
-                  builder: (context, messagesSnapshot) {
-                    final messages = messagesSnapshot.data ?? [];
-                    // Último mensaje recibido de otro usuario
-                    final lastReceived = messages.where((m) => m.senderId == otherUserId).toList().isNotEmpty
-                        ? messages.where((m) => m.senderId == otherUserId).last
-                        : null;
-                    final int msgCount = messages
-                        .where((m) => m.senderId == otherUserId && (lastReadAt == null || m.createdAt.isAfter(lastReadAt)))
-                        .length;
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: AppColors.primaryGradient,
-                          image: imageUrl != null ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) : null,
-                        ),
-                        child: imageUrl == null
-                            ? const Center(child: Icon(Icons.person, color: Colors.white, size: 28))
-                            : null,
-                      ),
-                      title: Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      subtitle: lastReceived != null
-                          ? Text(
-                              lastReceived.content,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                            )
-                          : Text(
-                              'Match creado ${DateFormat('dd MMM').format(chat.createdAt)}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (msgCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.pink.shade400,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$msgCount',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, color: AppColors.primary),
-                        ],
-                      ),
-                      onTap: onTap,
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppColors.primaryGradient,
+          image: preview.otherUserImage != null
+              ? DecorationImage(image: NetworkImage(preview.otherUserImage!), fit: BoxFit.cover)
+              : null,
+        ),
+        child: preview.otherUserImage == null
+            ? const Center(child: Icon(Icons.person, color: Colors.white, size: 28))
+            : null,
+      ),
+      title: Text(
+        preview.otherUserName,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      subtitle: preview.lastMessage != null
+          ? Text(
+              preview.lastMessage!.content,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            )
+          : Text(
+              'Match creado ${DateFormat('dd MMM').format(preview.chat.createdAt)}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (preview.unreadCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.pink.shade400,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${preview.unreadCount}',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right, color: AppColors.primary),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }
@@ -319,17 +237,62 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   late ScrollController _scrollController;
   String? _otherUserName;
   String? _otherUserProfileImage;
+  late Stream<Message> _messageStream;
+  StreamSubscription<Message>? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
     _messageController = TextEditingController();
     _scrollController = ScrollController();
+    
+    // ✅ Cargar datos sin el addPostFrameCallback
+    _markChatAsRead();
+    _loadMessages();
+    _loadOtherUserName();
+    
+    // ✅ Configurar listener en tiempo real (después del build)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _markChatAsRead();
-      _loadMessages();
-      _loadOtherUserName();
+      if (mounted) {
+        _setupRealtimeListener();
+      }
     });
+  }
+
+  /// ✅ Configurar listener para mensajes en tiempo real
+  void _setupRealtimeListener() {
+    final provider = context.read<MessagesProvider>();
+    print('🔄 Iniciando listener en tiempo real para chat: ${widget.chat.id}');
+    
+    _messageStream = provider.watchChatMessages(widget.chat.id);
+    
+    _messageSubscription = _messageStream.listen(
+      (incomingMessage) {
+        if (mounted) {
+          print('✅ Mensaje recibido: ${incomingMessage.content}');
+          
+          // ✅ Agregar mensaje sin recargar toda la lista
+          provider.addIncomingMessage(widget.chat.id, incomingMessage);
+          
+          // ✅ Auto-scroll al nuevo mensaje
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted && _scrollController.hasClients) {
+              _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+            }
+          });
+        }
+      },
+      onError: (error) {
+        print('❌ Error en listener de tiempo real: $error');
+        // Intentar reconectar
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            _setupRealtimeListener();
+          }
+        });
+      },
+      cancelOnError: false, // No cancelar por errores, reintentar
+    );
   }
 
   Future<void> _loadOtherUserName() async {
@@ -364,13 +327,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final currentUserId = authProvider.currentUser?.id;
     if (currentUserId != null) {
       await SupabaseProvider.messagesService.updateLastReadAt(widget.chat.id, currentUserId);
-      // Aumentar delay para asegurar sincronización con Supabase
-      await Future.delayed(const Duration(seconds: 1));
     }
   }
 
   @override
   void dispose() {
+    _messageSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -378,7 +340,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _loadMessages() async {
     final messagesProvider = context.read<MessagesProvider>();
+    
+    print('📥 Cargando mensajes del chat: ${widget.chat.id}');
     await messagesProvider.loadChatMessages(widget.chat.id);
+    
+    // Scroll al final después de cargar mensajes
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        print('⬇️ Scroll al final de mensajes');
+      }
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -396,24 +368,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         content: _messageController.text.trim(),
       );
       _messageController.clear();
-      _scrollToBottom();
+      
+      // ✅ Auto-scroll después de enviar
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
-  }
-
-  void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   @override
@@ -474,10 +440,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   );
                 }
 
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom();
-                });
-
+                // ✅ Los mensajes ya vienen ordenados del provider
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),

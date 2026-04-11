@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/index.dart';
 
@@ -72,7 +74,7 @@ class SupabaseMessagesService {
   }
 
   // ==================== MESSAGES ====================
-  /// Obtener mensajes de un chat
+  /// Obtener mensajes de un chat (ordenados de antiguo a nuevo)
   Future<List<Message>> getChatMessages(String chatId,
       {int limit = 50, int offset = 0}) async {
     try {
@@ -80,7 +82,7 @@ class SupabaseMessagesService {
           .from('messages')
           .select('*')
           .eq('chat_id', chatId)
-          .order('created_at', ascending: false)
+          .order('created_at', ascending: true)  // ✅ Antiguo primero
           .range(offset, offset + limit - 1);
 
       return (response as List).map((m) => Message.fromJson(m)).toList();
@@ -145,15 +147,94 @@ class SupabaseMessagesService {
   }
 
   /// Stream de nuevos mensajes para un chat
+  /// Nota: utiliza el stream de Supabase filtrado por `chat_id`.
   Stream<Message> watchNewMessages(String chatId) {
-    return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('chat_id', chatId)
-        .map((List<dynamic> data) {
-          if (data.isEmpty) throw Exception('No hay datos');
-          return Message.fromJson(data.last);
-        });
+    RealtimeChannel? channel;
+
+    // Declarar controller y función intermedia antes de inicializar
+    late final StreamController<Message> controller;
+    late void Function(Message) _addMessage;
+
+    controller = StreamController<Message>.broadcast(
+      onListen: () {
+        try {
+          channel = _supabase
+              .channel('messages:chat_id=eq.$chatId')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.insert,
+                schema: 'public',
+                table: 'messages',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'chat_id',
+                  value: chatId,
+                ),
+                callback: (payload) {
+                  try {
+                    // Debug: imprimir payload crudo para entender su formato
+                    try {
+                      final encodedPayload = jsonEncode(payload);
+                      print('🔔 RAW PAYLOAD (${payload.runtimeType}): $encodedPayload');
+                    } catch (e) {
+                      print('🔔 RAW PAYLOAD toString (${payload.runtimeType}): ${payload.toString()}');
+                    }
+
+                    // Trabajar con payload como dynamic para evitar errores de operador
+                    final dynamic p = payload;
+                    dynamic newRecord;
+
+                    if (p is Map) {
+                      newRecord = p['new'] ?? p['record'] ?? p['new_record'] ?? p['record_new'];
+                    } else {
+                      // Fallback: serializar y parsear para extraer el nuevo registro
+                      try {
+                        final encoded = jsonEncode(p);
+                        final decoded = jsonDecode(encoded);
+                        if (decoded is Map) {
+                          newRecord = decoded['new'] ?? decoded['record'] ?? decoded['new_record'] ?? decoded['record_new'];
+                        }
+                      } catch (_) {}
+                    }
+
+                    if (newRecord == null) {
+                      print('⚠️ Realtime payload sin newRecord (tipo ${p.runtimeType})');
+                      return;
+                    }
+
+                    final parsed = Map<String, dynamic>.from(newRecord as Map);
+                    final message = Message.fromJson(parsed);
+
+                    // Usar la función intermedia (declarada abajo)
+                    _addMessage(message);
+                  } catch (e, st) {
+                    print('❌ Error parseando payload realtime: $e\n$st');
+                  }
+                },
+              )
+              .subscribe();
+        } catch (e, st) {
+          print('❌ Error suscribiendo canal realtime: $e\n$st');
+        }
+      },
+      onCancel: () async {
+        try {
+          if (channel != null) {
+            await _supabase.removeChannel(channel!);
+            channel = null;
+          }
+          if (!controller.isClosed) await controller.close();
+        } catch (e) {
+          print('❌ Error removiendo canal realtime: $e');
+        }
+      },
+    );
+
+    // Inicializar la función que añade mensajes al controller
+    _addMessage = (Message msg) {
+      if (!controller.isClosed) controller.add(msg);
+    };
+
+    return controller.stream;
   }
 
   /// Obtener la fecha de último leído para un chat y usuario (versión robusta con single)

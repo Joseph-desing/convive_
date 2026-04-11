@@ -7,6 +7,7 @@ export 'property_image.dart';
 export 'swipe.dart';
 export 'match.dart';
 export 'chat.dart';
+export 'chat_preview.dart';
 export 'message.dart';
 export 'subscription.dart';
 export 'roommate_search.dart';
