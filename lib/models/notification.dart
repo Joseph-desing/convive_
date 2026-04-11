@@ -66,4 +66,24 @@ class Notification {
     'sender_user_id': senderUserId,
     'publication_id': publicationId,
   };
+
+  Notification copyWith({
+    String? id,
+    String? publicationTitle,
+    String? type,
+    DateTime? createdAt,
+    bool? isRead,
+    String? senderUserId,
+    String? publicationId,
+  }) {
+    return Notification(
+      id: id ?? this.id,
+      publicationTitle: publicationTitle ?? this.publicationTitle,
+      type: type ?? this.type,
+      createdAt: createdAt ?? this.createdAt,
+      isRead: isRead ?? this.isRead,
+      senderUserId: senderUserId ?? this.senderUserId,
+      publicationId: publicationId ?? this.publicationId,
+    );
+  }
 }

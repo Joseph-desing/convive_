@@ -79,11 +79,12 @@ class NotificationsProvider extends ChangeNotifier {
           schema: 'public',
           table: 'notifications',
           callback: (payload) {
-            if (kDebugMode) {
-              print('📨 NOTIFICACIÓN REALTIME RECIBIDA: ${payload.newRecord}');
-            }
             try {
-              final newRecord = payload.newRecord as Map<String, dynamic>;
+              final newRecord = payload.newRecord;
+              // Validar que sea un Map válido
+              if (newRecord is! Map<String, dynamic>) {
+                return;
+              }
               // Verificar que sea para este usuario
               if (newRecord['recipient_user_id'] == userId) {
                 final newNotification = Notification.fromJson(newRecord);
@@ -93,13 +94,37 @@ class NotificationsProvider extends ChangeNotifier {
                   _notifications.insert(0, newNotification);
                   notifyListeners();
                   if (kDebugMode) {
-                    print('✅ Notificación agregada: ${newNotification.message}');
+                    print('📨 Notificación recibida: ${newNotification.message}');
                   }
                 }
               }
             } catch (e) {
               if (kDebugMode) {
                 print('Error procesando notificación realtime: $e');
+              }
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'notifications',
+          callback: (payload) {
+            try {
+              final oldRecord = payload.oldRecord;
+              if (oldRecord is Map<String, dynamic>) {
+                final deletedId = oldRecord['id'] as String?;
+                if (deletedId != null) {
+                  _notifications.removeWhere((n) => n.id == deletedId);
+                  notifyListeners();
+                  if (kDebugMode) {
+                    print('🗑️ Notificación eliminada: $deletedId');
+                  }
+                }
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error en DELETE realtime: $e');
               }
             }
           },
@@ -127,16 +152,7 @@ class NotificationsProvider extends ChangeNotifier {
       // Actualizar localmente
       final index = _notifications.indexWhere((n) => n.id == notificationId);
       if (index != -1) {
-        final oldNotification = _notifications[index];
-        _notifications[index] = Notification(
-          id: oldNotification.id,
-          publicationTitle: oldNotification.publicationTitle,
-          type: oldNotification.type,
-          createdAt: oldNotification.createdAt,
-          isRead: true,
-          senderUserId: oldNotification.senderUserId,
-          publicationId: oldNotification.publicationId,
-        );
+        _notifications[index] = _notifications[index].copyWith(isRead: true);
         notifyListeners();
       }
     } catch (e) {
@@ -160,16 +176,7 @@ class NotificationsProvider extends ChangeNotifier {
       // Actualizar localmente
       for (int i = 0; i < _notifications.length; i++) {
         if (!_notifications[i].isRead) {
-          final notification = _notifications[i];
-          _notifications[i] = Notification(
-            id: notification.id,
-            publicationTitle: notification.publicationTitle,
-            type: notification.type,
-            createdAt: notification.createdAt,
-            isRead: true,
-            senderUserId: notification.senderUserId,
-            publicationId: notification.publicationId,
-          );
+          _notifications[i] = _notifications[i].copyWith(isRead: true);
         }
       }
       notifyListeners();
@@ -182,16 +189,45 @@ class NotificationsProvider extends ChangeNotifier {
 
   Future<void> deleteNotification(String notificationId) async {
     try {
+      final userId = SupabaseProvider.client.auth.currentUser?.id;
+      if (userId == null) return;
+
       await SupabaseProvider.client
           .from('notifications')
           .delete()
           .eq('id', notificationId);
 
+      // Eliminar de la lista local
       _notifications.removeWhere((n) => n.id == notificationId);
       notifyListeners();
+
+      if (kDebugMode) {
+        print('✅ Notificación eliminada: $notificationId');
+      }
     } catch (e) {
       if (kDebugMode) {
-        print('Error eliminando notificación: $e');
+        print('❌ Error eliminando notificación: $e');
+      }
+    }
+  }
+
+  // Método privado para verificación (sin usar)
+  Future<void> _verifyNotificationsInDB() async {
+    try {
+      final userId = SupabaseProvider.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await SupabaseProvider.client
+          .from('notifications')
+          .select('id, type, created_at')
+          .eq('recipient_user_id', userId);
+
+      if (kDebugMode) {
+        print('📊 Total en BD: ${(response as List).length}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error verificando BD: $e');
       }
     }
   }

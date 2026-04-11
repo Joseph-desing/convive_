@@ -796,6 +796,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
       print('❤️ Like en propiedad guardado');
 
+      // Crear notificación al propietario de la propiedad
+      await SupabaseProvider.databaseService.createNotification(
+        recipientUserId: targetUserId,
+        type: 'like',
+        senderUserId: currentUserId,
+        publicationId: contextId,
+        publicationTitle: property.title,
+      );
+
       final existingMatch = await SupabaseProvider.databaseService
           .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
 
@@ -810,6 +819,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             contextType: contextType,
             contextId: contextId,
           ),
+        );
+
+        // Crear notificación de MATCH a ambos usuarios
+        await SupabaseProvider.databaseService.createNotification(
+          recipientUserId: targetUserId,
+          type: 'match',
+          senderUserId: currentUserId,
+        );
+        
+        await SupabaseProvider.databaseService.createNotification(
+          recipientUserId: currentUserId,
+          type: 'match',
+          senderUserId: targetUserId,
         );
 
         try {
@@ -866,6 +888,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       );
       print('❤️ Like en búsqueda guardado');
+
+      // Crear notificación al dueño de la búsqueda
+      await SupabaseProvider.databaseService.createNotification(
+        recipientUserId: targetUserId,
+        type: 'like',
+        senderUserId: currentUserId,
+        publicationId: contextId,
+        publicationTitle: search.title,
+      );
 
       final existingMatch = await SupabaseProvider.databaseService
           .getExistingMatch(currentUserId, targetUserId, contextType, contextId);

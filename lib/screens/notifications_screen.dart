@@ -17,7 +17,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     // Cargar notificaciones cuando se abre la pantalla
     Future.microtask(() {
-      context.read<NotificationsProvider>().loadNotifications();
+      if (mounted) {
+        context.read<NotificationsProvider>().loadNotifications();
+      }
     });
   }
 
@@ -122,88 +124,128 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   ) {
     final isUnread = !notification.isRead;
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isUnread ? AppColors.primary.withOpacity(0.1) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isUnread ? AppColors.primary : Colors.grey.withOpacity(0.2),
-          width: isUnread ? 2 : 1,
+    return Dismissible(
+      key: Key(notification.id),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(12),
         ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: _getNotificationColor(notification.type).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) {
+        notificationsProvider.deleteNotification(notification.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notificación eliminada'),
+            duration: Duration(seconds: 2),
           ),
-          child: Icon(
-            _getNotificationIcon(notification.type),
-            color: _getNotificationColor(notification.type),
-            size: 24,
-          ),
-        ),
-        title: Text(
-          notification.title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-            color: AppColors.textPrimary,
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: isUnread ? AppColors.primary.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isUnread ? AppColors.primary : Colors.grey.withOpacity(0.2),
+            width: isUnread ? 2 : 1,
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                notification.message,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _formatTime(notification.createdAt),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[500],
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing: isUnread
-            ? Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              )
-            : null,
-        onTap: () {
-          notificationsProvider.markAsRead(notification.id);
-          _handleNotificationTap(notification);
-        },
-        onLongPress: () {
-          notificationsProvider.deleteNotification(notification.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Notificación eliminada'),
-              duration: Duration(seconds: 2),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _getNotificationColor(notification.type).withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
-        },
+            child: Icon(
+              _getNotificationIcon(notification.type),
+              color: _getNotificationColor(notification.type),
+              size: 24,
+            ),
+          ),
+          title: Text(
+            notification.title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _formatTime(notification.createdAt),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          trailing: SizedBox(
+            width: 70,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isUnread)
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    margin: const EdgeInsets.only(right: 8),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  color: Colors.grey[400],
+                  onPressed: () async {
+                    await notificationsProvider.deleteNotification(notification.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notificación eliminada'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          onTap: () {
+            notificationsProvider.markAsRead(notification.id);
+            _handleNotificationTap(notification);
+          },
+        ),
       ),
     );
   }

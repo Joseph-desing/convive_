@@ -557,6 +557,31 @@ class SupabaseDatabaseService {
         .eq('id', matchId);
   }
 
+  // ==================== NOTIFICACIONES ====================
+  /// Crear una notificación
+  Future<void> createNotification({
+    required String recipientUserId,
+    required String type, // 'match', 'like', 'system'
+    String? senderUserId,
+    String? publicationId,
+    String? publicationTitle,
+  }) async {
+    try {
+      await _supabase.from('notifications').insert({
+        'recipient_user_id': recipientUserId,
+        'type': type,
+        'sender_user_id': senderUserId,
+        'publication_id': publicationId,
+        'publication_title': publicationTitle,
+        'read': false,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      print('📨 Notificación creada: $type para $recipientUserId');
+    } catch (e) {
+      print('❌ Error creando notificación: $e');
+    }
+  }
+
   // ==================== ELIMINAR PUBLICACIONES ====================
   /// Eliminar una propiedad
   Future<void> deleteProperty(String propertyId) async {
