@@ -563,16 +563,20 @@ class SupabaseDatabaseService {
     required String recipientUserId,
     required String type, // 'match', 'like', 'system'
     String? senderUserId,
+    String? senderName,
     String? publicationId,
     String? publicationTitle,
+    String? publicationType, // 'roommate' o 'departamento'
   }) async {
     try {
       await _supabase.from('notifications').insert({
         'recipient_user_id': recipientUserId,
         'type': type,
         'sender_user_id': senderUserId,
+        'sender_user_name': senderName,
         'publication_id': publicationId,
         'publication_title': publicationTitle,
+        'publication_type': publicationType,
         'read': false,
         'created_at': DateTime.now().toIso8601String(),
       });

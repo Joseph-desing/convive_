@@ -29,7 +29,7 @@ class Notification {
       createdAt: DateTime.parse(json['created_at'] as String),
       isRead: json['read'] as bool? ?? false,
       senderUserId: json['sender_user_id'] as String?,
-      senderName: json['sender_name'] as String?,
+      senderName: json['sender_user_name'] as String?,
       publicationId: json['publication_id'] as String?,
       publicationType: json['publication_type'] as String?,
     );

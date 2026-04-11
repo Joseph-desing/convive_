@@ -797,12 +797,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       print('❤️ Like en propiedad guardado');
 
       // Crear notificación al propietario de la propiedad
+      final senderProfile = _profileCache[currentUserId];
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: targetUserId,
         type: 'like',
         senderUserId: currentUserId,
+        senderName: senderProfile?.fullName ?? 'Alguien',
         publicationId: contextId,
         publicationTitle: property.title,
+        publicationType: 'departamento',
       );
 
       final existingMatch = await SupabaseProvider.databaseService
@@ -822,16 +825,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
 
         // Crear notificación de MATCH a ambos usuarios
+        final senderProfile = _profileCache[currentUserId];
+        final targetProfile = _profileCache[targetUserId];
+        
         await SupabaseProvider.databaseService.createNotification(
           recipientUserId: targetUserId,
           type: 'match',
           senderUserId: currentUserId,
+          senderName: senderProfile?.fullName ?? 'Alguien',
         );
         
         await SupabaseProvider.databaseService.createNotification(
           recipientUserId: currentUserId,
           type: 'match',
           senderUserId: targetUserId,
+          senderName: targetProfile?.fullName ?? 'Alguien',
         );
 
         try {
@@ -890,12 +898,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       print('❤️ Like en búsqueda guardado');
 
       // Crear notificación al dueño de la búsqueda
+      final senderProfile = _profileCache[currentUserId];
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: targetUserId,
         type: 'like',
         senderUserId: currentUserId,
+        senderName: senderProfile?.fullName ?? 'Alguien',
         publicationId: contextId,
         publicationTitle: search.title,
+        publicationType: 'roommate',
       );
 
       final existingMatch = await SupabaseProvider.databaseService
