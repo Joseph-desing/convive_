@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../providers/auth_provider.dart';
@@ -38,7 +39,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validar que el token y email no estén vacíos
+    // Validar que el token no esté vacío
     if (widget.resetToken.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -52,33 +53,22 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
-    if (widget.email == null || widget.email!.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Error: Email no disponible'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      print('🔄 Cambiando contraseña con token...');
-      print('📝 Token: ${widget.resetToken}');
+      print('🔄 Procesando cambio de contraseña...');
+      print('📝 Token/Code: ${widget.resetToken}');
       print('📧 Email: ${widget.email}');
 
       final authProvider = context.read<AuthProvider>();
+      
+      // Usar el método normal del provider para cambiar la contraseña
       await authProvider.resetPasswordWithToken(
-        email: widget.email!,
+        email: widget.email ?? 'unknown@example.com',
         resetToken: widget.resetToken,
         newPassword: _passwordController.text.trim(),
       );
-
+      
       print('✅ Contraseña actualizada exitosamente');
 
       if (!mounted) return;
@@ -94,11 +84,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       // Volver al login después de 2 segundos
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/login',
-          (_) => false,
-        );
+        context.go('/login');
       }
     } catch (e) {
       print('❌ Error: $e');
@@ -123,10 +109,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      
+      setState(() => _isLoading = false);
     }
   }
 

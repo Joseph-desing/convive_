@@ -129,9 +129,40 @@ class _ConViveAppState extends State<ConViveApp> {
         final session = SupabaseProvider.client.auth.currentSession;
         final location = state.matchedLocation;
         
-        // Si es una ruta de recuperación de contraseña, permitir
-        if (location.startsWith('/auth-callback')) {
+        // Si es una ruta de recuperación de contraseña o forgot password, permitir (sin redirigir)
+        if (location == '/auth-callback' || 
+            location == '/reset-password' ||
+            location.startsWith('/reset-password?') ||
+            location.startsWith('/reset-password#') ||
+            location == '/forgot-password' ||
+            location.startsWith('/forgot-password?')) {
           return null;
+        }
+        
+        // Si viene de Supabase con parámetros de recovery (en fragment o query), redirigir a /auth-callback
+        if (location == '/') {
+          // Detectar si es recovery por type=recovery o por presencia de code
+          bool isRecovery = state.uri.fragment.contains('type=recovery') || 
+                            state.uri.queryParameters['type'] == 'recovery' ||
+                            state.uri.queryParameters.containsKey('code');
+          
+          if (isRecovery) {
+            print('🔐 Detectado recovery en URI, redirigiendo a /auth-callback');
+            
+            // Pasar los parámetros a /auth-callback
+            String token = state.uri.queryParameters['access_token'] ?? 
+                           Uri.parse('http://example.com?${state.uri.fragment}').queryParameters['access_token'] ?? '';
+            String code = state.uri.queryParameters['code'] ?? '';
+            String type = state.uri.queryParameters['type'] ?? 'recovery';
+            String email = state.uri.queryParameters['email'] ?? '';
+            
+            // Si hay code, pasarlo también
+            if (code.isNotEmpty) {
+              return '/auth-callback?code=$code&type=$type';
+            } else if (token.isNotEmpty) {
+              return '/auth-callback?token=$token&type=$type&email=$email';
+            }
+          }
         }
         
         // Si es perfil público o chat, permitir si hay sesión
@@ -139,8 +170,11 @@ class _ConViveAppState extends State<ConViveApp> {
           return null;
         }
 
-        // Si no hay sesión, ir a login
-        if (session == null && !location.startsWith('/login')) {
+        // Si no hay sesión, ir a login (pero excepto en reset/forgot password)
+        if (session == null && !location.startsWith('/login') && 
+            !location.startsWith('/reset-password') && 
+            !location.startsWith('/forgot-password') &&
+            !location.startsWith('/auth-callback')) {
           return '/login';
         }
 
@@ -180,20 +214,35 @@ class _ConViveAppState extends State<ConViveApp> {
             print('🔍 URI Completa: ${state.uri}');
             print('🔍 Query Parameters: ${state.uri.queryParameters}');
             print('🔍 Fragment: ${state.uri.fragment}');
-            print('🔍 Path: ${state.matchedLocation}');
             
-            // Capturar parámetros de la URL (primero query, luego fragment)
+            // Capturar parámetros de la URL
             String token = '';
+            String code = '';
             String type = '';
             String email = '';
 
-            // Buscar en query parameters
+            // Si hay code (nuevo flujo de Supabase), usarlo
+            if (state.uri.queryParameters.containsKey('code')) {
+              code = state.uri.queryParameters['code'] ?? '';
+              type = state.uri.queryParameters['type'] ?? 'recovery';
+              print('📝 Code (Supabase recovery): $code');
+              print('📝 Type: $type');
+              
+              // Retornar ResetPasswordScreen con el code
+              // El code será procesado por verifyOtp() en el provider
+              return ResetPasswordScreen(
+                resetToken: code,
+                email: null,
+              );
+            }
+
+            // Si hay token directo (fallback), usarlo
             if (state.uri.queryParameters.containsKey('token')) {
               token = state.uri.queryParameters['token'] ?? '';
               type = state.uri.queryParameters['type'] ?? '';
               email = state.uri.queryParameters['email'] ?? '';
             }
-            // Si no, buscar en el fragment (donde Supabase lo envía)
+            // Si no, buscar en el fragment
             else if (state.uri.fragment.isNotEmpty) {
               final fragmentParams = Uri.parse('http://example.com?${state.uri.fragment}').queryParameters;
               token = fragmentParams['access_token'] ?? '';
@@ -206,18 +255,10 @@ class _ConViveAppState extends State<ConViveApp> {
             print('📝 Email: $email');
 
             // Si es recuperación de contraseña
-            if (type == 'recovery' && token.isNotEmpty) {
+            if ((type == 'recovery' || type.isEmpty) && token.isNotEmpty) {
               return ResetPasswordScreen(
                 resetToken: token,
-                email: email,
-              );
-            }
-
-            // Si no hay tipo pero hay token, asumir que es recuperación
-            if (token.isNotEmpty) {
-              return ResetPasswordScreen(
-                resetToken: token,
-                email: email,
+                email: email.isNotEmpty ? email : null,
               );
             }
 
@@ -232,15 +273,38 @@ class _ConViveAppState extends State<ConViveApp> {
           path: '/reset-password',
           builder: (context, state) {
             // Buscar parámetros en query (fallback)
-            String token = state.uri.queryParameters['token'] ?? '';
+            String token = state.uri.queryParameters['code'] ?? '';  // Primero buscar 'code' (lo que envía Supabase)
+            
+            // Limpiar la barra inicial si existe
+            if (token.startsWith('/')) {
+              token = token.substring(1);
+            }
+            
+            if (token.isEmpty) {
+              token = state.uri.queryParameters['token'] ?? '';  // Fallback a 'token'
+            }
+            
             String email = state.uri.queryParameters['email'] ?? '';
 
             // Si no hay en query, buscar en fragment
             if (token.isEmpty && state.uri.fragment.isNotEmpty) {
               final fragmentParams = Uri.parse('http://example.com?${state.uri.fragment}').queryParameters;
-              token = fragmentParams['access_token'] ?? '';
+              token = fragmentParams['code'] ?? '';  // Buscar 'code' en fragment
+              
+              // Limpiar la barra inicial si existe
+              if (token.startsWith('/')) {
+                token = token.substring(1);
+              }
+              
+              if (token.isEmpty) {
+                token = fragmentParams['access_token'] ?? '';  // Fallback a 'access_token'
+              }
               email = fragmentParams['email'] ?? '';
             }
+
+            print('🔍 Reset Password Route');
+            print('📝 Token/Code: $token');
+            print('📧 Email: $email');
 
             return ResetPasswordScreen(
               resetToken: token,

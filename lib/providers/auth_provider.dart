@@ -246,7 +246,9 @@ class AuthProvider extends ChangeNotifier {
       
       await SupabaseProvider.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'com.example.convive://reset-password',
+        redirectTo: kIsWeb 
+          ? 'https://convive-app-6debf.web.app/reset-password'
+          : 'com.example.convive://reset-password',
       );
 
       print('✅ Email de recuperación enviado');
