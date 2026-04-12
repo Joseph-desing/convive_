@@ -231,6 +231,34 @@ class MessagesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ✅ NUEVO: Eliminar conversación SOLO para el usuario actual
+  /// El otro usuario sigue viendo sus mensajes
+  Future<void> deleteChat(String chatId, String userId) async {
+    try {
+      print('🗑️ Eliminando chat $chatId solo para usuario $userId');
+      
+      // Marcar como oculto en la BD (borrado suave)
+      await SupabaseProvider.messagesService.deleteChat(chatId, userId);
+      
+      // Eliminar del estado local
+      _chats.removeWhere((c) => c.id == chatId);
+      _chatPreviews.removeWhere((p) => p.chat.id == chatId);
+      _messages.remove(chatId);
+      _lastReadAt.remove(chatId);
+      
+      if (_selectedChatId == chatId) {
+        _selectedChatId = null;
+      }
+      
+      _error = null;
+      print('✅ Chat eliminado de la vista del usuario actual');
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Error eliminando chat: $e');
+    }
+    notifyListeners();
+  }
+
   /// ✅ PROBLEMA 5 ARREGLADO: Agregar mensaje entrante sin duplicados
   void addIncomingMessage(String chatId, Message message) {
     if (!_messages.containsKey(chatId)) {

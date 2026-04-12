@@ -177,6 +177,27 @@ class SupabaseMessagesService {
     }
   }
 
+  /// ✅ NUEVO: Marcar chat como eliminado SOLO para el usuario actual
+  /// El otro usuario sigue viendo la conversación
+  /// NO interfiere con realtime, solo marca en la BD
+  Future<void> deleteChat(String chatId, String userId) async {
+    try {
+      print('🗑️ Marcando chat $chatId como eliminado para usuario $userId');
+      
+      // Solo marcar como oculto para este usuario (borrado suave)
+      // El chat sigue existiendo en la BD para el otro usuario
+      await _supabase
+          .from('chats')
+          .update({'hidden_for_users': [userId]})
+          .eq('id', chatId);
+      
+      print('✅ Chat marcado como oculto para usuario actual');
+    } catch (e) {
+      print('❌ Error marcando chat como eliminado: $e');
+      rethrow;
+    }
+  }
+
   /// ✅ PROBLEMA 1 ARREGLADO: Stream que no se cancela inmediatamente
   /// ✅ PROBLEMA 4 ARREGLADO: Filtro del canal correcto + identificador único
   /// Stream de nuevos mensajes para un chat (reutilizable, no se cancela con rebuild)

@@ -378,6 +378,108 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  /// ✅ NUEVO: Mostrar diálogo de confirmación para borrar chat
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            '¿Borrar conversación?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Se eliminará de tu vista. El otro usuario seguirá viendo la conversación.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          actions: [
+            // Botón Cancelar
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            // Botón Borrar (rojo)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);  // Cerrar diálogo
+                _deleteChat();  // Ejecutar eliminación
+              },
+              child: const Text(
+                'Borrar',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// ✅ NUEVO: Eliminar la conversación (solo para mí) y volver
+  Future<void> _deleteChat() async {
+    try {
+      print('🗑️ Eliminando chat: ${widget.chat.id}');
+      
+      // Obtener el usuario actual
+      final authProvider = context.read<AuthProvider>();
+      final currentUserId = authProvider.currentUser?.id;
+      
+      if (currentUserId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Usuario no identificado')),
+        );
+        return;
+      }
+      
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Eliminando conversación...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Eliminar mediante el provider (pasando userId)
+      final messagesProvider = context.read<MessagesProvider>();
+      await messagesProvider.deleteChat(widget.chat.id, currentUserId);
+      
+      print('✅ Chat eliminado exitosamente');
+
+      if (mounted) {
+        // Mostrar confirmación
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Conversación eliminada de tu vista'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Volver a la pantalla anterior (lista de chats)
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      print('❌ Error eliminando chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -410,6 +512,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
         backgroundColor: AppColors.primary,
         elevation: 0,
+        // ✅ NUEVO: Menú de opciones
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete') {
+                _showDeleteConfirmation();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    SizedBox(width: 12),
+                    Text(
+                      'Borrar conversación',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [

@@ -267,6 +267,106 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// ✅ NUEVO: Mostrar diálogo de confirmación para borrar chat
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            '¿Borrar conversación?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Se eliminará de tu vista. El otro usuario seguirá viendo la conversación.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          actions: [
+            // Botón Cancelar
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            // Botón Borrar (rojo)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);  // Cerrar diálogo
+                _deleteChat();  // Ejecutar eliminación
+              },
+              child: const Text(
+                'Borrar',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// ✅ NUEVO: Eliminar la conversación y volver
+  Future<void> _deleteChat() async {
+    if (_chatId == null) {
+      _showError('Error: Chat no identificado');
+      return;
+    }
+
+    try {
+      print('🗑️ Eliminando chat: $_chatId');
+      
+      // Obtener el usuario actual
+      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+      if (currentUserId == null) {
+        _showError('Error: Usuario no autenticado');
+        return;
+      }
+      
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Eliminando conversación...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Eliminar en base de datos (pasando userId)
+      await SupabaseProvider.messagesService.deleteChat(_chatId!, currentUserId);
+      
+      print('✅ Chat eliminado exitosamente');
+
+      if (mounted) {
+        // Mostrar confirmación
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Conversación eliminada de tu vista'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Volver a la pantalla anterior (lista de chats)
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      print('❌ Error eliminando chat: $e');
+      if (mounted) {
+        _showError('Error al eliminar la conversación. Intenta de nuevo.');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -318,6 +418,31 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ],
                 ),
+          // ✅ NUEVO: Menú de opciones en AppBar
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _showDeleteConfirmation();
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      SizedBox(width: 12),
+                      Text(
+                        'Borrar conversación',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
