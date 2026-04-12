@@ -95,7 +95,7 @@ class MessagesProvider extends ChangeNotifier {
           final messages = await SupabaseProvider.messagesService.getChatMessages(chat.id, limit: 50);
           _messages[chat.id] = messages;
           final lastMessage =
-              messages.isNotEmpty ? messages.where((m) => m.senderId == otherUserId).lastOrNull : null;
+              messages.isNotEmpty ? messages.last : null;
 
           // Obtener último mensaje leído
           final lastReadAt = await SupabaseProvider.messagesService.getLastReadAt(chat.id, userId);

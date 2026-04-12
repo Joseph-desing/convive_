@@ -9,7 +9,7 @@ import 'settings_screen.dart';
 import 'privacy_screen.dart';
 import 'edit_habits_screen.dart';
 import 'my_publications_screen.dart';
-import 'subscription_payment_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);

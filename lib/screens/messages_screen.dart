@@ -239,6 +239,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String? _otherUserProfileImage;
   late Stream<Message> _messageStream;
   StreamSubscription<Message>? _messageSubscription;
+  Timer? _reconnectTimer;      // ✅ Timer cancelable para reconexión
+  bool _isSending = false;     // ✅ Guard para evitar doble envío
 
   @override
   void initState() {
@@ -255,22 +257,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _loadOtherUserName();
   }
 
-  /// ✅ Configurar listener para mensajes en tiempo real
+  /// Configurar listener para mensajes en tiempo real
   void _setupRealtimeListener() {
+    // ✅ FIX: Cancelar suscripción anterior antes de crear una nueva
+    _messageSubscription?.cancel();
+    _messageSubscription = null;
+
     final provider = context.read<MessagesProvider>();
-    print('🔄 Iniciando listener en tiempo real para chat: ${widget.chat.id}');
-    
+
     _messageStream = provider.watchChatMessages(widget.chat.id);
-    
+
     _messageSubscription = _messageStream.listen(
       (incomingMessage) {
         if (mounted) {
-          print('✅ Mensaje recibido: ${incomingMessage.content}');
-          
-          // ✅ Agregar mensaje sin recargar toda la lista
           provider.addIncomingMessage(widget.chat.id, incomingMessage);
-          
-          // ✅ Auto-scroll al nuevo mensaje
+
+          // Auto-scroll al nuevo mensaje
           Future.delayed(const Duration(milliseconds: 100), () {
             if (mounted && _scrollController.hasClients) {
               _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -279,15 +281,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
       },
       onError: (error) {
-        print('❌ Error en listener de tiempo real: $error');
-        // Intentar reconectar
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            _setupRealtimeListener();
-          }
+        // ✅ FIX: Cancelar timer anterior y usar Timer cancelable
+        _reconnectTimer?.cancel();
+        _messageSubscription?.cancel();
+        _messageSubscription = null;
+        _reconnectTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted) _setupRealtimeListener();
         });
       },
-      cancelOnError: false, // No cancelar por errores, reintentar
+      cancelOnError: false,
     );
   }
 
@@ -328,6 +330,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   void dispose() {
+    // ✅ FIX: Cancelar timer pendiente para evitar reconexión post-dispose
+    _reconnectTimer?.cancel();
     _messageSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
@@ -350,31 +354,41 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return; // ✅ FIX: guard doble envío
 
     final authProvider = context.read<AuthProvider>();
     final messagesProvider = context.read<MessagesProvider>();
 
     if (authProvider.currentUser == null) return;
 
+    _messageController.clear();
+    if (mounted) setState(() => _isSending = true);
+
     try {
       await messagesProvider.sendMessage(
         chatId: widget.chat.id,
         senderId: authProvider.currentUser!.id,
-        content: _messageController.text.trim(),
+        content: text,
       );
-      _messageController.clear();
-      
-      // ✅ Auto-scroll después de enviar
+
+      // Auto-scroll después de enviar
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted && _scrollController.hasClients) {
           _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
     } catch (e) {
+      // Devolver texto al campo si falló
+      if (mounted) _messageController.text = text;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text('Error al enviar: $e'),
+          backgroundColor: Colors.red[600],
+        ),
       );
+    } finally {
+      if (mounted) setState(() => _isSending = false); // ✅ Siempre liberar guard
     }
   }
 
@@ -622,11 +636,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppColors.primaryGradient,
+              gradient: _isSending ? null : AppColors.primaryGradient,
+              color: _isSending ? Colors.grey[300] : null,
             ),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: _sendMessage,
+              icon: _isSending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white),
+              onPressed: _isSending ? null : _sendMessage,
             ),
           ),
         ],

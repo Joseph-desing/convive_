@@ -9,7 +9,6 @@ export 'match.dart';
 export 'chat.dart';
 export 'chat_preview.dart';
 export 'message.dart';
-export 'subscription.dart';
 export 'roommate_search.dart';
 export 'notification.dart';
 export 'chatbot_message.dart';

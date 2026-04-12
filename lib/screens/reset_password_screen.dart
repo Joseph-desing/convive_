@@ -30,6 +30,33 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirm = true;
 
   @override
+  void initState() {
+    super.initState();
+    
+    // Si tiene un token (code de Supabase), verificarlo automáticamente
+    if (widget.resetToken.isNotEmpty) {
+      _verifyCode();
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    print('🔍 Verificando código: ${widget.resetToken}');
+    
+    try {
+      // Verificar el OTP con Supabase
+      await SupabaseProvider.client.auth.verifyOTP(
+        email: widget.email ?? '',
+        token: widget.resetToken,
+        type: OtpType.recovery,
+      );
+      
+      print('✅ Código verificado correctamente');
+    } catch (e) {
+      print('❌ Error verificando código: $e');
+    }
+  }
+
+  @override
   void dispose() {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
