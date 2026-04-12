@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/index.dart';
 import '../config/supabase_provider.dart';
 
@@ -12,6 +13,7 @@ class MessagesProvider extends ChangeNotifier {
   Map<String, DateTime> _lastReadAt = {}; // chatId -> lastReadAt
   String? _error;
   String? _selectedChatId;
+  Set<String> _deletedChats = {}; // ✅ NUEVO: Chats eliminados (persistente)
 
   List<Chat> get chats => _chats;
   List<ChatPreview> get chatPreviews => _chatPreviews; // ✅ Para usar en UI sin queries
@@ -29,13 +31,42 @@ class MessagesProvider extends ChangeNotifier {
     return _loadingChats[chatId] ?? false;
   }
 
+  /// ✅ NUEVO: Cargar chats eliminados desde SharedPreferences
+  Future<void> _loadDeletedChats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deleted = prefs.getStringList('deleted_chats') ?? [];
+      _deletedChats = deleted.toSet();
+      print('📋 Chats eliminados cargados: $_deletedChats');
+    } catch (e) {
+      print('❌ Error cargando chats eliminados: $e');
+      // Si hay error, inicializar como vacío
+      _deletedChats = {};
+    }
+  }
+
+  /// ✅ NUEVO: Guardar chats eliminados en SharedPreferences
+  Future<void> _saveDeletedChats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('deleted_chats', _deletedChats.toList());
+      print('💾 Chats eliminados guardados: $_deletedChats');
+    } catch (e) {
+      print('❌ Error guardando chats eliminados: $e');
+    }
+  }
+
   /// ✅ NUEVO: Cargar previews de chats (optimizado)
   /// Una sola operación para obtener todo lo necesario
   /// ✅ Consolida múltiples chats del mismo usuario en uno solo
+  /// ✅ Filtra chats eliminados localmente
   Future<void> loadChatPreviews(String userId) async {
     _error = null;
 
     try {
+      // ⭐ CARGAR PRIMERO LOS CHATS ELIMINADOS
+      await _loadDeletedChats();
+
       _chats = await SupabaseProvider.messagesService.getUserChats(userId);
       _chatPreviews = [];
 
@@ -43,6 +74,12 @@ class MessagesProvider extends ChangeNotifier {
       Map<String, ChatPreview> consolidatedChats = {};
 
       for (final chat in _chats) {
+        // ⭐⭐⭐ SALTAR SI ESTÁ EN LA LISTA DE ELIMINADOS LOCALES
+        if (_deletedChats.contains(chat.id)) {
+          print('⏭️ Saltando chat eliminado localmente: ${chat.id}');
+          continue;
+        }
+
         try {
           // Obtener match data
           final match = await SupabaseProvider.databaseService.getMatch(chat.matchId);
@@ -236,6 +273,20 @@ class MessagesProvider extends ChangeNotifier {
   Future<void> deleteChat(String chatId, String userId) async {
     try {
       print('🗑️ Eliminando chat $chatId solo para usuario $userId');
+      
+      // ⭐ ASEGURAR QUE _deletedChats ESTÉ INITIALIZED
+      if (_deletedChats.isEmpty) {
+        await _loadDeletedChats();
+        print('⚠️ Inicializando _deletedChats desde storage');
+      }
+      
+      // ⭐ AGREGAR A LA LISTA DE ELIMINADOS LOCALES
+      _deletedChats.add(chatId);
+      print('📋 Agregado a eliminados: $_deletedChats');
+      
+      // ⭐ GUARDAR EN SHAREPREFERENCES (PERSISTENTE)
+      await _saveDeletedChats();
+      print('💾 Guardado en SharedPreferences');
       
       // Marcar como oculto en la BD (borrado suave)
       await SupabaseProvider.messagesService.deleteChat(chatId, userId);
