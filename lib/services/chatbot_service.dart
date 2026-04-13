@@ -1,16 +1,23 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/chatbot_message.dart';
+import 'groq_service.dart';
 
 class ChatbotService {
   final String baseUrl;
   late final http.Client _client;
+  final GroqService? _groqService;
 
   ChatbotService({
     this.baseUrl = 'http://localhost:8000', // Cambiar a URL real
-  }) {
+    String? groqApiKey,
+  }) : _groqService = (groqApiKey != null && groqApiKey.isNotEmpty)
+          ? GroqService(apiKey: groqApiKey)
+          : null {
     _client = http.Client();
   }
+
+  bool get useGroq => _groqService != null;
 
   /// Procesar mensaje del usuario y obtener respuesta del chatbot con IA
   Future<ChatbotMessage> processUserMessage({
@@ -21,43 +28,22 @@ class ChatbotService {
     required List<ChatbotMessage> chatHistory,
     int conversationCount = 0,
   }) async {
-    try {
-      // Convertir historial a JSON (últimos 10 mensajes)
-      final history = chatHistory
-          .take(10)
-          .map((msg) => {
-                'type': msg.type.toString().split('.').last,
-                'content': msg.content,
-              })
-          .toList();
-
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chatbot/process'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'user_id': userId,
-          'message': userMessage,
-          'user_profile': userProfile,
-          'user_habits': userHabits,
-          'conversation_count': conversationCount,
-          'chat_history': history,  // Nuevo: historial de chat
-        }),
-      ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Timeout en chatbot service'),
+    // Si Groq está disponible, usar Groq
+    if (useGroq) {
+      return await _groqService!.processMessageWithContext(
+        userId: userId,
+        userMessage: userMessage,
+        userProfile: userProfile,
+        userHabits: userHabits,
+        chatHistory: chatHistory,
       );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return ChatbotMessage.fromJson(data);
-      } else {
-        throw Exception('Error chatbot: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error procesando mensaje: $e');
     }
+
+    // Sin Groq ni Backend disponible
+    return ChatbotMessage(
+      type: MessageType.assistant,
+      content: 'No hay servicio de IA disponible. Configura Groq primero.',
+    );
   }
 
   /// Obtener múltiples recomendaciones de compatibilidad
@@ -66,86 +52,33 @@ class ChatbotService {
     required List<String> userResponses,
     required Map<String, dynamic> userHabits,
   }) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chatbot/recommend'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'user_id': userId,
-          'responses': userResponses,
-          'habits': userHabits,
-        }),
-      ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Timeout en recomendación'),
+    // Si Groq está disponible, usarlo para generar recomendaciones
+    if (useGroq) {
+      return await _groqService!.getCompatibilityRecommendations(
+        userId: userId,
+        userResponses: userResponses,
+        userHabits: userHabits,
       );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        // Caso 1: Mensaje de "no hay resultados" (sin recommendations array)
-        if (data['recommendations'] == null && data['type'] != null) {
-          // Es un mensaje especial (error/no-results)
-          return [ChatbotMessage.fromJson(data)];
-        }
-        
-        // Caso 2: Array de recomendaciones
-        if (data['recommendations'] != null && data['recommendations'] is List) {
-          final List<ChatbotMessage> recommendations = [];
-          for (var rec in data['recommendations']) {
-            recommendations.add(ChatbotMessage.fromJson(rec));
-          }
-          return recommendations;
-        }
-        
-        // Fallback: una sola recomendación
-        return [ChatbotMessage.fromJson(data)];
-      } else {
-        throw Exception('Error obteniendo recomendación: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error en recomendación: $e');
     }
+
+    // Sin Groq disponible
+    return [ChatbotMessage(
+      type: MessageType.assistant,
+      content: 'No hay servicio de IA disponible para búsqueda. Configura Groq primero.',
+    )];
   }
 
   /// Obtener mensaje de bienvenida personalizado con opciones
   Future<ChatbotMessage> getWelcomeMessage(String userName) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chatbot/welcome'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'user_name': userName,
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return ChatbotMessage.fromJson(data);
-      } else {
-        // Retornar mensaje por defecto
-        return ChatbotMessage(
-          type: MessageType.assistant,
-          content: 'Bienvenido a ConVive',
-          options: ['Compañero de cuarto', 'Departamento'],
-        );
-      }
-    } catch (e) {
-      return ChatbotMessage(
-        type: MessageType.assistant,
-        content: 'Bienvenido a ConVive',
-        options: ['Compañero de cuarto', 'Departamento'],
-      );
-    }
+    return ChatbotMessage(
+      type: MessageType.assistant,
+      content: 'Bienvenido a ConVive, $userName',
+      options: ['Compañero de cuarto', 'Departamento'],
+    );
   }
 
   void dispose() {
     _client.close();
+    _groqService?.dispose();
   }
 }

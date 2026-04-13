@@ -8,6 +8,11 @@
 .build/
 .buildlog/
 .history
+
+# Backend secrets
+backend/.env
+backend/venv/
+lib/config/groq_config.dart
 .svn/
 .swiftpm/
 migrate_working_dir/
