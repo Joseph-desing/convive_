@@ -19,6 +19,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   late TextEditingController _messageController;
   late ScrollController _scrollController;
   String? _selectedOption;  // Track selected option
+  bool _optionsUsed = false;  // Track si opciones ya fueron usadas
 
   @override
   void initState() {
@@ -33,7 +34,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       final chatbotProvider = context.read<ChatbotProvider>();
       
       if (authProvider.currentUser != null) {
-        // Pasar el nombre completo del perfil del usuario
         final fullName = userProvider.profile?.fullName;
         chatbotProvider.initializeChatbot(
           authProvider.currentUser!,
@@ -601,127 +601,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       ),
     );
 
-    // Si hay opciones, mostrar botones ENCIMA del input
-    if (lastMessage != null && lastMessage.options!.isNotEmpty) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Botones de opciones
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: lastMessage.options!
-                    .map((option) {
-                      final isSelected = _selectedOption == option;
-                      
-                      return SizedBox(
-                        width: MediaQuery.of(context).size.width < 400 
-                            ? double.infinity 
-                            : null,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isSelected
-                                  ? [
-                                      AppColors.primary,
-                                      AppColors.primary.withOpacity(0.85),
-                                    ]
-                                  : [
-                                      Colors.white,
-                                      Colors.grey.shade50,
-                                    ],
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: AppColors.primary.withOpacity(isSelected ? 0 : 0.5),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isSelected
-                                    ? AppColors.primary.withOpacity(0.25)
-                                    : Colors.black.withOpacity(0.08),
-                                blurRadius: isSelected ? 12 : 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: chatbotProvider.isLoading
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _selectedOption = option;
-                                      });
-                                      final authProvider = context.read<AuthProvider>();
-                                      if (authProvider.currentUser != null) {
-                                        chatbotProvider.sendMessage(
-                                          option,
-                                          authProvider.currentUser!,
-                                        );
-                                        _scrollToBottom();
-                                        // Reset selection for next set of options
-                                        Future.delayed(const Duration(milliseconds: 500), () {
-                                          if (mounted) {
-                                            setState(() {
-                                              _selectedOption = null;
-                                            });
-                                          }
-                                        });
-                                      }
-                                    },
-                              borderRadius: BorderRadius.circular(28),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 28,
-                                  vertical: 16,
-                                ),
-                                child: Text(
-                                  option,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: isSelected ? Colors.white : AppColors.primary,
-                                    letterSpacing: 0.3,
-                                  ),
-                                  maxLines: 2,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    })
-                    .toList(),
-              ),
-            ),
-          ),
-          // Input de texto debajo de los botones
-          textInputWidget,
-        ],
-      );
-    }
-
-    // Si no hay opciones, mostrar solo input
+    // Siempre mostrar solo el input de texto (sin botones de opciones)
     return textInputWidget;
   }
 

@@ -30,7 +30,6 @@ class ChatbotProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
       Future.microtask(() => notifyListeners());
 
       // Obtener nombre completo del perfil si no viene en parámetro
@@ -38,11 +37,9 @@ class ChatbotProvider extends ChangeNotifier {
       
       if (userName == 'Usuario') {
         try {
-          // Cargar perfil desde BD para obtener nombre completo
           final profile = await _databaseService.getProfile(user.id);
           userName = profile?.fullName ?? user.email.split('@').first ?? 'Usuario';
         } catch (e) {
-          // Si falla, usar email
           userName = user.email.split('@').first ?? 'Usuario';
         }
       }
@@ -70,7 +67,6 @@ class ChatbotProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       _error = null;
-      // ✅ NUEVO: Diferir notifyListeners para evitar errores durante build
       Future.microtask(() => notifyListeners());
 
       // Agregar mensaje del usuario
@@ -81,10 +77,10 @@ class ChatbotProvider extends ChangeNotifier {
         ),
       );
 
-      // Contar cuántos turnos llevan en la conversación (solo mensajes del usuario)
+      // Contar cuántos turnos llevan en la conversación
       int conversationCount = _messages.where((m) => m.type == MessageType.user).length;
 
-      // Obtener perfil y hábitos del usuario (ANTES de usarlos)
+      // Obtener perfil del usuario
       final userProfile = {
         'id': currentUser.id,
         'email': currentUser.email,
@@ -92,37 +88,27 @@ class ChatbotProvider extends ChangeNotifier {
         'subscription_type': currentUser.subscriptionType.toString(),
       };
 
-      // TODO: Obtener hábitos reales del usuario
+      // Hábitos por defecto
       final userHabits = {
-        'cleanliness': 4,        // Nivel de limpieza: 4/10
-        'noise_level': 3,        // Tolerancia al ruido: 3/10
-        'party_frequency': 3,    // Frecuencia de fiestas: 3/10
-        'guests_frequency': 2,   // Tolerancia a invitados: 2/10
-        'home_time': 5,          // Tiempo en casa: 5/10
-        'responsibility': 7,     // Nivel de responsabilidad: 7/10
-        'pets_tolerance': 10,    // Tolerancia a mascotas: 10/10
+        'cleanliness': 5,
+        'noise_level': 5,
+        'party_frequency': 5,
+        'guests_frequency': 5,
       };
 
       // Detectar si el usuario quiere ver recomendaciones
       if (userMessage.toLowerCase().contains('mostrar') || 
           userMessage.toLowerCase().contains('sí') ||
           userMessage.toLowerCase().contains('si')) {
-        // Extraer respuestas del usuario del historial
         List<String> userResponses = _messages
             .where((m) => m.type == MessageType.user)
             .map((m) => m.content)
             .toList();
 
-        // Llamar a endpoint de recomendaciones
-        await getRecommendation(
-          currentUser,
-          userResponses,
-          userHabits,
-        );
-
+        await getRecommendation(currentUser, userResponses, userHabits);
         _isLoading = false;
         notifyListeners();
-        return; // Salir sin procesar mensaje normal
+        return;
       }
 
       // Procesar mensaje con IA
@@ -131,14 +117,12 @@ class ChatbotProvider extends ChangeNotifier {
         userMessage: userMessage,
         userProfile: userProfile,
         userHabits: userHabits,
-        chatHistory: _messages,  // Pasar historial para contexto
+        chatHistory: _messages,
         conversationCount: conversationCount,
       );
 
-      // Agregar respuesta del chatbot
       _messages.add(response);
 
-      // Si la respuesta contiene una sugerencia, guardarla
       if (response.type == MessageType.suggestion && response.matchedUserId != null) {
         _currentRecommendation = {
           'user_id': response.matchedUserId,
