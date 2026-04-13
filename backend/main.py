@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
+from contextlib import asynccontextmanager
 import httpx
 import os
 import logging
@@ -19,7 +20,27 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ConVive Backend", version="1.0.0")
+# Cliente HTTP (global)
+client = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestionar ciclo de vida de la aplicación"""
+    # Startup
+    global client
+    client = httpx.AsyncClient(timeout=30.0)
+    logger.info("✅ Cliente HTTP inicializado")
+    yield
+    # Shutdown
+    if client:
+        await client.aclose()
+    logger.info("✅ Cliente HTTP cerrado")
+
+app = FastAPI(
+    title="ConVive Backend",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # CORS - Permitir Flutter Web (ajusta según tu dominio)
 # En desarrollo: permite todos los puertos de localhost
@@ -74,9 +95,6 @@ GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 if not GROQ_API_KEY:
     logger.warning("⚠️ GROQ_API_KEY no configurada. Configura la variable de entorno.")
-
-# Cliente HTTP
-client = httpx.AsyncClient(timeout=30.0)
 
 def build_system_prompt(user_profile: Optional[dict], user_habits: Optional[dict]) -> str:
     """Construir prompt de sistema con contexto del usuario"""
@@ -260,11 +278,6 @@ Proporciona recomendaciones claras y útiles en formato de lista numerada."""
             status_code=500,
             detail=f"Error obteniendo recomendaciones: {str(e)}"
         )
-
-# Cerrar cliente al shutdown
-@app.on_event("shutdown")
-async def shutdown_event():
-    await client.aclose()
 
 if __name__ == "__main__":
     import uvicorn

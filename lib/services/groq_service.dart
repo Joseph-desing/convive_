@@ -11,8 +11,8 @@ class GroqService {
   GroqService({
     required this.apiKey,
     this.model = 'llama-3.1-8b-instant', // Modelo disponible en Groq
-    // 🔄 PRODUCCIÓN: Apunta al backend en Heroku
-    this.baseUrl = 'https://convive-api-production.herokuapp.com',
+    // 🔄 DESARROLLO: Apunta al backend local (FastAPI en puerto 8000)
+    this.baseUrl = 'http://localhost:8000',
   }) {
     _client = http.Client();
   }
