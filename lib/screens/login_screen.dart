@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../utils/colors.dart'; // Asegúrate de que esto exista
@@ -184,11 +185,47 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 12),
-                              child: Text(
-                                'Acepto los términos y política de privacidad',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary),
+                              child: RichText(
+                                text: TextSpan(
+                                  children: [
+                                    const TextSpan(
+                                      text: 'Acepto los ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'términos y condiciones',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = _showTermsAndConditions,
+                                    ),
+                                    const TextSpan(
+                                      text: ' y ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'política de privacidad',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = _showPrivacyPolicy,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -494,4 +531,356 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  void _showTermsAndConditions() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+            ),
+            child: Column(
+              children: [
+                // --- HEADER CON GRADIENTE (SIN PADDING HORIZONTAL) ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        color: Colors.white,
+                        size: 36,
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Términos y Condiciones',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'ConVive - Plataforma de Compañeros de Vivienda',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // --- CONTENIDO EN FONDO BLANCO ---
+                Expanded(
+                  child: Container(
+                    color: Colors.white,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTermsSection(
+                            icon: Icons.check_circle_outline,
+                            title: '1. Aceptación de los Términos',
+                            content:
+                                'Al crear una cuenta en ConVive, aceptas estos términos en su totalidad. ConVive es una plataforma para conectar estudiantes y profesionales en búsqueda de compañeros/as de vivienda compatibles.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.smart_toy_outlined,
+                            title: '2. Servicio de Compatibilidad IA',
+                            content:
+                                'ConVive utiliza algoritmos de inteligencia artificial para sugerirte compañeros/as de vivienda basados en tus hábitos de vida, preferencias y necesidades. Los matches no garantizan compatibilidad total.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.person_outline,
+                            title: '3. Información de Perfil y Hábitos',
+                            content:
+                                'Eres responsable de proporcionar información honesta y precisa sobre tus hábitos. La desinformación puede resultar en la suspensión de tu cuenta.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.home_outlined,
+                            title: '4. Propiedades y Publicaciones',
+                            content:
+                                'Si publicas una propiedad, garantizas que tienes derecho a ofrecerla. Las imágenes deben ser de la propiedad real y estar actualizadas.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.chat_outlined,
+                            title: '5. Comunicación entre Usuarios',
+                            content:
+                                'Prohíbe acoso, spam, suplantación y compartir datos financieros. Cualquier violación puede resultar en baneo permanente.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.handshake_outlined,
+                            title: '6. No Somos Agentes Inmobiliarios',
+                            content:
+                                'ConVive es únicamente una plataforma de conexión. Todas las negociaciones son responsabilidad de los usuarios.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.location_on_outlined,
+                            title: '7. Ubicación y Privacidad',
+                            content:
+                                'Tu ubicación exacta nunca será compartida públicamente. Se usa solo para mostrar propiedades cercanas.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.block_outlined,
+                            title: '8. Violaciones y Suspensión',
+                            content:
+                                'Podemos suspender o eliminar tu cuenta sin previo aviso si violas estos términos o realizas actividades ilícitas.',
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // --- BOTÓN EN FONDO BLANCO ---
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Entendido',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+            ),
+            child: Column(
+              children: [
+                // --- HEADER CON GRADIENTE (SIN PADDING HORIZONTAL) ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.security_outlined,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Política de Privacidad',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tu privacidad es nuestra prioridad',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // --- CONTENIDO EN FONDO BLANCO ---
+                Expanded(
+                  child: Container(
+                    color: Colors.white,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTermsSection(
+                            icon: Icons.data_saver_on_outlined,
+                            title: '1. Datos que Recolectamos',
+                            content:
+                                'Nombre, correo, teléfono, foto, información de hábitos, preferencias de vivienda, ubicación, imágenes de propiedades e historial de interacciones.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.psychology_outlined,
+                            title: '2. Hábitos de Vida y Compatibilidad',
+                            content:
+                                'La información sobre tus hábitos se utiliza únicamente para alimentar nuestro algoritmo IA. Solo es visible para potenciales matches compatibles.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.map_outlined,
+                            title: '3. Ubicación y Mapas',
+                            content:
+                                'Tu ubicación exacta NO se comparte públicamente. Se usa solo para mostrar propiedades cercanas. Otros usuarios solo ven propiedades en el área.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.image_not_supported_outlined,
+                            title: '4. Imágenes y Fotos',
+                            content:
+                                'Imágenes de perfil: visibles públicamente. Imágenes de propiedades: solo para usuarios interesados.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.mail_lock_outlined,
+                            title: '5. Chat y Comunicaciones',
+                            content:
+                                'Mensajes almacenados encriptados. No accedemos a mensajes privados a menos que investiguemos fraude o acoso.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.share_outlined,
+                            title: '6. Datos Compartidos',
+                            content:
+                                'Visibles solo entre usuarios de ConVive. NO vendemos datos. Se comparten solo si ley lo requiere.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.privacy_tip_outlined,
+                            title: '7. Derechos del Usuario',
+                            content:
+                                'Derecho a: acceder datos, corregir información, eliminar cuenta (derecho al olvido), solicitar copia de datos.',
+                          ),
+                          _buildTermsSection(
+                            icon: Icons.verified_user_outlined,
+                            title: '8. Seguridad y Contacto',
+                            content:
+                                'Encriptación y protocolos de seguridad estándar. Consultas: privacy@convive.app',
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // --- BOTÓN EN FONDO BLANCO ---
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Entendido',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTermsSection({
+    required IconData icon,
+    required String title,
+    required String content,
+    bool isLast = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 20.0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: AppColors.primary.withOpacity(0.3),
+              width: 3,
+            ),
+          ),
+          color: AppColors.primary.withOpacity(0.05),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(8),
+            bottomRight: Radius.circular(8),
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    content,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+

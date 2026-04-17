@@ -88,13 +88,34 @@ class ChatbotProvider extends ChangeNotifier {
         'subscription_type': currentUser.subscriptionType.toString(),
       };
 
-      // Hábitos por defecto
-      final userHabits = {
-        'cleanliness': 5,
-        'noise_level': 5,
-        'party_frequency': 5,
-        'guests_frequency': 5,
-      };
+      // 🔍 LEER HÁBITOS REALES del usuario desde BD
+      Map<String, dynamic> userHabits = {};
+      try {
+        final habits = await _databaseService.getHabits(currentUser.id);
+        if (habits != null) {
+          userHabits = {
+            'cleanliness': habits.cleanlinessLevel ?? 5,
+            'noise_level': habits.noiseTolerance ?? 5,
+            'party_frequency': habits.partyFrequency ?? 5,
+            'guests_frequency': habits.guestsTolerance ?? 5,
+            'home_time': habits.timeAtHome ?? 50,
+            'responsibility': habits.responsibilityLevel ?? 5,
+            'pets_tolerance': habits.petTolerance ?? 5,
+          };
+          print('✅ Hábitos cargados: $userHabits');
+        }
+      } catch (e) {
+        print('⚠️ Error cargando hábitos: $e');
+        userHabits = {
+          'cleanliness': 5,
+          'noise_level': 5,
+          'party_frequency': 5,
+          'guests_frequency': 5,
+          'home_time': 50,
+          'responsibility': 5,
+          'pets_tolerance': 5,
+        };
+      }
 
       // Detectar si el usuario quiere ver recomendaciones
       if (userMessage.toLowerCase().contains('mostrar') || 
