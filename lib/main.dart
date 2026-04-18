@@ -14,6 +14,10 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/user_profile_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/admin_dashboard.dart';
+import 'screens/admin_users_screen.dart';
+import 'screens/admin_properties_screen.dart';
+import 'screens/admin_feedback_screen.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
 import 'config/groq_config.dart';
@@ -22,6 +26,7 @@ import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/notifications_provider.dart';
 import 'providers/chatbot_provider.dart';
+import 'providers/admin_provider.dart';
 import 'services/chatbot_service.dart';
 import 'services/supabase_database_service.dart';
 
@@ -137,6 +142,16 @@ class _ConViveAppState extends State<ConViveApp> {
             location.startsWith('/reset-password#') ||
             location == '/forgot-password' ||
             location.startsWith('/forgot-password?')) {
+          return null;
+        }
+        
+        // Proteger rutas de admin (solo para usuarios con rol admin)
+        if (location.startsWith('/admin')) {
+          if (session == null) {
+            return '/login';
+          }
+          // Aquí podrías agregar lógica adicional para verificar el rol
+          // Por ahora, permitir si hay sesión
           return null;
         }
         
@@ -331,6 +346,23 @@ class _ConViveAppState extends State<ConViveApp> {
             return ChatScreen(matchId: matchId);
           },
         ),
+        // ==================== RUTAS DE ADMINISTRADOR ====================
+        GoRoute(
+          path: '/admin',
+          builder: (context, state) => const AdminDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/admin/users',
+          builder: (context, state) => const AdminUsersScreen(),
+        ),
+        GoRoute(
+          path: '/admin/properties',
+          builder: (context, state) => const AdminPropertiesScreen(),
+        ),
+        GoRoute(
+          path: '/admin/feedback',
+          builder: (context, state) => const AdminFeedbackScreen(),
+        ),
       ],
     );
   }
@@ -348,6 +380,7 @@ class _ConViveAppState extends State<ConViveApp> {
         ChangeNotifierProvider(create: (_) => RoommateSearchProvider()),
         ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(
           create: (_) => ChatbotProvider(
             chatbotService: ChatbotService(

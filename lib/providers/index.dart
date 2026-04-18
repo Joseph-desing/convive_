@@ -9,3 +9,4 @@ export 'chatbot_provider.dart';
 export 'theme_provider.dart';
 export 'locale_provider.dart';
 export 'notifications_provider.dart';
+export 'admin_provider.dart';

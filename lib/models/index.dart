@@ -12,3 +12,5 @@ export 'message.dart';
 export 'roommate_search.dart';
 export 'notification.dart';
 export 'chatbot_message.dart';
+export 'feedback.dart';
+export 'subscription.dart';

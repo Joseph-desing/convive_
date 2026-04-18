@@ -115,15 +115,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 subtitle: '+54 9 1234 567890',
                 onTap: _openWhatsApp,
               ),
-              const SizedBox(height: 12),
-
-              // --- OPCIÓN 3: FAQ ---
-              _buildSupportOption(
-                icon: Icons.help_outline,
-                title: 'Ver Preguntas Frecuentes',
-                subtitle: 'Resolvemos dudas comunes',
-                onTap: () => Navigator.pop(context),
-              ),
               const SizedBox(height: 20),
 
               // --- AVISO ---
@@ -448,34 +439,92 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 const SizedBox(height: 24),
 
-                // --- VOLVER AL LOGIN (Siempre visible) ---
+                // --- VOLVER AL LOGIN & ¿NO RECUERDAS TU EMAIL? (Mejorados) ---
                 if (!_emailSent)
                   Column(
                     children: [
-                      Center(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            '← Volver al Login',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
+                      // --- BOTÓN 1: VOLVER AL LOGIN ---
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.arrow_back_ios_new,
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Volver al Login',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Center(
-                        child: TextButton(
-                          onPressed: _showSupportOptions,
-                          child: const Text(
-                            '¿No recuerdas tu email?',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
+                      // --- BOTÓN 2: ¿NO RECUERDAS TU EMAIL? ---
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: AppColors.primary.withOpacity(0.08),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _showSupportOptions,
+                            borderRadius: BorderRadius.circular(14),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.help_outline_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    '¿No recuerdas tu email?',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),

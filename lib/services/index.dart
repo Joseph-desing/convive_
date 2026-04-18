@@ -6,3 +6,6 @@ export 'supabase_storage_service.dart';
 export 'supabase_messages_service.dart';
 export 'ai_service.dart';
 export 'chatbot_service.dart';
+export 'groq_service.dart';
+export 'compatibility_service.dart';
+export 'admin_service.dart';

@@ -9,7 +9,7 @@ part of 'profile.dart';
 Profile _$ProfileFromJson(Map<String, dynamic> json) => Profile(
       id: json['id'] as String?,
       userId: json['user_id'] as String,
-      fullName: json['full_name'] as String,
+      fullName: json['full_name'] as String?,
       birthDate: json['birth_date'] == null
           ? null
           : DateTime.parse(json['birth_date'] as String),
