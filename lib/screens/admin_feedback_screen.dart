@@ -21,10 +21,16 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFeedback();
+    // Cargar feedback DESPUÉS del build
+    Future.microtask(() {
+      if (mounted) {
+        _loadFeedback();
+      }
+    });
   }
 
   void _loadFeedback() {
+    if (!mounted) return;
     final adminProvider = context.read<AdminProvider>();
     if (_selectedStatusFilter == 'all' && _selectedTypeFilter == 'all') {
       adminProvider.loadAllFeedback();

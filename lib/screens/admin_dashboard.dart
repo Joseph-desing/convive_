@@ -17,10 +17,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    // Cargar datos DESPUÉS del build usando microtask
+    Future.microtask(() {
+      if (mounted) {
+        _loadDashboardData();
+      }
+    });
   }
 
   void _loadDashboardData() {
+    if (!mounted) return;
     final adminProvider = context.read<AdminProvider>();
     adminProvider.loadDashboardStats();
   }

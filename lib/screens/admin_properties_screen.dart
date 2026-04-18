@@ -18,10 +18,16 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProperties();
+    // Cargar propiedades DESPUÉS del build
+    Future.microtask(() {
+      if (mounted) {
+        _loadProperties();
+      }
+    });
   }
 
   void _loadProperties() {
+    if (!mounted) return;
     final adminProvider = context.read<AdminProvider>();
     if (_selectedFilter == 'all') {
       adminProvider.loadAllProperties();

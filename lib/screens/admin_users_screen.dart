@@ -18,10 +18,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    // Cargar usuarios DESPUÉS del build
+    Future.microtask(() {
+      if (mounted) {
+        _loadUsers();
+      }
+    });
   }
 
   void _loadUsers() {
+    if (!mounted) return;
     final adminProvider = context.read<AdminProvider>();
     if (_selectedFilter == 'all') {
       adminProvider.loadAllUsers();
