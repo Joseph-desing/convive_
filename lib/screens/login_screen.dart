@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../utils/colors.dart'; // Asegúrate de que esto exista
+import '../utils/colors.dart';
 import '../providers/auth_provider.dart';
-import '../models/user.dart'; // A veces no es necesario importar el modelo aquí si se usa el provider
+import '../models/user.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,10 +18,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLogin = true;
   final _formKey = GlobalKey<FormState>();
-  String _userRole = 'student'; // 'student' o 'admin'
 
   // CONTROLADORES
-  final _emailController = TextEditingController(); // FALTABA ESTE
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
 
@@ -103,93 +102,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 30),
-
-                    // --- SELECTOR DE ROL ---
-                    if (_isLogin)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '¿Qué tipo de usuario eres?',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _userRole = 'student'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: _userRole == 'student' 
-                                          ? AppColors.primary 
-                                          : Colors.transparent,
-                                      border: Border.all(
-                                        color: _userRole == 'student' 
-                                            ? AppColors.primary 
-                                            : AppColors.textSecondary,
-                                        width: 2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '👤 Estudiante',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: _userRole == 'student' 
-                                              ? Colors.white 
-                                              : AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _userRole = 'admin'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: _userRole == 'admin' 
-                                          ? AppColors.primary 
-                                          : Colors.transparent,
-                                      border: Border.all(
-                                        color: _userRole == 'admin' 
-                                            ? AppColors.primary 
-                                            : AppColors.textSecondary,
-                                        width: 2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '🔐 Admin',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: _userRole == 'admin' 
-                                              ? Colors.white 
-                                              : AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
 
                     // --- CAMPOS DE TEXTO ---
                     if (!_isLogin) ...[
@@ -553,8 +465,9 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
         
-        // Si el email está verificado, redirige según el rol seleccionado
-        if (_userRole == 'admin') {
+        // Redirigir según el rol del usuario (cargado desde BD)
+        final userRole = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+        if (userRole == 'admin') {
           context.go('/admin');
         } else {
           context.go('/home');
