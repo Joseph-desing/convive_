@@ -9,6 +9,7 @@ import '../widgets/bottom_nav_bar.dart';
 import 'profile_screen.dart';
 import 'messages_screen.dart';
 import 'matches_screen.dart';
+import 'complaints_screen.dart';
 import 'notifications_screen.dart';
 import 'map_posts_screen.dart';
 import '../providers/property_provider.dart';
@@ -765,13 +766,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildPlaceholder() {
     // Mostrar la pantalla de perfil cuando se selecciona
-    if (_currentIndex == 3) {
+    if (_currentIndex == 4) {
       return const ProfileScreen();
     }
     
     // Mostrar la pantalla de mensajes cuando se selecciona
-    if (_currentIndex == 2) {
+    if (_currentIndex == 3) {
       return const MessagesScreen();
+    }
+
+    // Mostrar la pantalla de quejas cuando se selecciona
+    if (_currentIndex == 2) {
+      return const ComplaintsScreen();
     }
     
     // Mostrar la pantalla de matches
@@ -781,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     return const Center(
       child: Text(
-        'Perfil',
+        'Inicio',
         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
       ),
     );

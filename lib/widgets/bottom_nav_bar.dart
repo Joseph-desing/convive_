@@ -45,14 +45,19 @@ class CustomBottomNavBar extends StatelessWidget {
                   index: 1,
                 ),
                 _buildNavItem(
+                  icon: Icons.error_outline,
+                  label: 'Quejas',
+                  index: 2,
+                ),
+                _buildNavItem(
                   icon: Icons.chat_bubble_rounded,
                   label: 'Mensajes',
-                  index: 2,
+                  index: 3,
                 ),
                 _buildNavItem(
                   icon: Icons.person_rounded,
                   label: 'Perfil',
-                  index: 3,
+                  index: 4,
                 ),
               ],
             ),
