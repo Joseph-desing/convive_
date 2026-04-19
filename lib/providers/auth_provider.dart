@@ -121,6 +121,7 @@ class AuthProvider extends ChangeNotifier {
               id: authResponse.user!.id,
               email: email,
               role: role,
+              fullName: fullName, // ✅ AGREGAR AQUÍ
             );
             await SupabaseProvider.databaseService.createUser(user);
             _currentUser = user;
@@ -130,8 +131,19 @@ class AuthProvider extends ChangeNotifier {
               id: authResponse.user!.id,
               email: email,
               role: role,
+              fullName: fullName, // ✅ AGREGAR AQUÍ
             );
           }
+        }
+        
+        // ✅ ACTUALIZAR FULL_NAME EN BD SI NO ESTABA
+        try {
+          await SupabaseProvider.client
+              .from('users')
+              .update({'full_name': fullName})
+              .eq('id', authResponse.user!.id);
+        } catch (e) {
+          debugPrint('Error actualizando full_name: $e');
         }
       }
     } catch (e) {

@@ -19,6 +19,8 @@ class User {
   @JsonKey(name: 'id')
   final String id;
   final String email;
+  @JsonKey(name: 'full_name')
+  final String? fullName;
   @JsonKey(unknownEnumValue: UserRole.student)
   final UserRole role;
   @JsonKey(name: 'subscription_type', unknownEnumValue: SubscriptionType.free)
@@ -31,6 +33,7 @@ class User {
   User({
     String? id,
     required this.email,
+    this.fullName,
     required this.role,
     this.subscriptionType = SubscriptionType.free,
     DateTime? createdAt,
@@ -45,6 +48,7 @@ class User {
   User copyWith({
     String? id,
     String? email,
+    String? fullName,
     UserRole? role,
     SubscriptionType? subscriptionType,
     DateTime? createdAt,
@@ -53,6 +57,7 @@ class User {
     return User(
       id: id ?? this.id,
       email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
       role: role ?? this.role,
       subscriptionType: subscriptionType ?? this.subscriptionType,
       createdAt: createdAt ?? this.createdAt,

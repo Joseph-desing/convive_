@@ -113,31 +113,67 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         debugPrint('Nota: roommate_searches: $e');
       }
 
-      // Cargar nombres de usuarios
+      // Cargar nombres y fotos de usuarios desde profile y users
       final userNames = <String, String>{};
+      final userImages = <String, String>{};
       if (userIds.isNotEmpty) {
         try {
+          // Primero cargar desde profiles donde está el nombre completo y foto
+          final profileResponse = await SupabaseProvider.client
+              .from('profiles')
+              .select('user_id, full_name, profile_image_url');
+
+          if (profileResponse is List) {
+            for (var p in profileResponse) {
+              if (p is Map) {
+                final userId = p['user_id']?.toString() ?? '';
+                final fullName = p['full_name']?.toString().trim() ?? '';
+                final imageUrl = p['profile_image_url']?.toString().trim() ?? '';
+                
+                if (userIds.contains(userId)) {
+                  if (fullName.isNotEmpty) {
+                    userNames[userId] = fullName;
+                  }
+                  if (imageUrl.isNotEmpty) {
+                    userImages[userId] = imageUrl;
+                  }
+                }
+              }
+            }
+          }
+
+          // Cargar también de users para completar los que no están en profiles
           final usersResponse = await SupabaseProvider.client
               .from('users')
-              .select('id, full_name, email')
-              .inFilter('id', userIds.toList());
+              .select('id, full_name, email');
 
           if (usersResponse is List) {
             for (var u in usersResponse) {
               if (u is Map) {
                 final id = u['id']?.toString() ?? '';
-                final fullName = u['full_name']?.toString() ?? '';
-                final email = u['email']?.toString() ?? '';
+                final fullName = u['full_name']?.toString().trim() ?? '';
+                final email = u['email']?.toString().trim() ?? '';
                 
-                // Usar full_name si existe, sino email, sino id
-                final displayName = fullName.isNotEmpty ? fullName : 
-                                   email.isNotEmpty ? email : id;
-                userNames[id] = displayName;
+                if (userIds.contains(id) && !userNames.containsKey(id)) {
+                  // Usar full_name si existe y no está vacío, sino email, sino id
+                  final displayName = fullName.isNotEmpty ? fullName : 
+                                     email.isNotEmpty ? email : id;
+                  userNames[id] = displayName;
+                }
               }
             }
           }
         } catch (e) {
           debugPrint('Error cargando nombres de usuarios: $e');
+        }
+
+        // Para usuarios que no están en la tabla users, generar nombre legible
+        for (var userId in userIds) {
+          if (!userNames.containsKey(userId)) {
+            // Generar nombre basado en primeros caracteres del UUID
+            final shortId = userId.substring(0, 8).toUpperCase();
+            userNames[userId] = 'Usuario $shortId';
+          }
         }
       }
 
@@ -198,14 +234,26 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
       // Extraer usuarios únicos
       final usersMap = <String, Map<String, dynamic>>{};
+      
+      // Obtener el ID del usuario actual
+      final currentUserId = context.read<AuthProvider>().currentUser?.id ?? '';
+      
       for (var item in allItems) {
         final userName = item['owner_name']?.toString() ?? 'Desconocido';
         final itemType = item['type'] ?? 'property';
+        final userId = item['user_id']?.toString() ?? '';
+        
+        // NO incluir al usuario actual en la lista
+        if (userId == currentUserId) {
+          continue;
+        }
         
         if (!usersMap.containsKey(userName)) {
           usersMap[userName] = {
             'owner_name': userName,
+            'user_id': userId,
             'type': itemType,
+            'profile_image_url': userImages[userId] ?? '',
           };
         } else if (usersMap[userName]!['type'] != 'both') {
           usersMap[userName]!['type'] = 'both';
@@ -430,13 +478,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                       itemBuilder: (context, index) {
                         final user = _filteredUsers[index] as Map<String, dynamic>;
                         final ownerName = user['owner_name']?.toString() ?? 'Anónimo';
-                        final isSelected = _selectedUserId == ownerName;
+                        final userId = user['user_id']?.toString() ?? '';
+                        final isSelected = _selectedUserId == userId;
                         final userType = (user['type'] ?? 'property').toString();
 
                         return GestureDetector(
                           onTap: () {
                             setState(() {
-                              _selectedUserId = ownerName;
+                              _selectedUserId = userId;
                               _selectedPropertyId = null;
                             });
                           },
@@ -463,12 +512,20 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(20),
+                                    image: (user['profile_image_url']?.toString() ?? '').isNotEmpty
+                                        ? DecorationImage(
+                                            image: NetworkImage(user['profile_image_url']?.toString() ?? ''),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
                                   ),
-                                  child: const Icon(
-                                    Icons.person,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                                  child: (user['profile_image_url']?.toString() ?? '').isEmpty
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 20,
+                                        )
+                                      : null,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
