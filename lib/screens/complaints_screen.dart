@@ -46,9 +46,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       if (_searchType != 'all') {
         typeFiltered = _users.where((user) {
           final userType = user['type']?.toString() ?? 'property';
+          if (userType == 'both') {
+            // Si tiene ambos, incluir en todos los filtros
+            return true;
+          }
           return _searchType == 'property'
-              ? userType.contains('property')
-              : userType.contains('roommate');
+              ? userType == 'property'
+              : userType == 'roommate';
         }).toList();
       }
       
@@ -575,8 +579,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                     ..._properties
                         .where((prop) {
                           if (prop is! Map) return false;
-                          final propOwner = (prop['owner_name'] ?? '').toString();
-                          return propOwner == _selectedUserId;
+                          final propUserId = (prop['user_id'] ?? '').toString();
+                          return propUserId == _selectedUserId;
                         })
                         .map((item) {
                       final itemMap = item as Map<String, dynamic>;
