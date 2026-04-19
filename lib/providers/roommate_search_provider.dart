@@ -23,6 +23,7 @@ class RoommateSearchProvider extends ChangeNotifier {
     String? genderPreference,
     required List<String> habitsPreferences,
     required List<String> imageUrls,
+    bool includeAlicuota = false,
   }) async {
     _isLoading = true;
     _error = null;
@@ -43,6 +44,7 @@ class RoommateSearchProvider extends ChangeNotifier {
         genderPreference: genderPreference,
         habitsPreferences: habitsPreferences,
         imageUrls: [], // Array vacío en la BD
+        includeAlicuota: includeAlicuota,
       );
 
       // Usar el servicio de BD igual que PropertyProvider

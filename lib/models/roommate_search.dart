@@ -13,6 +13,9 @@ class RoommateSearch {
   final String status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool? _includeAlicuota;
+
+  bool get includeAlicuota => _includeAlicuota ?? false;
 
   RoommateSearch({
     this.id,
@@ -29,7 +32,8 @@ class RoommateSearch {
     this.status = 'active',
     this.createdAt,
     this.updatedAt,
-  });
+    bool? includeAlicuota,
+  }) : _includeAlicuota = includeAlicuota ?? false;
 
   Map<String, dynamic> toJson() {
     return {
@@ -44,6 +48,7 @@ class RoommateSearch {
       'habits_preferences': habitsPreferences,
       'image_urls': imageUrls,
       'status': status,
+      'include_alicuota': _includeAlicuota ?? false,
     };
   }
 
@@ -63,6 +68,7 @@ class RoommateSearch {
       status: json['status'] as String? ?? 'active',
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
     );
   }
 }

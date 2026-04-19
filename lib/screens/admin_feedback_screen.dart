@@ -54,11 +54,12 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     if (userIds.isEmpty) return;
 
     try {
-      // Cargar perfiles - usando in() en lugar de inFilter()
+      // Cargar perfiles usando OR con múltiples condiciones
+      final orConditions = userIds.map((id) => 'user_id.eq.$id').join(',');
       final profilesResponse = await SupabaseProvider.client
           .from('profiles')
           .select('user_id, full_name, profile_image_url')
-          .in_('user_id', userIds.toList());
+          .or(orConditions);
 
       if (profilesResponse is List) {
         for (var profile in profilesResponse) {

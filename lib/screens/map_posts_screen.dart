@@ -359,7 +359,9 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                     onPositionChanged: (pos, _) {
                       try {
                         final c = pos.center;
-                        setState(() => _currentMapCenter = LatLng(c.latitude, c.longitude));
+                        if (c != null) {
+                          setState(() => _currentMapCenter = LatLng(c.latitude, c.longitude));
+                        }
                       } catch (_) {}
                     },
                   ),

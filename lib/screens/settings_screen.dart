@@ -16,7 +16,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _emailNotifications = true;
-  bool _pushNotifications = true;
 
   @override
   Widget build(BuildContext context) {
@@ -72,17 +71,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   enabled: _notificationsEnabled,
                 ),
-                const Divider(height: 1),
-                _buildSwitchTile(
-                  icon: Icons.phone_android,
-                  title: 'Notificaciones push',
-                  subtitle: 'Alertas en tiempo real',
-                  value: _pushNotifications,
-                  onChanged: (value) {
-                    setState(() => _pushNotifications = value);
-                  },
-                  enabled: _notificationsEnabled,
-                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -98,26 +86,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     themeProvider.setDarkMode(value);
                   },
                 ),
-                const Divider(height: 1),
-                _buildOptionTile(
-                  icon: Icons.language,
-                  title: 'Idioma',
-                  subtitle: localeProvider.currentLanguage,
-                  onTap: () => _showLanguageDialog(localeProvider),
-                ),
               ],
             ),
             const SizedBox(height: 16),
             _buildSection(
               title: 'Cuenta',
               children: [
-                _buildOptionTile(
-                  icon: Icons.person_outline,
-                  title: 'Información de la cuenta',
-                  subtitle: 'Gestiona tu información personal',
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
                 _buildOptionTile(
                   icon: Icons.lock_outline,
                   title: 'Cambiar contraseña',

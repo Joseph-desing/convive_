@@ -32,11 +32,12 @@ class SupabaseMessagesService {
         return [];
       }
 
-      // Obtener chats para esos matches
+      // Obtener chats para esos matches usando OR
+      final orConditions = matchIds.map((id) => 'match_id.eq.$id').join(',');
       final chatsResponse = await _supabase
           .from('chats')
           .select('*')
-          .inFilter('match_id', matchIds)
+          .or(orConditions)
           .order('created_at', ascending: false);
 
       return (chatsResponse as List).map((c) => Chat.fromJson(c)).toList();

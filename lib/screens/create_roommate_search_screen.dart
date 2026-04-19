@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:geocoding/geocoding.dart';
 import '../utils/colors.dart';
 import '../models/roommate_search.dart';
 import '../providers/roommate_search_provider.dart';
@@ -33,12 +34,14 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
 
   // Variables de selección
   String? _selectedGender;
+  bool _includeAlicuota = false;
   final List<String> _selectedHabits = [];
   final List<File> _selectedImages = [];
   final List<String> _existingImageUrls = []; // Para imágenes existentes en edición
   final List<String> _deletedImageUrls = []; // Para rastrear eliminadas
   double? _latitude;
   double? _longitude;
+  String? _addressFromGeocoding;
 
   // Listas de opciones
   final List<String> _genderOptions = [
@@ -74,6 +77,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       _addressController.text = search.address;
       _latitude = search.latitude;
       _longitude = search.longitude;
+      _includeAlicuota = search.includeAlicuota;
       
       // Convertir gender_preference de BD (male/female/any) a opciones del dropdown
       if (search.genderPreference != null) {
@@ -302,6 +306,53 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             hint: 'Ej: 450',
             keyboardType: TextInputType.number,
             suffixText: '\$',
+          ),
+          const SizedBox(height: 20),
+          
+          // Switch para ALICUOTA
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '¿Incluye ALICUOTA?',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Cuota de condominio incluida',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: _includeAlicuota,
+                  onChanged: (value) {
+                    setState(() => _includeAlicuota = value);
+                  },
+                  activeColor: AppColors.primary,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           _buildSectionTitle('Dónde necesitas compañero/a'),
@@ -838,6 +889,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             'address': _addressController.text.trim(),
               'gender_preference': genderPref,
               'habits_preferences': habitsNormalized,
+              'include_alicuota': _includeAlicuota,
               if (_latitude != null) 'latitude': _latitude,
               if (_longitude != null) 'longitude': _longitude,
           },
@@ -871,6 +923,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           genderPreference: genderPref,
           habitsPreferences: habitsNormalized,
           imageUrls: imageUrls,
+          includeAlicuota: _includeAlicuota,
         );
 
         if (!success) {
@@ -910,18 +963,25 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   }
 
   Future<void> _pickOnMap() async {
-    // Abrir selector de ubicación y obtener coords
-    final result = await Navigator.push<Map<String, double>?>(
+    // 🆕 Abrir selector de ubicación con dirección legible
+    final result = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
     );
     if (result != null) {
-      setState(() {
-        _latitude = result['lat'];
-        _longitude = result['lng'];
-        // Actualizar el campo de dirección con la representación de coordenadas seleccionadas
-        _addressController.text = 'Lat: ${_latitude!.toStringAsFixed(5)}, Lng: ${_longitude!.toStringAsFixed(5)}';
-      });
+      final lat = result['lat'] as double?;
+      final lng = result['lng'] as double?;
+      final address = result['address'] as String? ?? 'Ubicación desconocida';
+      
+      if (lat != null && lng != null) {
+        setState(() {
+          _latitude = lat;
+          _longitude = lng;
+          _addressFromGeocoding = address;
+          // 🆕 Solo mostrar la dirección legible, sin coordenadas
+          _addressController.text = address;
+        });
+      }
     }
   }
 

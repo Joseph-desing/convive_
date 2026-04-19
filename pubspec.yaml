@@ -37,6 +37,7 @@ dependencies:
   uuid: ^4.0.0
   intl: ^0.20.2
   geolocator: ^10.0.0
+  geocoding: ^4.0.0
   
   # Notifications
   onesignal_flutter: ^5.3.5
@@ -48,11 +49,8 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.2.0
   # Map
-  flutter_map: ^7.0.2
+  flutter_map: ^6.1.0
   latlong2: ^0.9.0
-  # Nota: Si `flutter_map_marker_cluster` causa conflictos, eliminar o reemplazar por
-  # otra solución de cluster compatible con la versión 7 de `flutter_map`.
-  flutter_map_marker_cluster: ^1.4.0
 
   # Google Oauth
   google_sign_in: ^7.2.0

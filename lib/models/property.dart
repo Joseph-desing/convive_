@@ -14,6 +14,9 @@ class Property {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final int bedrooms;
+  final bool? _includeAlicuota;
+
+  bool get includeAlicuota => _includeAlicuota ?? false;
 
   Property({
     String? id,
@@ -29,7 +32,9 @@ class Property {
     DateTime? createdAt,
     this.updatedAt,
     this.bedrooms = 1,
-  })  : id = id ?? const Uuid().v4(),
+    bool? includeAlicuota,
+  })  : _includeAlicuota = includeAlicuota ?? false,
+        id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -43,10 +48,11 @@ class Property {
       longitude: (json['longitude'] as num).toDouble(),
       address: json['address'] as String,
       availableFrom: json['available_from'] != null ? DateTime.parse(json['available_from']) : DateTime.now(),
-      isActive: json['is_active'] as bool? ?? true,
+      isActive: json['is_active'] is bool ? (json['is_active'] as bool) : (json['is_active'] as bool? ?? true),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       bedrooms: json['bedrooms'] is num ? (json['bedrooms'] as num).toInt() : (int.tryParse(json['bedrooms']?.toString() ?? '') ?? 1),
+      includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
     );
   }
 
@@ -65,6 +71,7 @@ class Property {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'bedrooms': bedrooms,
+      'include_alicuota': _includeAlicuota ?? false,
     };
   }
 
@@ -82,6 +89,7 @@ class Property {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? bedrooms,
+    bool? includeAlicuota,
   }) {
     return Property(
       id: id ?? this.id,
@@ -97,6 +105,7 @@ class Property {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       bedrooms: bedrooms ?? this.bedrooms,
+      includeAlicuota: includeAlicuota ?? _includeAlicuota,
     );
   }
 }

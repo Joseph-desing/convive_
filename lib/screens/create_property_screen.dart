@@ -7,6 +7,7 @@ import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geocoding/geocoding.dart';
 import 'map_location_picker.dart';
 
 class CreatePropertyScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   // Ubicación
   double? _latitude;
   double? _longitude;
+  String? _addressFromGeocoding;
   
   // Comodidades
   final List<String> _selectedAmenities = [];
@@ -56,6 +58,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   int _bedrooms = 1;
   int _bathrooms = 1;
   bool _isActive = true;
+  bool _includeAlicuota = false;
   DateTime _availableFrom = DateTime.now();
   
   // Imágenes
@@ -82,6 +85,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       _latitude = prop.latitude;
       _longitude = prop.longitude;
       _isActive = prop.isActive;
+      _includeAlicuota = prop.includeAlicuota;
       _loadExistingImages();
     }
   }
@@ -247,6 +251,53 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 20),
+            
+            // Switch para ALICUOTA
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '¿Incluye ALICUOTA?',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Cuota de condominio',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Switch(
+                    value: _includeAlicuota,
+                    onChanged: (value) {
+                      setState(() => _includeAlicuota = value);
+                    },
+                    activeColor: AppColors.primary,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             
@@ -931,17 +982,23 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   }
 
   Future<void> _pickOnMap() async {
-    final result = await Navigator.push<Map<String, double>?>(
+    final result = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
     );
     if (result != null) {
-      setState(() {
-        _latitude = result['lat'];
-        _longitude = result['lng'];
-        // Always update the visible address field to reflect the selected coords
-        _addressController.text = 'Lat: ${_latitude!.toStringAsFixed(5)}, Lng: ${_longitude!.toStringAsFixed(5)}';
-      });
+      final lat = result['lat'] as double?;
+      final lng = result['lng'] as double?;
+      final address = result['address'] as String? ?? 'Ubicación desconocida';
+      
+      if (lat != null && lng != null) {
+        setState(() {
+          _latitude = lat;
+          _longitude = lng;
+          // 🆕 Usar la dirección legible del mapa
+          _addressController.text = address;
+        });
+      }
     }
   }
 
@@ -998,6 +1055,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             'available_from': _availableFrom.toIso8601String(),
             'is_active': _isActive,
             'bedrooms': _bedrooms,
+            'include_alicuota': _includeAlicuota,
           },
         );
 
@@ -1022,6 +1080,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
           availableFrom: _availableFrom,
           isActive: _isActive,
           bedrooms: _bedrooms,
+          includeAlicuota: _includeAlicuota,
         );
 
         final createdProperty =
