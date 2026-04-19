@@ -263,6 +263,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     _buildActionButton(
                       icon: FontAwesomeIcons.wrench,
                       label: 'Editar',
+                      color: Colors.blue.shade600,
                       onPressed: () => _showEditUserDialog(context, user),
                     ),
                     const SizedBox(width: 8),
@@ -271,7 +272,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           ? FontAwesomeIcons.checkCircle
                           : FontAwesomeIcons.ban,
                       label: isSuspended ? 'Activar' : 'Suspender',
-                      color: isSuspended ? Colors.green : Colors.red,
+                      color: isSuspended ? Colors.green.shade600 : Colors.red.shade600,
                       onPressed: () {
                         adminProvider.suspendUser(user['id'], !isSuspended);
                       },
@@ -293,13 +294,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     Color color = Colors.blue,
   }) {
     return ElevatedButton.icon(
-      icon: FaIcon(icon, size: 12),
-      label: Text(label),
+      icon: FaIcon(icon, size: 12, color: Colors.white),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.2),
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: const Size(0, 32),
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 36),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       onPressed: onPressed,
     );

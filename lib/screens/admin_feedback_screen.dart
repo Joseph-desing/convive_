@@ -5,6 +5,7 @@ import '../models/feedback.dart' show UserFeedback, FeedbackStatus, FeedbackType
 import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/colors.dart';
+import '../config/supabase_provider.dart';
 
 class AdminFeedbackScreen extends StatefulWidget {
   const AdminFeedbackScreen({Key? key}) : super(key: key);
@@ -17,6 +18,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   String _selectedStatusFilter = 'all';
   String _selectedTypeFilter = 'all';
   TextEditingController _searchController = TextEditingController();
+  Map<String, Map<String, String>> _userProfiles = {}; // user_id -> {name, image_url}
 
   @override
   void initState() {
@@ -41,6 +43,45 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     }
   }
 
+  Future<void> _loadUserProfiles(List<UserFeedback> feedbacks) async {
+    final userIds = <String>{};
+    
+    // Extraer IDs únicos
+    for (var fb in feedbacks) {
+      userIds.add(fb.userId);
+    }
+
+    if (userIds.isEmpty) return;
+
+    try {
+      // Cargar perfiles - usando in() en lugar de inFilter()
+      final profilesResponse = await SupabaseProvider.client
+          .from('profiles')
+          .select('user_id, full_name, profile_image_url')
+          .in_('user_id', userIds.toList());
+
+      if (profilesResponse is List) {
+        for (var profile in profilesResponse) {
+          if (profile is Map) {
+            final userId = profile['user_id']?.toString() ?? '';
+            final fullName = profile['full_name']?.toString() ?? 'Usuario';
+            final imageUrl = profile['profile_image_url']?.toString() ?? '';
+            
+            if (userId.isNotEmpty) {
+              _userProfiles[userId] = {
+                'name': fullName,
+                'image_url': imageUrl,
+              };
+            }
+          }
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Error cargando perfiles: $e');
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -62,6 +103,11 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
           }
 
           final filteredFeedback = _filterFeedback(adminProvider.allFeedback);
+          
+          // Cargar perfiles de usuarios si no están cargados
+          if (_userProfiles.isEmpty && filteredFeedback.isNotEmpty) {
+            _loadUserProfiles(filteredFeedback);
+          }
 
           return Column(
             children: [
@@ -164,6 +210,37 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
   Widget _buildStatusFilterChip(String value, String label) {
     final isSelected = _selectedStatusFilter == value;
+    
+    Color getStatusColor(String status) {
+      switch (status) {
+        case 'open':
+          return const Color(0xFFE8F5E9); // Verde claro
+        case 'in_review':
+          return const Color(0xFFFFF3E0); // Naranja claro
+        case 'resolved':
+          return const Color(0xFFE8F5E9); // Verde claro
+        case 'closed':
+          return const Color(0xFFECEFF1); // Gris claro
+        default:
+          return Colors.grey[200]!;
+      }
+    }
+    
+    Color getStatusLabelColor(String status) {
+      switch (status) {
+        case 'open':
+          return const Color(0xFF2E7D32); // Verde oscuro
+        case 'in_review':
+          return const Color(0xFFE65100); // Naranja oscuro
+        case 'resolved':
+          return const Color(0xFF2E7D32); // Verde oscuro
+        case 'closed':
+          return const Color(0xFF546E7A); // Gris oscuro
+        default:
+          return Colors.grey[700]!;
+      }
+    }
+    
     return FilterChip(
       label: Text(label),
       selected: isSelected,
@@ -171,12 +248,15 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
         setState(() => _selectedStatusFilter = value);
         _loadFeedback();
       },
-      backgroundColor: Colors.grey[200],
-      selectedColor: AppColors.primary.withOpacity(0.3),
+      backgroundColor: isSelected ? getStatusColor(value) : Colors.grey[200],
+      selectedColor: getStatusColor(value),
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : Colors.grey[700],
+        color: isSelected ? getStatusLabelColor(value) : Colors.grey[700],
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
+      side: isSelected 
+          ? BorderSide(color: getStatusLabelColor(value), width: 1.5)
+          : BorderSide(color: Colors.grey[300]!),
     );
   }
 
@@ -299,23 +379,56 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Usuario
-                _buildDetailRow('Usuario ID:', feedback.userId),
-                const SizedBox(height: 12),
+                // Información de quién reporta (Usuario)
+                _buildUserReportSection('Usuario que Reporta', feedback.userId),
+                const SizedBox(height: 16),
 
-                // Tipo
-                _buildDetailRow(
-                    'Tipo:', _getTypeLabel(feedback.type)),
-                const SizedBox(height: 12),
+                // Información de la queja
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, 
+                            color: Colors.blue[700], 
+                            size: 20
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Detalles del Reporte',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Tipo de reporte:', _getTypeLabel(feedback.type), isShort: true),
+                      const SizedBox(height: 8),
+                      if (feedback.category != null) ...[
+                        _buildDetailRow('Categoría:', feedback.category!, isShort: true),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-                // Categoría
-                if (feedback.category != null)
-                  _buildDetailRow('Categoría:', feedback.category!),
-                if (feedback.category != null)
-                  const SizedBox(height: 12),
+                // Información del usuario reportado (extraído del mensaje)
+                _buildReportedUserSection(feedback.message),
+                const SizedBox(height: 16),
 
-                // Mensaje
-                _buildSectionTitle('Mensaje:'),
+                // Detalles del mensaje
+                _buildSectionTitle('Descripción de la Queja:'),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -324,8 +437,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    feedback.message,
-                    style: const TextStyle(fontSize: 13),
+                    _extractComplaintDescription(feedback.message),
+                    style: const TextStyle(fontSize: 13, height: 1.6),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -403,7 +516,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     return FaIcon(icon, size: 20, color: color);
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {bool isShort = false}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -422,6 +535,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
               fontSize: 12,
               color: Colors.grey[700],
             ),
+            maxLines: isShort ? 1 : null,
+            overflow: isShort ? TextOverflow.ellipsis : TextOverflow.clip,
           ),
         ),
       ],
@@ -496,8 +611,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
               icon: const Icon(Icons.visibility, size: 18),
               label: const Text('En Revisión'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.withOpacity(0.2),
-                foregroundColor: Colors.orange,
+                backgroundColor: const Color(0xFFFB8C00), // Naranja vibrante
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 10),
               ),
               onPressed: () {
@@ -514,8 +629,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
               icon: const Icon(Icons.check_circle, size: 18),
               label: const Text('Cerrar'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey.withOpacity(0.2),
-                foregroundColor: Colors.grey[700],
+                backgroundColor: const Color(0xFF616161), // Gris oscuro
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 10),
               ),
               onPressed: () {
@@ -534,13 +649,13 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   Color _getStatusColor(FeedbackStatus status) {
     switch (status) {
       case FeedbackStatus.open:
-        return Colors.blue;
+        return const Color(0xFF1976D2); // Azul oscuro
       case FeedbackStatus.in_review:
-        return Colors.orange;
+        return const Color(0xFFFB8C00); // Naranja vibrante
       case FeedbackStatus.resolved:
-        return Colors.green;
+        return const Color(0xFF388E3C); // Verde oscuro
       case FeedbackStatus.closed:
-        return Colors.grey;
+        return const Color(0xFF616161); // Gris oscuro
     }
   }
 
@@ -578,5 +693,168 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
             fb.subject.toLowerCase().contains(query) ||
             fb.message.toLowerCase().contains(query))
         .toList();
+  }
+
+  // Extraer descripción del mensaje
+  String _extractComplaintDescription(String message) {
+    final lines = message.split('\n');
+    final descriptionIndex = lines.indexWhere((line) => line.contains('Descripción de la queja:'));
+    
+    if (descriptionIndex != -1 && descriptionIndex + 1 < lines.length) {
+      return lines.sublist(descriptionIndex + 1).join('\n').trim();
+    }
+    return message;
+  }
+
+  // Extraer nombre del usuario reportado del mensaje
+  String _extractReportedUserName(String message) {
+    final match = RegExp(r'Usuario reportado: (.+)').firstMatch(message);
+    return match?.group(1) ?? 'Usuario desconocido';
+  }
+
+  // Extraer propiedad/búsqueda del mensaje
+  String _extractPropertyName(String message) {
+    final match = RegExp(r'Propiedad\/Búsqueda: (.+)').firstMatch(message);
+    return match?.group(1) ?? 'Publicación desconocida';
+  }
+
+  // Widget para mostrar usuario que reporta
+  Widget _buildUserReportSection(String title, String userId) {
+    final userProfile = _userProfiles[userId];
+    final userName = userProfile?['name'] ?? 'Usuario Desconocido';
+    final imageUrl = userProfile?['image_url'] ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purple[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.purple[200]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.purple[300],
+              borderRadius: BorderRadius.circular(25),
+              image: imageUrl.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: imageUrl.isEmpty
+                ? const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 28,
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.purple[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget para mostrar usuario reportado
+  Widget _buildReportedUserSection(String message) {
+    final reportedUserName = _extractReportedUserName(message);
+    final propertyName = _extractPropertyName(message);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Usuario Reportado',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: Colors.orange[300],
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reportedUserName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      propertyName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

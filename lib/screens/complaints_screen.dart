@@ -308,17 +308,27 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       ) as Map<String, dynamic>;
 
       final title = selectedProperty['title']?.toString() ?? 'Sin título';
+      final reportedUserName = _users.firstWhere(
+        (u) => u['user_id'] == _selectedUserId,
+        orElse: () => {'owner_name': 'Usuario desconocido'},
+      )['owner_name']?.toString() ?? 'Usuario desconocido';
+
+      // Construir el mensaje completo con la información
+      final completeMessage = '''
+Propiedad/Búsqueda: $title
+Usuario reportado: $reportedUserName
+
+Descripción de la queja:
+${_complaintController.text}
+      '''.trim();
 
       await SupabaseProvider.client.from('feedback').insert({
         'user_id': authProvider.currentUser!.id,
-        'reported_user': _selectedUserId,
-        'property_id': _selectedPropertyId,
         'type': 'complaint',
         'status': 'open',
         'subject': 'Queja: $title',
-        'message': _complaintController.text,
+        'message': completeMessage,
         'category': 'property_complaint',
-        'created_at': DateTime.now().toIso8601String(),
       });
 
       if (mounted) {
@@ -355,7 +365,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -580,7 +590,20 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                         .where((prop) {
                           if (prop is! Map) return false;
                           final propUserId = (prop['user_id'] ?? '').toString();
-                          return propUserId == _selectedUserId;
+                          final propType = (prop['type'] ?? 'property').toString();
+                          
+                          // Filtrar por usuario ID
+                          if (propUserId != _selectedUserId) return false;
+                          
+                          // Filtrar por tipo si está seleccionado
+                          if (_searchType == 'all') return true;
+                          
+                          if (_searchType == 'property') {
+                            return propType == 'property';
+                          } else if (_searchType == 'roommate') {
+                            return propType == 'roommate';
+                          }
+                          return true;
                         })
                         .map((item) {
                       final itemMap = item as Map<String, dynamic>;

@@ -10,6 +10,7 @@ class AdminProvider with ChangeNotifier {
   // Estado
   List<Map<String, dynamic>> allUsers = [];
   List<Map<String, dynamic>> allProperties = [];
+  List<Map<String, dynamic>> allRoommateSearches = [];
   List<UserFeedback> allFeedback = [];
   Map<String, dynamic> dashboardStats = {};
 
@@ -19,6 +20,7 @@ class AdminProvider with ChangeNotifier {
   // Filtros
   String selectedUserFilter = 'all'; // all, student, non_student, admin
   String selectedPropertyFilter = 'all'; // all, active, inactive
+  String selectedRoommateFilter = 'all'; // all, active, inactive
   String selectedFeedbackFilter = 'all'; // all, open, resolved, closed
 
   AdminProvider() {
@@ -181,6 +183,81 @@ class AdminProvider with ChangeNotifier {
       _clearError();
     } catch (e) {
       _setError('Error loading properties stats: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================== ROOMMATE SEARCHES MANAGEMENT ====================
+
+  Future<void> loadAllRoommateSearches({int limit = 50, int offset = 0}) async {
+    try {
+      _setLoading(true);
+      allRoommateSearches = await _adminService.getAllRoommateSearches(limit: limit, offset: offset);
+      _clearError();
+    } catch (e) {
+      _setError('Error loading roommate searches: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadRoommateSearchesByStatus(String status) async {
+    try {
+      _setLoading(true);
+      allRoommateSearches = await _adminService.getRoommateSearchesByStatus(status);
+      selectedRoommateFilter = status;
+      _clearError();
+    } catch (e) {
+      _setError('Error loading roommate searches by status: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateRoommateSearchStatus(String searchId, String status) async {
+    try {
+      _setLoading(true);
+      await _adminService.updateRoommateSearchStatus(searchId, status);
+      
+      // Actualizar en la lista local
+      final searchIndex = allRoommateSearches.indexWhere((s) => s['id'] == searchId);
+      if (searchIndex != -1) {
+        allRoommateSearches[searchIndex]['is_active'] = status.toLowerCase() == 'active';
+        notifyListeners();
+      }
+      
+      _clearError();
+    } catch (e) {
+      _setError('Error updating roommate search status: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteRoommateSearch(String searchId) async {
+    try {
+      _setLoading(true);
+      await _adminService.deleteRoommateSearch(searchId);
+      allRoommateSearches.removeWhere((s) => s['id'] == searchId);
+      notifyListeners();
+      _clearError();
+    } catch (e) {
+      _setError('Error deleting roommate search: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadRoommateSearchesStats() async {
+    try {
+      _setLoading(true);
+      final stats = await _adminService.getRoommateSearchesStats();
+      dashboardStats['roommateSearches'] = stats;
+      notifyListeners();
+      _clearError();
+    } catch (e) {
+      _setError('Error loading roommate searches stats: $e');
     } finally {
       _setLoading(false);
     }

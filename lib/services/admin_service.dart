@@ -8,7 +8,7 @@ class AdminService {
 
   // ==================== USERS MANAGEMENT ====================
 
-  /// Obtiene todos los usuarios con sus perfiles
+  /// Obtiene todos los usuarios
   Future<List<Map<String, dynamic>>> getAllUsers({
     int limit = 50,
     int offset = 0,
@@ -16,11 +16,15 @@ class AdminService {
     try {
       final response = await _supabase
           .from('users')
-          .select('*, profiles(*)')
+          .select('*')
           .limit(limit)
           .range(offset, offset + limit - 1);
-      return List<Map<String, dynamic>>.from(response);
+      
+      final users = List<Map<String, dynamic>>.from(response);
+      print('✅ getAllUsers: ${users.length} usuarios cargados');
+      return users;
     } catch (e) {
+      print('❌ getAllUsers error: $e');
       return [];
     }
   }
@@ -29,9 +33,13 @@ class AdminService {
   Future<List<Map<String, dynamic>>> getUsersByRole(String role) async {
     try {
       final response =
-          await _supabase.from('users').select('*, profiles(*)').eq('role', role);
-      return List<Map<String, dynamic>>.from(response);
+          await _supabase.from('users').select('*').eq('role', role);
+      
+      final users = List<Map<String, dynamic>>.from(response);
+      print('✅ getUsersByRole($role): ${users.length} usuarios');
+      return users;
     } catch (e) {
+      print('❌ getUsersByRole error: $e');
       return [];
     }
   }
@@ -66,14 +74,25 @@ class AdminService {
           .from('users')
           .select('id')
           .eq('role', 'non_student');
+      final admins =
+          await _supabase.from('users').select('id').eq('role', 'admin');
+
+      final totalCount = (allUsers as List).length;
+      final studentCount = (students as List).length;
+      final nonStudentCount = (nonStudents as List).length;
+      final adminCount = (admins as List).length;
+
+      print('📊 Users Stats - Total: $totalCount, Students: $studentCount, Non-Students: $nonStudentCount, Admins: $adminCount');
 
       return {
-        'total': (allUsers as List).length,
-        'students': (students as List).length,
-        'non_students': (nonStudents as List).length,
+        'total': totalCount,
+        'students': studentCount,
+        'non_students': nonStudentCount,
+        'admins': adminCount,
       };
     } catch (e) {
-      return {'total': 0, 'students': 0, 'non_students': 0};
+      print('❌ getUsersStats error: $e');
+      return {'total': 0, 'students': 0, 'non_students': 0, 'admins': 0};
     }
   }
 
@@ -87,35 +106,39 @@ class AdminService {
     try {
       final response = await _supabase
           .from('properties')
-          .select('*, profiles(*), property_images(*)')
+          .select('*')
           .limit(limit)
           .range(offset, offset + limit - 1)
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      print('Error fetching properties: $e');
       return [];
     }
   }
 
-  /// Obtiene propiedades por estado
+  /// Obtiene propiedades por estado (is_active: true o false)
   Future<List<Map<String, dynamic>>> getPropertiesByStatus(String status) async {
     try {
+      final isActive = status.toLowerCase() == 'active' ? true : false;
       final response = await _supabase
           .from('properties')
-          .select('*, profiles(*), property_images(*)')
-          .eq('status', status);
+          .select('*')
+          .eq('is_active', isActive);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      print('Error fetching properties by status: $e');
       return [];
     }
   }
 
-  /// Actualiza estado de una propiedad
+  /// Actualiza estado de una propiedad (is_active: true o false)
   Future<void> updatePropertyStatus(String propertyId, String status) async {
     try {
+      final isActive = status.toLowerCase() == 'active' ? true : false;
       await _supabase
           .from('properties')
-          .update({'status': status}).eq('id', propertyId);
+          .update({'is_active': isActive}).eq('id', propertyId);
     } catch (e) {
       throw Exception('Error updating property status: $e');
     }
@@ -139,18 +162,25 @@ class AdminService {
     try {
       final allProperties = await _supabase.from('properties').select('id');
       final activeProperties =
-          await _supabase.from('properties').select('id').eq('status', 'active');
+          await _supabase.from('properties').select('id').eq('is_active', true);
       final inactiveProperties = await _supabase
           .from('properties')
           .select('id')
-          .eq('status', 'inactive');
+          .eq('is_active', false);
+
+      final totalCount = (allProperties as List).length;
+      final activeCount = (activeProperties as List).length;
+      final inactiveCount = (inactiveProperties as List).length;
+
+      print('Properties Stats - Total: $totalCount, Active: $activeCount, Inactive: $inactiveCount');
 
       return {
-        'total': (allProperties as List).length,
-        'active': (activeProperties as List).length,
-        'inactive': (inactiveProperties as List).length,
+        'total': totalCount,
+        'active': activeCount,
+        'inactive': inactiveCount,
       };
     } catch (e) {
+      print('Error fetching properties stats: $e');
       return {'total': 0, 'active': 0, 'inactive': 0};
     }
   }
@@ -287,22 +317,115 @@ class AdminService {
     }
   }
 
+  // ==================== ROOMMATE SEARCHES MANAGEMENT ====================
+
+  /// Obtiene todas las búsquedas de roommates
+  Future<List<Map<String, dynamic>>> getAllRoommateSearches({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('roommate_searches')
+          .select('*')
+          .limit(limit)
+          .range(offset, offset + limit - 1)
+          .order('created_at', ascending: false);
+      
+      final searches = List<Map<String, dynamic>>.from(response);
+      print('✅ getAllRoommateSearches: ${searches.length} búsquedas cargadas');
+      return searches;
+    } catch (e) {
+      print('❌ getAllRoommateSearches error: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene búsquedas de roommates por estado
+  Future<List<Map<String, dynamic>>> getRoommateSearchesByStatus(String status) async {
+    try {
+      // Por ahora, simplemente retorna todas las búsquedas
+      // Ya que la tabla no tiene un campo is_active
+      final response = await _supabase
+          .from('roommate_searches')
+          .select('*')
+          .order('created_at', ascending: false);
+      
+      final searches = List<Map<String, dynamic>>.from(response);
+      print('✅ getRoommateSearchesByStatus($status): ${searches.length} búsquedas');
+      return searches;
+    } catch (e) {
+      print('❌ getRoommateSearchesByStatus error: $e');
+      return [];
+    }
+  }
+
+  /// Actualiza estado de una búsqueda de roommate
+  Future<void> updateRoommateSearchStatus(String searchId, String status) async {
+    try {
+      // Por ahora, no actualiza nada ya que no existe el campo is_active
+      // En el futuro, esto podría actualizar otro campo
+      print('⏸️ updateRoommateSearchStatus: Método disponible en futuras versiones');
+    } catch (e) {
+      throw Exception('Error updating roommate search status: $e');
+    }
+  }
+
+  /// Elimina una búsqueda de roommate
+  Future<void> deleteRoommateSearch(String searchId) async {
+    try {
+      await _supabase
+          .from('roommate_search_images')
+          .delete()
+          .eq('search_id', searchId);
+      await _supabase
+          .from('roommate_searches')
+          .delete()
+          .eq('id', searchId);
+    } catch (e) {
+      throw Exception('Error deleting roommate search: $e');
+    }
+  }
+
+  /// Obtiene estadísticas de búsquedas de roommates
+  Future<Map<String, dynamic>> getRoommateSearchesStats() async {
+    try {
+      final allSearches = await _supabase.from('roommate_searches').select('id');
+
+      final totalCount = (allSearches as List).length;
+
+      print('🏠 Roommate Searches Stats - Total: $totalCount');
+
+      return {
+        'total': totalCount,
+        'active': totalCount,
+        'inactive': 0,
+      };
+    } catch (e) {
+      print('❌ getRoommateSearchesStats error: $e');
+      return {'total': 0, 'active': 0, 'inactive': 0};
+    }
+  }
+
   /// Obtiene todas las estadísticas para el dashboard
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
       final usersStats = await getUsersStats();
       final propertiesStats = await getPropertiesStats();
+      final roommateSearchesStats = await getRoommateSearchesStats();
       final feedbackStats = await getFeedbackStats();
 
       return {
         'users': usersStats,
         'properties': propertiesStats,
+        'roommateSearches': roommateSearchesStats,
         'feedback': feedbackStats,
       };
     } catch (e) {
       return {
         'users': {'total': 0, 'students': 0, 'non_students': 0},
         'properties': {'total': 0, 'active': 0, 'inactive': 0},
+        'roommateSearches': {'total': 0, 'active': 0, 'inactive': 0},
         'feedback': {
           'total': 0,
           'open': 0,

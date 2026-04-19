@@ -11,17 +11,22 @@ class AdminPropertiesScreen extends StatefulWidget {
   State<AdminPropertiesScreen> createState() => _AdminPropertiesScreenState();
 }
 
-class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
+class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
+    with TickerProviderStateMixin {
   String _selectedFilter = 'all';
+  String _selectedRoommateFilter = 'all';
   TextEditingController _searchController = TextEditingController();
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     // Cargar propiedades DESPUÉS del build
     Future.microtask(() {
       if (mounted) {
         _loadProperties();
+        _loadRoommateSearches();
       }
     });
   }
@@ -36,9 +41,20 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
     }
   }
 
+  void _loadRoommateSearches() {
+    if (!mounted) return;
+    final adminProvider = context.read<AdminProvider>();
+    if (_selectedRoommateFilter == 'all') {
+      adminProvider.loadAllRoommateSearches();
+    } else {
+      adminProvider.loadRoommateSearchesByStatus(_selectedRoommateFilter);
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -46,9 +62,63 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Departamentos'),
+        title: const Row(
+          children: [
+            FaIcon(FontAwesomeIcons.buildingUser, size: 20, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Gestión de Departamentos y Roomies',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppColors.primary,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            color: AppColors.primary,
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 4,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      FaIcon(FontAwesomeIcons.building, size: 16),
+                      SizedBox(width: 8),
+                      Text('Departamentos'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      FaIcon(FontAwesomeIcons.users, size: 16),
+                      SizedBox(width: 8),
+                      Text('Roomies'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
@@ -56,29 +126,13 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final filteredProperties =
-              _filterProperties(adminProvider.allProperties);
-
-          return Column(
+          return TabBarView(
+            controller: _tabController,
             children: [
-              // Filtros
-              _buildFiltersSection(),
-              // Búsqueda
-              _buildSearchBar(),
-              // Lista de departamentos
-              Expanded(
-                child: filteredProperties.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: filteredProperties.length,
-                        itemBuilder: (context, index) {
-                          final property = filteredProperties[index];
-                          return _buildPropertyCard(
-                              context, property, adminProvider);
-                        },
-                      ),
-              ),
+              // TAB 1: DEPARTAMENTOS
+              _buildPropertiesTab(adminProvider),
+              // TAB 2: ROOMIES
+              _buildRoommiesTab(adminProvider),
             ],
           );
         },
@@ -86,9 +140,346 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
     );
   }
 
+  Widget _buildPropertiesTab(AdminProvider adminProvider) {
+    final filteredProperties = _filterProperties(adminProvider.allProperties);
+
+    return Column(
+      children: [
+        // Filtros
+        _buildFiltersSection(),
+        // Búsqueda
+        _buildSearchBar(),
+        // Lista de departamentos
+        Expanded(
+          child: filteredProperties.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: filteredProperties.length,
+                  itemBuilder: (context, index) {
+                    final property = filteredProperties[index];
+                    return _buildPropertyCard(context, property, adminProvider);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoommiesTab(AdminProvider adminProvider) {
+    final filteredSearches = _filterRoommateSearches(adminProvider.allRoommateSearches);
+
+    return Column(
+      children: [
+        // Filtros para roomies
+        _buildRoommieFiltersSection(),
+        // Lista de roomies
+        Expanded(
+          child: filteredSearches.isEmpty
+              ? _buildEmptyRoommiesState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: filteredSearches.length,
+                  itemBuilder: (context, index) {
+                    final search = filteredSearches[index];
+                    return _buildRoommieCard(context, search, adminProvider);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyRoommiesState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FaIcon(FontAwesomeIcons.users, size: 48, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            'No hay búsquedas de roomies',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoommieFiltersSection() {
+    return Container(
+      color: Colors.grey[50],
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildRoommieFilterChip('all', 'Todos'),
+            const SizedBox(width: 8),
+            _buildRoommieFilterChip('active', 'Activos'),
+            const SizedBox(width: 8),
+            _buildRoommieFilterChip('inactive', 'Inactivos'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoommieFilterChip(String value, String label) {
+    final isSelected = _selectedRoommateFilter == value;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() => _selectedRoommateFilter = value);
+        _loadRoommateSearches();
+      },
+      backgroundColor: Colors.white,
+      selectedColor: AppColors.primary.withOpacity(0.15),
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : Colors.grey[300]!,
+        width: isSelected ? 2 : 1,
+      ),
+      labelStyle: TextStyle(
+        color: isSelected ? AppColors.primary : Colors.grey[700],
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        fontSize: 12,
+      ),
+    );
+  }
+
+  Widget _buildRoommieCard(
+    BuildContext context,
+    Map<String, dynamic> search,
+    AdminProvider adminProvider,
+  ) {
+    final title = search['title'] ?? 'Sin título';
+    final userId = search['user_id'];
+    final isActive = search['is_active'] ?? false;
+    final createdAt = search['created_at'];
+    final budget = search['budget_min'] ?? 0;
+    final roommateCount = search['roommate_count'] ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Usuario: $userId',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isActive ? 'Activo' : 'Inactivo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isActive ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Detalles
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.dollarSign,
+                          size: 12, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Text(
+                        '\$$budget',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.users,
+                          size: 12, color: Colors.purple),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$roommateCount personas',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Fecha
+            Text(
+              'Creado: ${createdAt?.split('T').first ?? 'N/A'}',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Acciones
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (!isActive)
+                  ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 12),
+                    label: const Text('Activar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade500,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
+                    onPressed: () {
+                      adminProvider.updateRoommateSearchStatus(search['id'], 'active');
+                    },
+                  ),
+                if (isActive) ...[
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
+                    label: const Text('Desactivar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
+                    onPressed: () {
+                      adminProvider.updateRoommateSearchStatus(search['id'], 'inactive');
+                    },
+                  ),
+                ],
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
+                  label: const Text('Eliminar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade500,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    minimumSize: const Size(0, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
+                  ),
+                  onPressed: () => _showDeleteRoommieDialog(
+                      context, search['id'], adminProvider),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteRoommieDialog(
+    BuildContext context,
+    String searchId,
+    AdminProvider adminProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Búsqueda de Roommate'),
+        content: const Text('¿Estás seguro de que deseas eliminar esta búsqueda? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              adminProvider.deleteRoommateSearch(searchId);
+              Navigator.pop(context);
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _filterRoommateSearches(
+      List<Map<String, dynamic>> searches) {
+    return searches.where((search) {
+      final title = (search['title'] ?? '').toString().toLowerCase();
+      final searchTerm = _searchController.text.toLowerCase();
+      return title.contains(searchTerm);
+    }).toList();
+  }
+
   Widget _buildFiltersSection() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
+    return Container(
+      color: Colors.grey[50],
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -115,11 +506,16 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
         setState(() => _selectedFilter = value);
         _loadProperties();
       },
-      backgroundColor: Colors.grey[200],
-      selectedColor: AppColors.primary.withOpacity(0.3),
+      backgroundColor: Colors.white,
+      selectedColor: AppColors.primary.withOpacity(0.15),
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : Colors.grey[300]!,
+        width: isSelected ? 2 : 1,
+      ),
       labelStyle: TextStyle(
         color: isSelected ? AppColors.primary : Colors.grey[700],
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        fontSize: 12,
       ),
     );
   }
@@ -131,11 +527,18 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Buscar por título...',
-          prefixIcon: const Icon(Icons.search),
+          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          filled: true,
+          fillColor: Colors.grey[50],
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -183,7 +586,9 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
     final ownerName = profile?['full_name'] ?? 'Propietario Desconocido';
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -201,16 +606,17 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
                         title,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         'Por: $ownerName',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: Colors.grey[600],
                         ),
                         maxLines: 1,
@@ -221,17 +627,21 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 10,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(status).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
+                    color: _getStatusColor(status).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _getStatusColor(status).withOpacity(0.5),
+                      width: 1,
+                    ),
                   ),
                   child: Text(
                     _getStatusLabel(status),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: _getStatusColor(status),
                     ),
@@ -239,67 +649,81 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
             // Descripción
             Text(
               description,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 color: Colors.grey[700],
+                height: 1.4,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Detalles
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.dollarSign,
-                          size: 12, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        '\$$price',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[700],
+            // Detalles con mejor visualización
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        FaIcon(FontAwesomeIcons.dollarSign,
+                            size: 13, color: Colors.green[700]),
+                        const SizedBox(width: 6),
+                        Text(
+                          '\$$price',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[700],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.bed,
-                          size: 12, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$bedrooms hab.',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        FaIcon(FontAwesomeIcons.bed,
+                            size: 13, color: Colors.blue),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$bedrooms hab.',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.sink,
-                          size: 12, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$bathrooms baños',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        FaIcon(FontAwesomeIcons.sink,
+                            size: 13, color: Colors.orange),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$bathrooms baños',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 8),
 
@@ -309,24 +733,28 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Acciones
+            // Acciones con mejor espaciado
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 if (status != 'active')
                   ElevatedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 12),
+                    icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 11),
                     label: const Text('Activar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.withOpacity(0.2),
-                      foregroundColor: Colors.green,
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      minimumSize: const Size(0, 32),
+                          horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: () {
                       adminProvider.updatePropertyStatus(
@@ -335,14 +763,18 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
                   ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
+                  icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 11),
                   label: const Text('Desactivar'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    foregroundColor: Colors.orange,
+                    backgroundColor: Colors.amber.shade600,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    minimumSize: const Size(0, 32),
+                        horizontal: 12, vertical: 6),
+                    minimumSize: const Size(0, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
                   ),
                   onPressed: () {
                     adminProvider.updatePropertyStatus(
@@ -351,14 +783,17 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
+                  icon: const FaIcon(FontAwesomeIcons.trash, size: 11),
                   label: const Text('Eliminar'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.withOpacity(0.2),
-                    foregroundColor: Colors.red,
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    minimumSize: const Size(0, 32),
+                        horizontal: 12, vertical: 6),
+                    minimumSize: const Size(0, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () => _showDeleteDialog(
                       context, property['id'], adminProvider),

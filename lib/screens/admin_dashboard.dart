@@ -35,17 +35,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel de Administrador'),
+        title: const Row(
+          children: [
+            FaIcon(FontAwesomeIcons.shieldHalved, size: 20, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Panel de Administración', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
         elevation: 0,
         backgroundColor: AppColors.primary,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const FaIcon(FontAwesomeIcons.rotate, size: 18),
             onPressed: _loadDashboardData,
+            tooltip: 'Recargar datos',
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const FaIcon(FontAwesomeIcons.rightFromBracket, size: 18),
             onPressed: () => _showLogoutDialog(context),
+            tooltip: 'Cerrar sesión',
           ),
         ],
       ),
@@ -84,45 +92,63 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildWelcomeCard(BuildContext context) {
-    final authProvider = context.read<AuthProvider>();
-    final userEmail = authProvider.currentUser?.email ?? 'Administrador';
-
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
             colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Bienvenido al Panel de Administración',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const FaIcon(
+                  FontAwesomeIcons.crown,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Bienvenido al Panel',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'de Administración',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Email: $userEmail',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Text(
               'Gestiona usuarios, departamentos y quejas desde aquí',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: 14,
+                height: 1.5,
               ),
             ),
           ],
@@ -168,6 +194,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               icon: FontAwesomeIcons.building,
               color: Colors.orange,
             ),
+            // Roomies
+            _buildStatCard(
+              title: 'Roomies',
+              value: '${stats['roommateSearches']?['total'] ?? 0}',
+              subtitle: 'Búsquedas activas',
+              icon: FontAwesomeIcons.handshake,
+              color: Colors.purple,
+            ),
             // Quejas/Sugerencias
             _buildStatCard(
               title: 'Feedback',
@@ -179,7 +213,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             // Pendientes
             _buildStatCard(
               title: 'Pendientes',
-              value: '${(stats['feedback']?['open'] ?? 0) + (stats['properties']?['inactive'] ?? 0)}',
+              value: '${(stats['feedback']?['open'] ?? 0) + (stats['properties']?['inactive'] ?? 0) + (stats['roommateSearches']?['inactive'] ?? 0)}',
               subtitle: 'Por revisar',
               icon: FontAwesomeIcons.exclamation,
               color: Colors.amber,
@@ -263,7 +297,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 12),
         _buildManagementButton(
           context,
-          title: 'Gestión de Departamentos',
+          title: 'Gestión de Departamentos y Roomies',
           description: 'Revisa y administra publicaciones de propiedades',
           icon: FontAwesomeIcons.building,
           color: Colors.orange,
