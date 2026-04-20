@@ -399,12 +399,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text(
-            '¿Borrar conversación?',
+            '¿Estás seguro de eliminar el chat?',
             style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Se eliminará de tu vista. El otro usuario seguirá viendo la conversación.',
-            style: TextStyle(color: Colors.grey),
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           actions: [
