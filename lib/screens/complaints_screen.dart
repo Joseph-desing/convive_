@@ -329,7 +329,9 @@ ${_complaintController.text}
         'status': 'open',
         'subject': 'Queja: $title',
         'message': completeMessage,
-        'category': 'property_complaint',
+        'category': _searchType == 'roommate' 
+          ? 'roommate_search_complaint' 
+          : 'property_complaint',
       });
 
       if (mounted) {

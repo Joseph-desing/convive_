@@ -94,6 +94,32 @@ class AdminProvider with ChangeNotifier {
     }
   }
 
+  Future<void> sendMessageToUser({
+    required String userId,
+    required String email,
+    required String message,
+  }) async {
+    try {
+      _setLoading(true);
+      
+      // Guardar mensaje en tabla admin_messages
+      await _supabase.from('admin_messages').insert({
+        'user_id': userId,
+        'email': email,
+        'message': message,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+      });
+
+      _clearError();
+    } catch (e) {
+      _setError('Error sending message: $e');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> loadUsersStats() async {
     try {
       _setLoading(true);

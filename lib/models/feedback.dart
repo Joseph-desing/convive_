@@ -24,6 +24,9 @@ class UserFeedback {
   @JsonKey(name: 'user_id')
   final String userId;
 
+  @JsonKey(name: 'reported_user_id')
+  final String? reportedUserId;
+
   @JsonKey(name: 'type')
   final FeedbackType type;
 
@@ -57,6 +60,7 @@ class UserFeedback {
   UserFeedback({
     String? id,
     required this.userId,
+    this.reportedUserId,
     required this.type,
     this.status = FeedbackStatus.open,
     required this.subject,
@@ -79,6 +83,7 @@ class UserFeedback {
   UserFeedback copyWith({
     String? id,
     String? userId,
+    String? reportedUserId,
     FeedbackType? type,
     FeedbackStatus? status,
     String? subject,
@@ -94,6 +99,7 @@ class UserFeedback {
     return UserFeedback(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      reportedUserId: reportedUserId ?? this.reportedUserId,
       type: type ?? this.type,
       status: status ?? this.status,
       subject: subject ?? this.subject,

@@ -14,6 +14,7 @@ import 'notifications_screen.dart';
 import 'map_posts_screen.dart';
 import '../providers/property_provider.dart';
 import '../providers/roommate_search_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/property.dart';
 import '../models/roommate_search.dart';
 import '../models/habits.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Property> _properties = [];
   List<RoommateSearch> _roommateSearches = [];
   bool _isLoading = true;
+  String? _userFullName; // Nombre completo del perfil
   final Map<String, Profile> _profileCache = {};
   final Map<String, Habits> _habitsCache = {};
   final Map<String, List<String>> _propertyImagesCache = {};
@@ -76,11 +78,96 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<String> _getUserNameFuture() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final userId = authProvider.currentUser?.id;
+      
+      if (userId != null && userId.isNotEmpty) {
+        final response = await SupabaseProvider.client
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', userId)
+            .maybeSingle();
+        
+        if (response != null) {
+          final fullName = response['full_name']?.toString() ?? '';
+          if (fullName.isNotEmpty) {
+            final nameParts = fullName.split(' ');
+            return nameParts.first; // Retornar solo el primer nombre
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting user name: $e');
+    }
+    
+    return 'Usuario'; // Fallback
+  }
+
+  String _getUserDisplayName() {
+    // Si ya cargamos el nombre del perfil, usarlo
+    if (_userFullName != null && _userFullName!.isNotEmpty) {
+      final nameParts = _userFullName!.split(' ');
+      return nameParts.first; // Retornar solo el primer nombre
+    }
+    
+    // Fallback al email
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final email = authProvider.currentUser?.email ?? '';
+      if (email.isNotEmpty) {
+        final namePart = email.split('@')[0];
+        if (namePart.isNotEmpty) {
+          return namePart[0].toUpperCase() + namePart.substring(1);
+        }
+      }
+    } catch (e) {
+      //
+    }
+    
+    return 'Usuario';
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadUserProfile().then((_) {
+      _loadData();
+    });
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final userId = authProvider.currentUser?.id;
+      
+      debugPrint('🔍 Buscando perfil para userId: $userId');
+      
+      if (userId != null && userId.isNotEmpty) {
+        final response = await SupabaseProvider.client
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', userId)
+            .maybeSingle();
+        
+        debugPrint('📡 Response: $response');
+        
+        if (response != null && mounted) {
+          final fullName = response['full_name']?.toString() ?? '';
+          debugPrint('✅ Nombre del perfil cargado: "$fullName"');
+          setState(() {
+            _userFullName = fullName;
+          });
+        } else {
+          debugPrint('⚠️ No se encontró perfil o está vacío');
+        }
+      } else {
+        debugPrint('❌ UserId es null o vacío');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading user profile: $e');
+    }
   }
 
   Future<void> _loadData() async {
@@ -295,12 +382,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              Text(
-                'Hola, ${widget.userName}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+              FutureBuilder<String>(
+                future: _getUserNameFuture(),
+                builder: (context, snapshot) {
+                  final displayName = snapshot.data ?? widget.userName;
+                  return Text(
+                    'Hola, $displayName',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  );
+                },
               ),
             ],
           ),
