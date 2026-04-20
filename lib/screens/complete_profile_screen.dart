@@ -39,6 +39,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   XFile? _selectedImage;
   String? _currentImageUrl;
   bool _uploadingImage = false;
+  UserRole? _selectedRole;  // ✅ NUEVO: Para editar tipo de usuario
   
   // Datos de hábitos
   int _cleanlinessLevel = 5;
@@ -85,6 +86,24 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _sleepEndHour = habits.sleepEnd;
       _timeAtHome = habits.timeAtHome;
       _responsibilityLevel = habits.responsibilityLevel;
+    }
+    
+    // ✅ NUEVO: Cargar el rol actual del usuario
+    if (_isEdit) {
+      _loadUserRole();
+    }
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final user = await SupabaseProvider.databaseService.getUser(widget.userId);
+      if (user != null) {
+        setState(() {
+          _selectedRole = user.role;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando rol del usuario: $e');
     }
   }
 
@@ -217,6 +236,46 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     icon: Icons.edit_outlined,
                     maxLines: 4,
                   ),
+                  const SizedBox(height: 20),
+                  
+                  // ✅ NUEVO: Selector de tipo de usuario (solo en edición)
+                  if (_isEdit)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tipo de usuario',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey[600],
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildRoleButtonInForm(
+                                label: 'Estudiante',
+                                isSelected: _selectedRole == UserRole.student,
+                                onTap: () => setState(() => _selectedRole = UserRole.student),
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildRoleButtonInForm(
+                                label: 'Profesional',
+                                isSelected: _selectedRole == UserRole.non_student,
+                                onTap: () => setState(() => _selectedRole = UserRole.non_student),
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -1068,6 +1127,15 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       profileUpdates,
     );
 
+    // ✅ NUEVO: Actualizar rol del usuario si fue cambiado
+    if (_selectedRole != null) {
+      final roleString = _selectedRole == UserRole.student ? 'student' : 'non_student';
+      await SupabaseProvider.databaseService.updateUser(
+        widget.userId,
+        {'role': roleString},
+      );
+    }
+
     if (widget.existingHabits == null) {
       // Si no hay hábitos, los creamos con los valores actuales
       final newHabits = Habits(
@@ -1135,6 +1203,38 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       case WorkMode.hybrid:
         return 'hybrid';
     }
+  }
+
+  Widget _buildRoleButtonInForm({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : color.withOpacity(0.3),
+            width: isSelected ? 2 : 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: isSelected ? color : Colors.grey[700],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override

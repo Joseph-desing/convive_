@@ -117,6 +117,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
+
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
