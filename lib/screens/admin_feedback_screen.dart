@@ -27,6 +27,16 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     Future.microtask(() {
       if (mounted) {
         _loadFeedback();
+        
+        // Cargar perfiles después de un pequeño delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            final adminProvider = context.read<AdminProvider>();
+            if (adminProvider.allFeedback.isNotEmpty) {
+              _loadUserProfiles(adminProvider.allFeedback);
+            }
+          }
+        });
       }
     });
   }
@@ -48,38 +58,71 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     
     // Extraer IDs únicos
     for (var fb in feedbacks) {
-      userIds.add(fb.userId);
+      debugPrint('📋 Feedback userId: "${fb.userId}" (length: ${fb.userId.length})');
+      if (fb.userId.isNotEmpty) {
+        userIds.add(fb.userId);
+      }
     }
 
-    if (userIds.isEmpty) return;
+    if (userIds.isEmpty) {
+      debugPrint('⚠️ No hay IDs de usuarios para cargar perfiles');
+      return;
+    }
 
     try {
-      // Cargar perfiles usando OR con múltiples condiciones
-      final orConditions = userIds.map((id) => 'user_id.eq.$id').join(',');
-      final profilesResponse = await SupabaseProvider.client
-          .from('profiles')
-          .select('user_id, full_name, profile_image_url')
-          .or(orConditions);
+      debugPrint('🔍 Cargando ${userIds.length} perfiles únicos: $userIds');
+      
+      // Cargar cada perfil individualmente para garantizar éxito
+      for (final userId in userIds) {
+        if (_userProfiles.containsKey(userId)) {
+          debugPrint('✅ Perfil ya en cache: $userId');
+          continue;
+        }
+        
+        try {
+          debugPrint('🔎 Buscando perfil en Supabase para: $userId');
+          
+          // Cargar datos del perfil
+          final profileResponse = await SupabaseProvider.client
+              .from('profiles')
+              .select('user_id, full_name, profile_image_url')
+              .eq('user_id', userId)
+              .maybeSingle();
 
-      if (profilesResponse is List) {
-        for (var profile in profilesResponse) {
-          if (profile is Map) {
-            final userId = profile['user_id']?.toString() ?? '';
-            final fullName = profile['full_name']?.toString() ?? 'Usuario';
-            final imageUrl = profile['profile_image_url']?.toString() ?? '';
-            
-            if (userId.isNotEmpty) {
-              _userProfiles[userId] = {
-                'name': fullName,
-                'image_url': imageUrl,
-              };
-            }
-          }
+          // Cargar email del usuario
+          final userResponse = await SupabaseProvider.client
+              .from('users')
+              .select('email')
+              .eq('id', userId)
+              .maybeSingle();
+
+          debugPrint('📡 Profile Response: $profileResponse');
+          debugPrint('📡 User Response: $userResponse');
+
+          final fullName = (profileResponse?['full_name'] ?? 'Usuario').toString();
+          final imageUrl = (profileResponse?['profile_image_url'] ?? '').toString();
+          final email = (userResponse?['email'] ?? '').toString();
+          
+          _userProfiles[userId] = {
+            'name': fullName,
+            'image_url': imageUrl,
+            'email': email,
+          };
+          debugPrint('✅ Perfil cargado: $fullName - $email ($userId)');
+        } catch (e) {
+          debugPrint('❌ Error cargando perfil de $userId: $e');
+          _userProfiles[userId] = {
+            'name': 'Error al cargar',
+            'image_url': '',
+            'email': '',
+          };
         }
       }
+      
       if (mounted) setState(() {});
+      debugPrint('✅ Todos los perfiles procesados. Cache: ${_userProfiles.length}');
     } catch (e) {
-      debugPrint('Error cargando perfiles: $e');
+      debugPrint('❌ Error general en _loadUserProfiles: $e');
     }
   }
 
@@ -104,11 +147,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
           }
 
           final filteredFeedback = _filterFeedback(adminProvider.allFeedback);
-          
-          // Cargar perfiles de usuarios si no están cargados
-          if (_userProfiles.isEmpty && filteredFeedback.isNotEmpty) {
-            _loadUserProfiles(filteredFeedback);
-          }
 
           return Column(
             children: [
@@ -722,64 +760,138 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   // Widget para mostrar usuario que reporta
   Widget _buildUserReportSection(String title, String userId) {
     final userProfile = _userProfiles[userId];
-    final userName = userProfile?['name'] ?? 'Usuario Desconocido';
+    final userName = userProfile?['name'] ?? 'Cargando...';
     final imageUrl = userProfile?['image_url'] ?? '';
+    final email = userProfile?['email'] ?? '';
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.purple[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.purple[200]!),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.purple[300],
-              borderRadius: BorderRadius.circular(25),
-              image: imageUrl.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(imageUrl),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: imageUrl.isEmpty
-                ? const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 28,
-                  )
-                : null,
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF3E5F5),
+            const Color(0xFFE1BEE7),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCE93D8), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF9C27B0).withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.flag_rounded,
+                color: const Color(0xFF7B1FA2),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF7B1FA2),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFBA68C8),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFF9C27B0), width: 2),
+                  image: imageUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: imageUrl.isEmpty
+                    ? const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 30,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: userName == 'Cargando...' 
+                            ? Colors.grey[600] 
+                            : const Color(0xFF1A1A1A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      email.isNotEmpty ? email : 'Sin email',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF7B1FA2),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (userProfile == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '❌ Perfil no encontrado',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.red[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7B1FA2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'REPORTA',
                   style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.purple[700],
-                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  userName,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -792,40 +904,66 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     final propertyName = _extractPropertyName(message);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange[200]!),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFFE0B2),
+            const Color(0xFFFFCC80),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFB74D), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF57C00).withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Usuario Reportado',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.orange[700],
-            ),
+          Row(
+            children: [
+              Icon(
+                Icons.person_remove_rounded,
+                color: const Color(0xFFE65100),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Usuario Reportado',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFE65100),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
               Container(
-                width: 45,
-                height: 45,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.orange[300],
-                  borderRadius: BorderRadius.circular(22),
+                  color: const Color(0xFFFFB74D),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFF57C00), width: 2),
                 ),
                 child: const Icon(
                   Icons.person,
                   color: Colors.white,
-                  size: 24,
+                  size: 30,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,23 +971,41 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                     Text(
                       reportedUserName,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       propertyName,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFE65100),
+                        fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE65100),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'REPORTADO',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
