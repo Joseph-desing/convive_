@@ -491,9 +491,9 @@ def get_compatibility_recommendation(request: RecommendationRequest):
                 }
 
                 compat = calculate_roommate_compatibility(request.habits, candidate_habits)
-                print(f"  {name}: {int(compat*100)}%")
+                print(f"  {name}: {int(compat*100)}% {'✅ APTO' if compat >= 0.65 else '❌ NO COMPATIBLE (< 65%)'})")
 
-                if compat >= 0.50:
+                if compat >= 0.65:  # Umbral: mínimo 65% de compatibilidad
                     recommendations.append({
                         "id": str(uuid.uuid4()),
                         "type": "suggestion",
@@ -555,9 +555,9 @@ def get_compatibility_recommendation(request: RecommendationRequest):
                         }
                         compat = calculate_roommate_compatibility(request.habits, owner_habits)
 
-                print(f"  {name} ({prop.get('title','?')}): {int(compat*100)}%")
+                print(f"  {name} ({prop.get('title','?')}): {int(compat*100)}% {'✅ APTO' if compat >= 0.65 else '❌ NO COMPATIBLE (< 65%)'}")
 
-                if compat >= 0.50:
+                if compat >= 0.65:  # Umbral: mínimo 65% de compatibilidad
                     recommendations.append({
                         "id": str(uuid.uuid4()),
                         "type": "suggestion",
@@ -589,10 +589,14 @@ def get_compatibility_recommendation(request: RecommendationRequest):
         })
     else:
         print(f"❌ Sin coincidencias para {search_type}")
+        if search_type == "departamento":
+            no_match_msg = "😔 Lo siento, no encontramos ningún departamento compatible con tus preferencias en este momento.\n\nPuedes intentarlo más tarde cuando haya más propiedades disponibles en tu zona."
+        else:
+            no_match_msg = "😔 Lo siento, no encontramos ningún compañero/a de cuarto compatible contigo en este momento.\n\nPuede que nadie en la plataforma comparta tus hábitos de convivencia todavía. ¡Inténtalo más tarde!"
         return JSONResponse({
             "id": str(uuid.uuid4()),
             "type": "assistant",
-            "content": f"😔 Lo siento, no encontramos ningún {search_type} compatible para ti en este momento.\n\nPuedes intentarlo más tarde cuando haya más usuarios registrados en tu zona.",
+            "content": no_match_msg,
             "options": ["Intentar de nuevo", "Cambiar preferencias"],
             "timestamp": datetime.now().isoformat(),
         })
