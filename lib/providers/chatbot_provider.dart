@@ -118,9 +118,18 @@ class ChatbotProvider extends ChangeNotifier {
       }
 
       // Detectar si el usuario quiere ver recomendaciones
-      if (userMessage.toLowerCase().contains('mostrar') || 
-          userMessage.toLowerCase().contains('sí') ||
-          userMessage.toLowerCase().contains('si')) {
+      final msgLower = userMessage.toLowerCase();
+      final wantsRecommendation =
+          msgLower.contains('mostrar') ||
+          msgLower.contains('sí, mostrar') ||
+          msgLower.contains('si, mostrar') ||
+          msgLower.contains('ver compañeros') ||
+          msgLower.contains('mostrar compañeros') ||
+          msgLower.contains('mostrar departamentos') ||
+          msgLower.contains('ver departamentos') ||
+          msgLower.contains('ver opciones');
+
+      if (wantsRecommendation) {
         List<String> userResponses = _messages
             .where((m) => m.type == MessageType.user)
             .map((m) => m.content)

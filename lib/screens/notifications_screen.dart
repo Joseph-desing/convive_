@@ -13,6 +13,8 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  String _selectedFilter = 'all'; // 'all', 'roommate', 'departamento'
+
   @override
   void initState() {
     super.initState();
@@ -22,6 +24,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         context.read<NotificationsProvider>().loadNotifications();
       }
     });
+  }
+
+  List<notification_model.Notification> _getFilteredNotifications(
+    List<notification_model.Notification> notifications,
+  ) {
+    if (_selectedFilter == 'all') {
+      return notifications;
+    }
+    return notifications
+        .where((n) => n.publicationType == _selectedFilter)
+        .toList();
   }
 
   @override
@@ -65,21 +78,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             );
           }
 
+          final filteredNotifications = _getFilteredNotifications(
+            notificationsProvider.notifications,
+          );
+
           if (notificationsProvider.notifications.isEmpty) {
             return _buildEmptyState();
           }
 
+          if (filteredNotifications.isEmpty) {
+            return _buildEmptyFilterState();
+          }
+
           return RefreshIndicator(
             onRefresh: () => notificationsProvider.loadNotifications(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: notificationsProvider.notifications.length,
-              itemBuilder: (context, index) {
-                return _buildNotificationTile(
-                  notificationsProvider.notifications[index],
-                  notificationsProvider,
-                );
-              },
+            child: Column(
+              children: [
+                _buildFilterBar(),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredNotifications.length,
+                    itemBuilder: (context, index) {
+                      return _buildNotificationTile(
+                        filteredNotifications[index],
+                        notificationsProvider,
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -113,6 +141,96 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               fontSize: 14,
               color: Colors.grey[500],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildFilterButton('Todos', 'all', Icons.list),
+            const SizedBox(width: 12),
+            _buildFilterButton('👤 Roommates', 'roommate', Icons.person),
+            const SizedBox(width: 12),
+            _buildFilterButton('🏠 Departamentos', 'departamento', Icons.apartment),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String label, String filterValue, IconData icon) {
+    final isSelected = _selectedFilter == filterValue;
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
+        foregroundColor: isSelected ? Colors.white : Colors.grey[700],
+        elevation: isSelected ? 4 : 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      onPressed: () {
+        setState(() {
+          _selectedFilter = filterValue;
+        });
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFilterState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.filter_list,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Sin notificaciones',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No hay notificaciones para este filtro',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            onPressed: () {
+              setState(() {
+                _selectedFilter = 'all';
+              });
+            },
+            child: const Text('Ver todas'),
           ),
         ],
       ),

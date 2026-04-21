@@ -140,6 +140,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       ),
       body: Consumer<ChatbotProvider>(
         builder: (context, chatbotProvider, _) {
+          // Resetear _optionsUsed cuando llega un nuevo mensaje del asistente con opciones
+          final msgs = chatbotProvider.messages;
+          if (msgs.isNotEmpty) {
+            final last = msgs.last;
+            if (last.type == MessageType.assistant &&
+                (last.options?.isNotEmpty ?? false) &&
+                _optionsUsed) {
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => setState(() => _optionsUsed = false));
+            }
+          }
           return Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -259,6 +270,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Widget _buildMessage(BuildContext context, ChatbotMessage message) {
     final isUserMessage = message.type == MessageType.user;
 
+    // Detectar si el contenido tiene markdown (texto con formato)
+    final hasMarkdown = message.content.contains('**') ||
+        message.content.contains('\n- ') ||
+        RegExp(r'\n\d+\.').hasMatch(message.content);
+
     return AnimatedOpacity(
       opacity: 1.0,
       duration: const Duration(milliseconds: 400),
@@ -272,24 +288,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               margin: EdgeInsets.only(
                 bottom: 16,
                 left: isUserMessage ? 60 : 0,
-                right: isUserMessage ? 0 : 60,
+                right: isUserMessage ? 0 : (hasMarkdown ? 8 : 60),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: hasMarkdown ? 18 : 16,
+              ),
               decoration: BoxDecoration(
-                color: isUserMessage
-                    ? AppColors.primary
-                    : Colors.white,
+                color: isUserMessage ? AppColors.primary : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: isUserMessage 
+                    color: isUserMessage
                         ? AppColors.primary.withOpacity(0.15)
                         : Colors.black.withOpacity(0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
                 ],
-                borderRadius: BorderRadius.circular(28),
-                border: !isUserMessage 
+                borderRadius: BorderRadius.circular(hasMarkdown ? 20 : 28),
+                border: !isUserMessage
                     ? Border.all(color: Colors.grey.shade100, width: 1.2)
                     : null,
               ),
@@ -325,14 +342,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                           ),
                         ),
                         Flexible(
-                          child: Text(
+                          child: _buildFormattedContent(
                             message.content,
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                            ),
+                            baseColor: Colors.black87,
                           ),
                         ),
                       ],
@@ -372,7 +384,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado
+          // Encabezado con chip de compatibilidad
           Row(
             children: [
               Container(
@@ -383,67 +395,99 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   ),
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Icon(Icons.favorite, 
-                  color: Colors.white, 
-                  size: 16),
+                child: const Icon(Icons.auto_awesome,
+                    color: Colors.white, size: 16),
               ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  '✨ Coincidencia perfecta para ti',
+                  'Coincidencia encontrada para ti',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey,
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
+              // Badge de score
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${((message.compatibilityScore ?? 0) * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Avatar y nombre
+          const SizedBox(height: 14),
+          // Avatar, nombre y barra de compatibilidad
           Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(50),
-                child: message.matchedUserAvatar != null
-                    ? CachedNetworkImage(
-                        imageUrl: message.matchedUserAvatar!,
-                        width: 70,
-                        height: 70,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const CircularProgressIndicator(),
-                        errorWidget: (context, url, error) =>
-                            Container(
-                              width: 70,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [AppColors.primary, AppColors.secondary],
-                                ),
-                              ),
-                              child: const Icon(Icons.person, 
-                                color: Colors.white,
-                                size: 32),
-                            ),
-                      )
-                    : Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppColors.primary, AppColors.secondary],
+              // Avatar con borde
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50),
+                  child: message.matchedUserAvatar != null
+                      ? CachedNetworkImage(
+                          imageUrl: message.matchedUserAvatar!,
+                          width: 66,
+                          height: 66,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 66,
+                            height: 66,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.person,
+                                color: Colors.grey, size: 30),
                           ),
-                          borderRadius: BorderRadius.circular(50),
+                          errorWidget: (context, url, error) => Container(
+                            width: 66,
+                            height: 66,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.secondary
+                                ],
+                              ),
+                            ),
+                            child: const Icon(Icons.person,
+                                color: Colors.white, size: 30),
+                          ),
+                        )
+                      : Container(
+                          width: 66,
+                          height: 66,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [AppColors.primary, AppColors.secondary],
+                            ),
+                          ),
+                          child: const Icon(Icons.person,
+                              color: Colors.white, size: 30),
                         ),
-                        child: const Icon(Icons.person, 
-                          color: Colors.white,
-                          size: 32),
-                      ),
+                ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,54 +495,59 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     Text(
                       message.matchedUserName ?? 'Usuario',
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    // Barra de compatibilidad
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (message.compatibilityScore ?? 0),
+                        minHeight: 6,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary),
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.favorite, size: 16, color: Colors.red),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${(message.compatibilityScore ?? 0).toStringAsFixed(0)}% Compatible',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '${((message.compatibilityScore ?? 0) * 100).toStringAsFixed(0)}% compatible contigo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Descripción
-          Text(
-            message.content,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
-          ),
+          const SizedBox(height: 14),
+          // Separador
+          Divider(color: AppColors.primary.withOpacity(0.15), height: 1),
           const SizedBox(height: 12),
+          // Descripción formateada
+          _buildFormattedContent(message.content,
+              baseColor: Colors.black87, baseFontSize: 14),
+          const SizedBox(height: 14),
           // Botones de acción
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    _showUserDetails(context, message);
-                  },
-                  icon: const Icon(Icons.person),
+                  onPressed: () => _showUserDetails(context, message),
+                  icon: const Icon(Icons.person, size: 16),
                   label: const Text('Ver Perfil'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -519,11 +568,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       );
                     }
                   },
-                  icon: const Icon(Icons.location_on),
-                  label: const Text('Ver Ubicación'),
+                  icon: const Icon(Icons.location_on, size: 16),
+                  label: const Text('Ubicación'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -602,18 +654,244 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
 
     // Siempre mostrar solo el input de texto (sin botones de opciones)
+    // Mostrar botones de opciones si el último mensaje del asistente los tiene
+    if (lastMessage != null && !_optionsUsed) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Chips de opciones
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade100)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: lastMessage.options!.map((option) {
+                return GestureDetector(
+                  onTap: chatbotProvider.isLoading
+                      ? null
+                      : () {
+                          setState(() => _optionsUsed = true);
+                          final authProvider = context.read<AuthProvider>();
+                          if (authProvider.currentUser != null) {
+                            context.read<ChatbotProvider>().sendMessage(
+                                  option,
+                                  authProvider.currentUser!,
+                                );
+                            _scrollToBottom();
+                          }
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withOpacity(0.12),
+                          AppColors.secondary.withOpacity(0.08),
+                        ],
+                      ),
+                      border: Border.all(
+                          color: AppColors.primary.withOpacity(0.35), width: 1.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      option,
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          textInputWidget,
+        ],
+      );
+    }
+
     return textInputWidget;
   }
+
+  // ─── Renderizador de Markdown ───────────────────────────────────────────
+
+  Widget _buildFormattedContent(
+    String text, {
+    Color baseColor = Colors.black87,
+    double baseFontSize = 15,
+  }) {
+    final lines = text.split('\n');
+    final widgets = <Widget>[];
+    for (final line in lines) {
+      widgets.add(_buildFormattedLine(line, baseColor: baseColor, baseFontSize: baseFontSize));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: widgets,
+    );
+  }
+
+  Widget _buildFormattedLine(
+    String line, {
+    required Color baseColor,
+    required double baseFontSize,
+  }) {
+    final trimmed = line.trim();
+
+    // Línea vacía → pequeño espaciado
+    if (trimmed.isEmpty) return const SizedBox(height: 5);
+
+    // Encabezado: línea rodeada de ** (e.g. **Recomendación 1: ...**)
+    final headerMatch = RegExp(r'^\*\*(.+)\*\*$').firstMatch(trimmed);
+    if (headerMatch != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10, bottom: 3),
+        child: Text(
+          headerMatch.group(1)!,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: baseFontSize + 0.5,
+            color: AppColors.primary,
+            height: 1.4,
+          ),
+        ),
+      );
+    }
+
+    // Bullet: empieza con '- ' o '• '
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      final content = trimmed.substring(2);
+      return Padding(
+        padding: const EdgeInsets.only(top: 3, bottom: 1),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 7, right: 8),
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.7),
+                shape: BoxShape.circle,
+              ),
+            ),
+            Flexible(
+              child: _buildInlineRichText(content,
+                  baseColor: baseColor, baseFontSize: baseFontSize),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Lista numerada: e.g. '1. Texto'
+    final numberedMatch = RegExp(r'^(\d+)\.\s+(.+)$').firstMatch(trimmed);
+    if (numberedMatch != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 3, bottom: 1),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.secondary],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  numberedMatch.group(1)!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            Flexible(
+              child: _buildInlineRichText(numberedMatch.group(2)!,
+                  baseColor: baseColor, baseFontSize: baseFontSize),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Texto normal
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: _buildInlineRichText(trimmed,
+          baseColor: baseColor, baseFontSize: baseFontSize),
+    );
+  }
+
+  Widget _buildInlineRichText(
+    String text, {
+    required Color baseColor,
+    required double baseFontSize,
+  }) {
+    final baseStyle = TextStyle(
+      color: baseColor,
+      fontSize: baseFontSize,
+      height: 1.5,
+    );
+    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.bold);
+
+    final parts = text.split(RegExp(r'\*\*'));
+    if (parts.length == 1) {
+      return Text(text, style: baseStyle);
+    }
+
+    final spans = <TextSpan>[];
+    for (int i = 0; i < parts.length; i++) {
+      if (parts[i].isEmpty) continue;
+      spans.add(TextSpan(
+        text: parts[i],
+        style: i.isOdd ? boldStyle : baseStyle,
+      ));
+    }
+    return RichText(
+      text: TextSpan(style: baseStyle, children: spans),
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   void _showUserDetails(BuildContext context, ChatbotMessage message) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               children: [
                 ClipRRect(
@@ -675,7 +953,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(message.content),
+            _buildFormattedContent(message.content, baseColor: Colors.black87),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -690,6 +968,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

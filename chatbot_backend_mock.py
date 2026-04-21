@@ -11,6 +11,11 @@ Uso:
 La app Flutter se conecta desde: http://localhost:8000
 """
 
+import sys
+import os
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,10 +25,14 @@ import random
 import uuid
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuración de Supabase (REST API)
-SUPABASE_URL = "https://dfjlfxcjbsgsltzvjrqs.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmamxmeGNqYnNnc2x0endqcnFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDA0ODI0NTMsImV4cCI6MjAxNjA1ODQ1M30.w9AXQB3Y0IW_l1oFdCxnNL3-0p5Q_VKtSJFnuVJJ3vE"
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://xdpknfhbieejnqpjqpll.supabase.co")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_N1HtO6hxmRLYb8V1kL0uoA_n3LKuHUv")
 SUPABASE_API_URL = f"{SUPABASE_URL}/rest/v1"
 
 # Headers para Supabase
@@ -254,126 +263,158 @@ async def process_user_message(request: ProcessMessageRequest):
     options = []
     
     # Analizar historial para detectar tipo de búsqueda ya seleccionado
-    chat_text = ' '.join([msg.get('content', '').lower() for msg in request.chat_history])
+    # Solo leer mensajes del USUARIO (no del asistente) para evitar falsos positivos
+    user_history_text = ' '.join([
+        msg.get('content', '').lower()
+        for msg in request.chat_history
+        if msg.get('type') == 'user'
+    ])
     
     # Detectar tipo de búsqueda del mensaje actual
     is_roommate_search = any(word in user_message for word in ['compañero', 'compañera', 'roommate', 'habitacion', 'cuarto', 'compartir', 'convivir'])
     is_property_search = any(word in user_message for word in ['departamento', 'apartamento', 'casa', 'arrendar', 'alquilar', 'renta', 'alojamiento', 'vivienda'])
     
-    # Si no se detecta en el mensaje actual, verificar en el historial
+    # Si no se detecta en el mensaje actual, verificar en el historial de USER
     if not is_roommate_search and not is_property_search:
-        is_roommate_search = 'compañero' in chat_text or 'roommate' in chat_text or 'habitacion' in chat_text
-        is_property_search = 'departamento' in chat_text or 'apartamento' in chat_text or 'casa' in chat_text
+        is_roommate_search = 'compañero' in user_history_text or 'roommate' in user_history_text or 'habitacion' in user_history_text
+        is_property_search = 'departamento' in user_history_text or 'apartamento' in user_history_text or 'casa' in user_history_text
     
-    # ============ BÚSQUEDA DE COMPAÑERO (7+ ETAPAS) ============
+    # ============ BÚSQUEDA DE COMPAÑERO (9 ETAPAS) ============
     if is_roommate_search:
         
         if conversation_stage <= 1:
-            # ETAPA 1: Tipo de búsqueda
+            # ETAPA 1: Prioridad principal
             responses = [
-                "✨ Búsqueda de Compañero Ideal\n\nPerfecto, vamos a encontrarte el compañero perfecto.\n\n📋 Primero, ¿cuál es tu PRIORIDAD?",
+                "✨ **Búsqueda de Compañero Ideal**\n\nPerfecto, vamos a encontrarte el compañero ideal paso a paso.\n\n📋 Lo primero: ¿cuál es tu PRIORIDAD al convivir?",
             ]
-            options = ["Limpio y ordenado", "Tranquilo/a", "Social y amigable"]
+            options = ["🧹 Limpio y ordenado", "🤫 Tranquilo/silencioso", "🎉 Social y amigable"]
         
         elif conversation_stage == 2:
-            # ETAPA 2: Nivel de limpieza deseado
+            # ETAPA 2: Nivel de limpieza
             responses = [
-                "🧹 Excelente, anotado tu preferencia.\n\nAhora, sobre LIMPIEZA:\n\n📊 ¿Prefieres a alguien:",
+                "🧹 Anotado.\n\nSobre **LIMPIEZA Y ORDEN**:\n\n📊 ¿Qué nivel de limpieza esperas?",
             ]
-            options = ["Extremadamente limpio (8-10)", "Normal, responsable (6-7)", "Flexible con hábitos"]
+            options = ["⭐⭐⭐ Impecable siempre (9-10)", "⭐⭐ Normal y responsable (6-8)", "⭐ Flexible, no me exijo (1-5)"]
         
         elif conversation_stage == 3:
-            # ETAPA 3: Preferencia de ruido/tranquilidad
+            # ETAPA 3: Ruido
             responses = [
-                "✅ Entendido tu punto con limpieza.\n\nAhora, sobre RUIDO Y TRANQUILIDAD:\n\n🔊 ¿Cómo te llevas con ruido?",
+                "✅ Entendido.\n\nSobre **RUIDO Y AMBIENTE**:\n\n🔊 ¿Cómo prefieres el ambiente en casa?",
             ]
-            options = ["Muy tranquilo, casi silencio", "Normal, algo de ruido está bien", "Social, no me importa ruido"]
+            options = ["🔇 Muy tranquilo (casi silencio)", "🔉 Normal (algo de ruido está bien)", "🔊 Animado (no me molesta el ruido)"]
         
         elif conversation_stage == 4:
-            # ETAPA 4: Frecuencia de fiestas
+            # ETAPA 4: Fiestas
             responses = [
-                "👍 Anotado tu preferencia.\n\nSobre FIESTAS Y REUNIONES:\n\n🎉 ¿Con qué frecuencia te gustaría?",
+                "👌 Perfecto.\n\nSobre **FIESTAS Y REUNIONES**:\n\n🎊 ¿Con qué frecuencia?",
             ]
-            options = ["Casi nunca (ocasionalmente)", "A veces (cada 2-3 semanas)", "Frecuente (semanalmente)"]
+            options = ["🚫 Nunca o casi nunca", "📅 Ocasionalmente (1 vez/mes)", "🎉 Frecuente (cada semana)"]
         
         elif conversation_stage == 5:
-            # ETAPA 5: Frecuencia de invitados
+            # ETAPA 5: Invitados
             responses = [
-                "🎊 Perfecto, anotado.\n\nSobre INVITADOS:\n\n👥 ¿Qué tan frecuentes?",
+                "✔️ Anotado.\n\nSobre **VISITAS E INVITADOS**:\n\n👥 ¿Cuántas visitas esperas en casa?",
             ]
-            options = ["Muy pocas visitas", "Visitas regulares", "Muchos amigos viniendo"]
+            options = ["👤 Muy pocas (casi nadie)", "👥 Regulares (amigos/familia)", "👨‍👩‍👧‍👦 Muchas (casa muy concurrida)"]
         
         elif conversation_stage == 6:
-            # ETAPA 6: Mascotas
+            # ETAPA 6: Horarios
             responses = [
-                "🤝 Genial.\n\nEn cuanto a MASCOTAS:\n\n🐾 ¿Qué tan importante es esto?",
+                "🗓️ Genial.\n\nSobre **HORARIOS DE VIDA**:\n\n⏰ ¿Cuál describe mejor tu rutina?",
             ]
-            options = ["No tolero mascotas", "Pequeñas mascotas está bien", "Amo mascotas (cualquier tamaño)"]
+            options = ["🌅 Madrugador (duermo temprano)", "🌙 Trasnochador (duermo tarde)", "🕐 Horario flexible / irregular"]
         
         elif conversation_stage == 7:
-            # ETAPA 7: Zona/Ubicación
+            # ETAPA 7: Mascotas
             responses = [
-                "🏡 Excelente.\n\nÚltimo detalle, UBICACIÓN:\n\n📍 ¿Qué zona prefieres?",
+                "⏱️ Anotado tu horario.\n\nSobre **MASCOTAS**:\n\n🐾 ¿Qué tan cómodo/a te sientes?",
             ]
-            options = ["Centro (céntrico)", "Residencial (tranquilo)", "Cerca universidad", "Flexible"]
+            options = ["❌ No tolero mascotas", "🐱 Solo mascotas pequeñas", "🐕 Cualquier mascota, las amo"]
         
-        elif conversation_stage >= 8:
-            # ETAPA 8+: Confirmación y listo para recomendación
+        elif conversation_stage == 8:
+            # ETAPA 8: Zona
             responses = [
-                "🎯 ¡Perfecto! Tengo TODA la información.\n\n✅ Analizando compatibilidad...\n\n🎉 ¿Listo para ver a los compañeros más compatibles contigo?",
+                "🏠 Perfecto.\n\nCasi terminamos — **ZONA PREFERIDA**:\n\n📍 ¿Dónde buscas compañero/a?",
             ]
-            options = ["Sí, mostrar compañeros", "Revisar mis respuestas"]
+            options = ["🏙️ Centro (céntrico)", "🌳 Residencial (tranquilo)", "🎓 Cerca de universidad", "📌 Flexible"]
+        
+        elif conversation_stage >= 9:
+            # ETAPA 9+: Confirmación
+            responses = [
+                "🎯 ¡Listo! Tengo **toda** la información necesaria.\n\n✅ Analizando perfiles compatibles...\n\n¿Quieres ver tus mejores coincidencias?",
+            ]
+            options = ["✅ Sí, mostrar compañeros", "🔄 Cambiar mis respuestas"]
     
-    # ============ BÚSQUEDA DE DEPARTAMENTO (6+ ETAPAS) ============
+    # ============ BÚSQUEDA DE DEPARTAMENTO (8 ETAPAS) ============
     elif is_property_search:
         
         if conversation_stage <= 1:
-            # ETAPA 1: Zona preferida
+            # ETAPA 1: Zona
             responses = [
-                "🏡 Búsqueda de Departamento\n\nVamos a encontrar tu hogar ideal.\n\n📍 Primero, ZONA PREFERIDA:",
+                "🏠 **Búsqueda de Departamento**\n\nVamos a encontrar tu hogar ideal paso a paso.\n\n📍 Primero: ¿en qué **ZONA** quieres vivir?",
             ]
-            options = ["Centro (céntrico, comercial)", "Residencial (tranquilo)", "Cerca universidad", "Flexible"]
+            options = ["🏙️ Centro (céntrico, comercial)", "🌳 Residencial (tranquilo)", "🎓 Cerca universidad", "📌 Flexible"]
         
         elif conversation_stage == 2:
-            # ETAPA 2: Número de habitaciones
+            # ETAPA 2: Tamaño
             responses = [
-                "✅ Zona anotada.\n\nAhora, HABITACIONES:\n\n🛏️ ¿Cuántas necesitas?",
+                "📍 Zona anotada.\n\n**TAMAÑO DEL ESPACIO**:\n\n📐 ¿Qué tanto espacio necesitas?",
             ]
-            options = ["1 habitación", "2 habitaciones", "3 o más", "Flexible"]
+            options = ["🏠 Pequeño (estudio/1 cuarto)", "🏡 Mediano (2 cuartos)", "🏘️ Grande (3+ cuartos)", "📌 Flexible"]
         
         elif conversation_stage == 3:
-            # ETAPA 3: Presupuesto
+            # ETAPA 3: Número de habitaciones
             responses = [
-                "🏠 Anotado.\n\nPresupuesto MENSUAL:\n\n💰 ¿Cuánto puedes invertir?",
+                "📐 Tamaño anotado.\n\n**HABITACIONES** para ti:\n\n🛏️ ¿Cuántas habitaciones necesitas?",
             ]
-            options = ["$300-500", "$500-800", "$800-1200", "$1200+"]
+            options = ["🛏️ 1 habitación (para mí solo/a)", "🛏️🛏️ 2 habitaciones", "🛏️🛏️🛏️ 3 o más habitaciones", "📌 Cualquiera"]
         
         elif conversation_stage == 4:
-            # ETAPA 4: Amoblado
+            # ETAPA 4: Presupuesto
             responses = [
-                "💸 Presupuesto anotado.\n\nMUEBLES E ENSERES:\n\n🔑 ¿Cómo lo prefieres?",
+                "🛏️ Perfecto.\n\n**PRESUPUESTO MENSUAL**:\n\n💰 ¿Cuánto puedes pagar al mes?",
             ]
-            options = ["Totalmente amoblado", "Semi-amoblado", "Sin amueblar", "Flexible"]
+            options = ["💵 Menos de $400", "💵💵 $400 - $700", "💵💵💵 $700 - $1200", "💰 Más de $1200"]
         
         elif conversation_stage == 5:
-            # ETAPA 5: Servicios/Amenidades
+            # ETAPA 5: Amoblado
             responses = [
-                "✅ Anotado.\n\nServicios IMPORTANTES:\n\n⚡ ¿Cuáles necesitas?",
+                "💰 Presupuesto anotado.\n\n**MOBILIARIO**:\n\n🪑 ¿Cómo lo prefieres?",
             ]
-            options = ["Servicios incluidos", "Estacionamiento", "Ascensor/Accesibilidad", "Seguridad/Portería"]
+            options = ["✅ Totalmente amoblado", "🔧 Semi-amoblado", "📦 Sin amueblar (lo pongo yo)", "📌 Flexible"]
         
-        elif conversation_stage >= 6:
-            # ETAPA 6+: Confirmación
+        elif conversation_stage == 6:
+            # ETAPA 6: Pisos / planta
             responses = [
-                "🎯 ¡Perfecto! Tengo todos los detalles.\n\n✅ Buscando departamentos...\n\n🏠 ¿Listo para ver las opciones?",
+                "🪑 Anotado.\n\n**CARACTERÍSTICAS DEL EDIFICIO**:\n\n🏢 ¿Qué necesitas?",
             ]
-            options = ["Sí, mostrar departamentos", "Cambiar criterios"]
+            options = ["🔒 Seguridad / portería 24h", "🚗 Estacionamiento incluido", "🏋️ Gimnasio / áreas comunes", "🛗 Ascensor"]
+        
+        elif conversation_stage == 7:
+            # ETAPA 7: Mascotas / políticas
+            responses = [
+                "🏢 Anotadas las amenidades.\n\n**POLÍTICA DE MASCOTAS**:\n\n🐾 ¿Tienes o planeas tener mascotas?",
+            ]
+            options = ["🐕 Sí, necesito que se permitan", "🚫 No tengo mascotas", "🤔 Quizás en el futuro"]
+        
+        elif conversation_stage >= 8:
+            # ETAPA 8+: Confirmación
+            responses = [
+                "🎯 ¡Excelente! Tengo **toda** la información.\n\n✅ Buscando departamentos disponibles que se ajusten a ti...\n\n¿Listo para ver las opciones?",
+            ]
+            options = ["✅ Sí, mostrar departamentos", "🔄 Cambiar mis criterios"]
     
     # ============ RESPUESTA POR DEFECTO (Aún no se detectó búsqueda) ============
     else:
-        default_responses = [
-            "👂 Entendido.\n\n¿Buscas un compañero de cuarto o un departamento?",
-        ]
+        is_greeting = any(w in user_message for w in ['hola', 'hi', 'hello', 'buenas', 'buen dia', 'buenos dias', 'buenas tardes', 'buenas noches', 'hey', 'saludos', 'ola'])
+        if is_greeting:
+            default_responses = [
+                "¡Hola! 👋 ¿En qué te puedo ayudar hoy?\n\n¿Estás buscando compañero/a de habitación o un departamento?",
+            ]
+        else:
+            default_responses = [
+                "👂 Entendido.\n\n¿Buscas un compañero de cuarto o un departamento?",
+            ]
         responses = default_responses
         options = ["Compañero de cuarto", "Departamento"]
     
@@ -392,153 +433,169 @@ async def process_user_message(request: ProcessMessageRequest):
 
 @app.post("/chatbot/recommend")
 def get_compatibility_recommendation(request: RecommendationRequest):
-    """Obtener MÚLTIPLES recomendaciones + MENSAJE si sin hay coincidencias"""
-    
+    """Obtener recomendaciones usando DATOS REALES de Supabase"""
+
     responses_text = ' '.join(request.responses).lower()
-    matches = []
-    is_roommate_search = False
-    
-    # 🔍 BÚSQUEDA DE COMPAÑERO DE CUARTO
-    if any(word in responses_text for word in ['compañero', 'habitacion', 'cuarto', 'compartir', 'roommate']):
-        is_roommate_search = True
-        print(f"🔍 Buscando compañeros de cuarto para usuario {request.user_id}...")
-        
-        roommate_searches = get_real_roommate_searches(exclude_user_id=request.user_id)
-        
-        if roommate_searches:
-            print(f"✅ Encontradas {len(roommate_searches)} búsquedas de roommate")
-            scores = []
-            
-            for search in roommate_searches:
-                candidate_habits = get_user_habits(search.get('user_id', ''))
-                
-                if candidate_habits:
-                    candidate_habits_dict = {
-                        'sleep_start': candidate_habits.get('sleep_start_hour', 23),
-                        'sleep_end': candidate_habits.get('sleep_end_hour', 7),
-                        'cleanliness': candidate_habits.get('cleanliness_level', 5),
-                        'noise_level': candidate_habits.get('noise_tolerance', 5),
-                        'party_frequency': candidate_habits.get('party_frequency', 5),
-                        'guests_frequency': candidate_habits.get('guests_tolerance', 5),
-                        'alcohol_frequency': candidate_habits.get('alcohol_frequency', 3),
-                        'home_time': candidate_habits.get('time_at_home', 5),
-                        'has_pets': candidate_habits.get('has_pets', False),
-                        'pets_tolerance': candidate_habits.get('pets_tolerance', 5),
-                    }
-                    
-                    compat_score = calculate_roommate_compatibility(request.habits, candidate_habits_dict)
-                    
-                    # Filtrar por puntuación mínima (70% compatible)
-                    if compat_score >= 0.70:
-                        profile = get_user_profile(search.get('user_id', ''))
-                        
-                        match = {
-                            'id': search.get('user_id', 'unknown'),
-                            'name': profile.get('full_name', 'Usuario') if profile else 'Usuario',
-                            'avatar': profile.get('avatar_url', 'https://i.pravatar.cc/150?img=1') if profile else 'https://i.pravatar.cc/150?img=1',
-                            'bio': search.get('description', 'Busca compañero de apartamento'),
-                            'location': {
-                                'lat': search.get('latitude', 10.4806),
-                                'lng': search.get('longitude', -66.9036),
-                                'address': search.get('address', 'Caracas'),
-                            },
-                            'compatibility': compat_score,
-                            'score': compat_score,
-                        }
-                        scores.append(match)
-            
-            # Ordenar y tomar top 3
-            matches = sorted(scores, key=lambda x: x['score'], reverse=True)[:3]
-            print(f"📊 Coincidencias encontradas después de filtrar: {len(matches)}")
-        else:
-            print("⚠️ Sin búsquedas de roommate en BD")
-    
-    # 🏘️ BÚSQUEDA DE DEPARTAMENTO
-    elif any(word in responses_text for word in ['departamento', 'apartamento', 'renta', 'arrendar', 'alquilar', 'alojamiento']):
-        is_roommate_search = False
-        print(f"🔍 Buscando departamentos para usuario {request.user_id}...")
-        
-        properties = get_real_properties(exclude_user_id=request.user_id)
-        
-        if properties:
-            print(f"✅ Encontradas {len(properties)} propiedades")
-            scores = []
-            
-            for prop in properties:
-                property_features = {
-                    'bedrooms': prop.get('bedrooms', 1),
-                    'bathrooms': prop.get('bathrooms', 1),
-                    'furnished': prop.get('is_furnished', False),
-                    'pets_allowed': prop.get('allows_pets', False),
-                    'cleanliness_level': prop.get('cleanliness_level', 5),
-                    'price': prop.get('price_per_month', 0),
+    print(f"🔍 Búsqueda: {responses_text}")
+    print(f"📋 Hábitos del usuario: {request.habits}")
+
+    recommendations = []
+    search_type = "compañero de cuarto"
+
+    # Detectar tipo: departamento tiene prioridad porque "cuarto" puede aparecer
+    # en etiquetas de opciones de apartamento ("estudio/1 cuarto")
+    is_dept = any(w in responses_text for w in ['departamento', 'apartamento', 'renta', 'arrendar', 'alquilar', 'alojamiento', 'mostrar departamentos', 'si, mostrar departamentos'])
+    is_roommate = (not is_dept) and any(w in responses_text for w in ['compañero', 'compañera', 'habitacion', 'compartir', 'roommate', 'mostrar compañeros'])
+
+    # ─────────────────────────────────────────────────
+    # 1. BÚSQUEDA DE COMPAÑERO DE CUARTO
+    # ─────────────────────────────────────────────────
+    if is_roommate:
+        print("👤 Modo: COMPAÑEROS reales en Supabase")
+        search_type = "compañero de cuarto"
+
+        # Traer todos los hábitos y luego los perfiles por separado
+        try:
+            url_habits = f"{SUPABASE_API_URL}/habits?select=*"
+            resp_h = requests.get(url_habits, headers=SUPABASE_HEADERS, timeout=5)
+            rows = resp_h.json() if resp_h.status_code == 200 else []
+        except Exception as e:
+            print(f"❌ Error consultando hábitos: {e}")
+            rows = []
+
+        for row in rows:
+            try:
+                candidate_uid = row.get('user_id')
+                if candidate_uid == request.user_id:
+                    continue  # No compararse con uno mismo
+
+                # Obtener perfil por separado
+                profile = get_user_profile(candidate_uid) or {}
+                name = profile.get('full_name') or 'Usuario'
+                avatar = profile.get('profile_image_url')
+                bio = profile.get('bio') or ''
+
+                # Normalizar hábitos de Supabase al formato del cálculo
+                # pet_tolerance en Supabase es boolean → convertir a escala 0-10
+                pet_raw = row.get('pet_tolerance', False)
+                pet_val = 10 if pet_raw is True else (0 if pet_raw is False else int(pet_raw))
+
+                candidate_habits = {
+                    'cleanliness': row.get('cleanliness_level', 5),
+                    'noise_level': row.get('noise_tolerance', 5),
+                    'party_frequency': row.get('party_frequency', 5),
+                    'guests_frequency': row.get('guests_tolerance', 5),
+                    'home_time': row.get('time_at_home', 5),
+                    'responsibility': row.get('responsibility_level', 5),
+                    'pets_tolerance': pet_val,
                 }
-                
-                compat_score = calculate_property_compatibility(request.habits, property_features)
-                
-                # Filtrar por puntuación mínima (70% compatible)
-                if compat_score >= 0.70:
-                    owner_profile = get_user_profile(prop.get('user_id', ''))
-                    
-                    match = {
-                        'id': prop.get('id', 'unknown'),
-                        'name': owner_profile.get('full_name', 'Propietario') if owner_profile else 'Propietario',
-                        'avatar': owner_profile.get('avatar_url', 'https://i.pravatar.cc/150?img=2') if owner_profile else 'https://i.pravatar.cc/150?img=2',
-                        'bio': prop.get('title', 'Departamento disponible'),
-                        'location': {
-                            'lat': prop.get('latitude', 10.4806),
-                            'lng': prop.get('longitude', -66.9036),
-                            'address': prop.get('address', 'Caracas'),
-                        },
-                        'compatibility': compat_score,
-                        'price': property_features['price'],
-                        'score': compat_score,
-                    }
-                    scores.append(match)
-            
-            # Ordenar y tomar top 3
-            matches = sorted(scores, key=lambda x: x['score'], reverse=True)[:3]
-            print(f"📊 Propiedades encontradas después de filtrar: {len(matches)}")
-        else:
-            print("⚠️ Sin propiedades en BD")
-    
-    # 📭 SI NO HAY COINCIDENCIAS → MENSAJE ESPECIAL
-    if not matches:
-        print("❌ NO HAY COINCIDENCIAS QUE CUMPLAN LOS CRITERIOS")
+
+                compat = calculate_roommate_compatibility(request.habits, candidate_habits)
+                print(f"  {name}: {int(compat*100)}%")
+
+                if compat >= 0.50:
+                    recommendations.append({
+                        "id": str(uuid.uuid4()),
+                        "type": "suggestion",
+                        "content": f"🎯 {name} ({int(compat*100)}% compatible)\n{bio}",
+                        "timestamp": datetime.now().isoformat(),
+                        "matched_user_id": candidate_uid,
+                        "matched_user_name": name,
+                        "matched_user_avatar": avatar,
+                        "compatibility_score": compat,
+                        "property_location": None,
+                    })
+            except Exception as e:
+                print(f"❌ Error procesando candidato: {e}")
+
+    # ─────────────────────────────────────────────────
+    # 2. BÚSQUEDA DE DEPARTAMENTO
+    # ─────────────────────────────────────────────────
+    elif is_dept:
+        print("🏠 Modo: PROPIEDADES reales en Supabase")
+        search_type = "departamento"
+
+        try:
+            url = f"{SUPABASE_API_URL}/properties?is_active=eq.true"
+            resp = requests.get(url, headers=SUPABASE_HEADERS, timeout=5)
+            props = resp.json() if resp.status_code == 200 else []
+        except Exception as e:
+            print(f"❌ Error consultando propiedades: {e}")
+            props = []
+
+        for prop in props:
+            try:
+                owner_uid = prop.get('owner_id') or prop.get('user_id')
+                if owner_uid == request.user_id:
+                    continue
+
+                profile = get_user_profile(owner_uid) if owner_uid else None
+                name = profile.get('full_name', 'Propietario') if profile else 'Propietario'
+                avatar = profile.get('profile_image_url') if profile else None
+                description = prop.get('description') or prop.get('title') or ''
+                address = prop.get('address', '')
+                price = prop.get('price') or prop.get('rent_amount') or prop.get('budget')
+                price_text = f" - ${int(price)}/mes" if price else ""
+
+                # Calcular compatibilidad con hábitos del propietario (si existen)
+                compat = 0.75  # Base si no hay hábitos
+                if owner_uid:
+                    habits_raw = get_user_habits(owner_uid)
+                    if habits_raw:
+                        pet_raw = habits_raw.get('pet_tolerance', False)
+                        pet_val = 10 if pet_raw is True else (0 if pet_raw is False else int(pet_raw))
+                        owner_habits = {
+                            'cleanliness': habits_raw.get('cleanliness_level', 5),
+                            'noise_level': habits_raw.get('noise_tolerance', 5),
+                            'party_frequency': habits_raw.get('party_frequency', 5),
+                            'guests_frequency': habits_raw.get('guests_tolerance', 5),
+                            'home_time': habits_raw.get('time_at_home', 5),
+                            'responsibility': habits_raw.get('responsibility_level', 5),
+                            'pets_tolerance': pet_val,
+                        }
+                        compat = calculate_roommate_compatibility(request.habits, owner_habits)
+
+                print(f"  {name} ({prop.get('title','?')}): {int(compat*100)}%")
+
+                if compat >= 0.50:
+                    recommendations.append({
+                        "id": str(uuid.uuid4()),
+                        "type": "suggestion",
+                        "content": f"🏠 {description}{price_text}\n({int(compat*100)}% compatible)",
+                        "timestamp": datetime.now().isoformat(),
+                        "matched_user_id": owner_uid or prop.get('id'),
+                        "matched_user_name": name,
+                        "matched_user_avatar": avatar,
+                        "compatibility_score": compat,
+                        "property_location": {
+                            "address": address,
+                            "lat": prop.get('latitude'),
+                            "lng": prop.get('longitude'),
+                        } if address else None,
+                    })
+            except Exception as e:
+                print(f"❌ Error procesando propiedad: {e}")
+
+    # ─────────────────────────────────────────────────
+    # 3. DEVOLVER RESULTADOS O MENSAJE "SIN COINCIDENCIAS"
+    # ─────────────────────────────────────────────────
+    if recommendations:
+        recommendations = sorted(recommendations, key=lambda x: x['compatibility_score'], reverse=True)[:3]
+        print(f"✅ {len(recommendations)} coincidencias encontradas")
+        return JSONResponse({
+            "type": "suggestions_batch",
+            "recommendations": recommendations,
+            "count": len(recommendations),
+        })
+    else:
+        print(f"❌ Sin coincidencias para {search_type}")
         return JSONResponse({
             "id": str(uuid.uuid4()),
             "type": "assistant",
-            "content": "😔 Lo siento, no hay nadie que cumpla con tus características y requisitos en este momento.\n\n¿Deseas intentar de nuevo con criterios más flexibles?",
-            "options": ["Sí, intentar de nuevo", "No, gracias"],
+            "content": f"😔 Lo siento, no encontramos ningún {search_type} compatible para ti en este momento.\n\nPuedes intentarlo más tarde cuando haya más usuarios registrados en tu zona.",
+            "options": ["Intentar de nuevo", "Cambiar preferencias"],
             "timestamp": datetime.now().isoformat(),
         })
-    
-    # ✅ DEVOLVER MÚLTIPLES RECOMENDACIONES
-    recommendations = []
-    for match in matches:
-        if is_roommate_search:
-            msg = f"🎯 {match['name']} ({int(match.get('compatibility', 0.8)*100)}% compatible)\n{match['bio']}"
-        else:
-            price_text = f"${match.get('price', 0)}/mes" if match.get('price') else ""
-            msg = f"🎯 {match['bio']} {price_text}\n({int(match.get('compatibility', 0.8)*100)}% compatible)"
-        
-        recommendations.append({
-            "id": str(uuid.uuid4()),
-            "type": "suggestion",
-            "content": msg,
-            "timestamp": datetime.now().isoformat(),
-            "matched_user_id": match["id"],
-            "matched_user_name": match["name"],
-            "matched_user_avatar": match["avatar"],
-            "compatibility_score": match.get("compatibility", 0.8),
-            "property_location": match.get("location"),
-        })
-    
-    return JSONResponse({
-        "recommendations": recommendations,
-        "count": len(recommendations),
-        "type": "suggestions_batch",
-    })
 
 @app.post("/compatibility-score")
 async def calculate_compatibility_score(request: dict):
@@ -641,7 +698,7 @@ def calculate_roommate_compatibility(user_habits: dict, candidate_habits: dict) 
     home_time_score = _calculate_scale_difference(
         user_habits.get('home_time', 5),
         candidate_habits.get('home_time', 5),
-        max_difference=100
+        max_difference=10
     )
     total_score += home_time_score * 0.10
     
@@ -730,7 +787,7 @@ def calculate_property_compatibility(user_habits: dict, property_features: dict)
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Iniciando Chatbot IA Backend Mock...")
-    print("📍 URL: http://localhost:8000")
-    print("📊 Docs: http://localhost:8000/docs")
+    print("📍 URL: http://localhost:8001")
+    print("📊 Docs: http://localhost:8001/docs")
     print("✅ Presiona Ctrl+C para detener")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

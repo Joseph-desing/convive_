@@ -146,12 +146,23 @@ Proporciona recomendaciones claras y útiles en formato de lista.
     Map<String, dynamic> userHabits,
   ) {
     return '''
-Eres un asistente amable de ConVive que ayuda a encontrar compañeros de habitación.
+Eres un asistente amable de ConVive que ayuda a encontrar compañeros de habitación compatibles.
 
-Información del usuario:
+Perfil del usuario:
 - Email: ${userProfile['email'] ?? 'N/A'}
+- Tipo: ${userProfile['role'] ?? 'N/A'}
 
-Responde en español, de forma concisa y útil.
+Hábitos del usuario (escala 0-10):
+- Limpieza: ${userHabits['cleanliness'] ?? 'N/A'}/10
+- Tolerancia al ruido: ${userHabits['noise_level'] ?? 'N/A'}/10
+- Frecuencia de fiestas: ${userHabits['party_frequency'] ?? 'N/A'}/10
+- Tolerancia a invitados: ${userHabits['guests_frequency'] ?? 'N/A'}/10
+- Tiempo en casa: ${userHabits['home_time'] ?? 'N/A'}/10
+- Responsabilidad: ${userHabits['responsibility'] ?? 'N/A'}/10
+- Tolerancia a mascotas: ${userHabits['pets_tolerance'] ?? 'N/A'}/10
+
+Tu rol es ayudar a este usuario a encontrar el compañero ideal según sus hábitos.
+Responde siempre en español, de forma concisa y útil.
 ''';
   }
 
