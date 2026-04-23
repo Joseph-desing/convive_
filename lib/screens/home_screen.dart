@@ -139,8 +139,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _loadUserProfile() async {
     try {
-      final authProvider = context.read<AuthProvider>();
-      final userId = authProvider.currentUser?.id;
+      // Obtener userId directamente de Supabase (más confiable que AuthProvider que podría estar inicializando)
+      final userId = SupabaseProvider.client.auth.currentUser?.id;
       
       debugPrint('🔍 Buscando perfil para userId: $userId');
       
@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           debugPrint('⚠️ No se encontró perfil o está vacío');
         }
       } else {
-        debugPrint('❌ UserId es null o vacío');
+        debugPrint('⚠️ UserId es null - Probablemente la sesión aún se está inicializando');
       }
     } catch (e) {
       debugPrint('❌ Error loading user profile: $e');
