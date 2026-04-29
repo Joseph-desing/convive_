@@ -212,42 +212,76 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
 
   Widget _buildRoommieFiltersSection() {
     return Container(
-      color: Colors.grey[50],
+      color: Colors.transparent,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildRoommieFilterChip('all', 'Todos'),
-            const SizedBox(width: 8),
-            _buildRoommieFilterChip('active', 'Activos'),
-            const SizedBox(width: 8),
-            _buildRoommieFilterChip('inactive', 'Inactivos'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRoommieFilterChip(String value, String label) {
-    final isSelected = _selectedRoommateFilter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _selectedRoommateFilter = value);
-        _loadRoommateSearches();
-      },
-      backgroundColor: Colors.white,
-      selectedColor: AppColors.primary.withOpacity(0.15),
-      side: BorderSide(
-        color: isSelected ? AppColors.primary : Colors.grey[300]!,
-        width: isSelected ? 2 : 1,
-      ),
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : Colors.grey[700],
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-        fontSize: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: DropdownButton<String>(
+          value: _selectedRoommateFilter,
+          isExpanded: true,
+          underline: const SizedBox(),
+          dropdownColor: Colors.white,
+          icon: const FaIcon(
+            FontAwesomeIcons.chevronDown,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'all',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.users, size: 14, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text('Todos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'active',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.circleCheck, size: 14, color: Colors.green),
+                  SizedBox(width: 10),
+                  Text('Activos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'inactive',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.circleXmark, size: 14, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text('Inactivos'),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _selectedRoommateFilter = value);
+              _loadRoommateSearches();
+            }
+          },
+        ),
       ),
     );
   }
@@ -478,44 +512,86 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
 
   Widget _buildFiltersSection() {
     return Container(
-      color: Colors.grey[50],
+      color: Colors.transparent,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterChip('all', 'Todos'),
-            const SizedBox(width: 8),
-            _buildFilterChip('active', 'Activos'),
-            const SizedBox(width: 8),
-            _buildFilterChip('inactive', 'Inactivos'),
-            const SizedBox(width: 8),
-            _buildFilterChip('pending', 'Pendientes'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String value, String label) {
-    final isSelected = _selectedFilter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _selectedFilter = value);
-        _loadProperties();
-      },
-      backgroundColor: Colors.white,
-      selectedColor: AppColors.primary.withOpacity(0.15),
-      side: BorderSide(
-        color: isSelected ? AppColors.primary : Colors.grey[300]!,
-        width: isSelected ? 2 : 1,
-      ),
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : Colors.grey[700],
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-        fontSize: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: DropdownButton<String>(
+          value: _selectedFilter,
+          isExpanded: true,
+          underline: const SizedBox(),
+          dropdownColor: Colors.white,
+          icon: const FaIcon(
+            FontAwesomeIcons.chevronDown,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'all',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.building, size: 14, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text('Todos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'active',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.circleCheck, size: 14, color: Colors.green),
+                  SizedBox(width: 10),
+                  Text('Activos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'inactive',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.circleXmark, size: 14, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text('Inactivos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'pending',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.clock, size: 14, color: Colors.amber),
+                  SizedBox(width: 10),
+                  Text('Pendientes'),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _selectedFilter = value);
+              _loadProperties();
+            }
+          },
+        ),
       ),
     );
   }

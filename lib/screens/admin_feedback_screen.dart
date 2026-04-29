@@ -200,89 +200,111 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
   Widget _buildStatusFiltersSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Estado',
+            'Filtrar por Estado',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: Colors.grey[700],
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildStatusFilterChip('all', 'Todos'),
-                const SizedBox(width: 8),
-                _buildStatusFilterChip('open', 'Abiertos'),
-                const SizedBox(width: 8),
-                _buildStatusFilterChip('in_review', 'En Revisión'),
-                const SizedBox(width: 8),
-                _buildStatusFilterChip('resolved', 'Resueltos'),
-                const SizedBox(width: 8),
-                _buildStatusFilterChip('closed', 'Cerrados'),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
               ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: DropdownButton<String>(
+              value: _selectedStatusFilter,
+              isExpanded: true,
+              underline: const SizedBox(),
+              dropdownColor: Colors.white,
+              icon: const FaIcon(
+                FontAwesomeIcons.chevronDown,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'all',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.inbox, size: 14, color: AppColors.primary),
+                      SizedBox(width: 10),
+                      Text('Todos'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'open',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.envelopeOpen, size: 14, color: Color(0xFF2E7D32)),
+                      SizedBox(width: 10),
+                      Text('Abiertos'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'in_review',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.magnifyingGlass, size: 14, color: Color(0xFFE65100)),
+                      SizedBox(width: 10),
+                      Text('En Revisión'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'resolved',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.checkDouble, size: 14, color: Color(0xFF2E7D32)),
+                      SizedBox(width: 10),
+                      Text('Resueltos'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'closed',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.lockOpen, size: 14, color: Color(0xFF546E7A)),
+                      SizedBox(width: 10),
+                      Text('Cerrados'),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedStatusFilter = value);
+                  _loadFeedback();
+                }
+              },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatusFilterChip(String value, String label) {
-    final isSelected = _selectedStatusFilter == value;
-    
-    Color getStatusColor(String status) {
-      switch (status) {
-        case 'open':
-          return const Color(0xFFE8F5E9); // Verde claro
-        case 'in_review':
-          return const Color(0xFFFFF3E0); // Naranja claro
-        case 'resolved':
-          return const Color(0xFFE8F5E9); // Verde claro
-        case 'closed':
-          return const Color(0xFFECEFF1); // Gris claro
-        default:
-          return Colors.grey[200]!;
-      }
-    }
-    
-    Color getStatusLabelColor(String status) {
-      switch (status) {
-        case 'open':
-          return const Color(0xFF2E7D32); // Verde oscuro
-        case 'in_review':
-          return const Color(0xFFE65100); // Naranja oscuro
-        case 'resolved':
-          return const Color(0xFF2E7D32); // Verde oscuro
-        case 'closed':
-          return const Color(0xFF546E7A); // Gris oscuro
-        default:
-          return Colors.grey[700]!;
-      }
-    }
-    
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _selectedStatusFilter = value);
-        _loadFeedback();
-      },
-      backgroundColor: isSelected ? getStatusColor(value) : Colors.grey[200],
-      selectedColor: getStatusColor(value),
-      labelStyle: TextStyle(
-        color: isSelected ? getStatusLabelColor(value) : Colors.grey[700],
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-      side: isSelected 
-          ? BorderSide(color: getStatusLabelColor(value), width: 1.5)
-          : BorderSide(color: Colors.grey[300]!),
     );
   }
 

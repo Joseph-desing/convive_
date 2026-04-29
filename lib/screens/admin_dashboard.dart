@@ -111,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Row(
               children: [
                 const FaIcon(
-                  FontAwesomeIcons.crown,
+                  FontAwesomeIcons.userTie,
                   color: Colors.white,
                   size: 28,
                 ),
@@ -121,35 +121,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Bienvenido al Panel',
+                        'Bienvenido Administrador',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'de Administración',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Gestiona usuarios, departamentos y quejas desde aquí',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.5,
-              ),
             ),
           ],
         ),
@@ -177,6 +159,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           mainAxisSpacing: 12,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 0.65,
           children: [
             // Usuarios totales
             _buildStatCard(
@@ -217,6 +200,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               subtitle: 'Por revisar',
               icon: FontAwesomeIcons.exclamation,
               color: Colors.amber,
+            ),
+            // Quejas Solucionadas
+            _buildStatCard(
+              title: 'Quejas',
+              value: '${stats['feedback']?['resolved'] ?? 0}',
+              subtitle: 'Solucionadas',
+              icon: FontAwesomeIcons.checkCircle,
+              color: Colors.green,
             ),
           ],
         ),

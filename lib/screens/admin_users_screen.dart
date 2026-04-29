@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/admin_provider.dart';
 import '../utils/colors.dart';
+import '../config/supabase_provider.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({Key? key}) : super(key: key);
@@ -87,37 +88,74 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget _buildFiltersSection() {
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterChip('all', 'Todos'),
-            const SizedBox(width: 8),
-            _buildFilterChip('student', 'Estudiante'),
-            const SizedBox(width: 8),
-            _buildFilterChip('non_student', 'No Estudiante'),
-            const SizedBox(width: 8),
-            _buildFilterChip('admin', 'Administrador'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String value, String label) {
-    final isSelected = _selectedFilter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _selectedFilter = value);
-        _loadUsers();
-      },
-      backgroundColor: Colors.grey[200],
-      selectedColor: AppColors.primary.withOpacity(0.3),
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : Colors.grey[700],
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: DropdownButton<String>(
+          value: _selectedFilter,
+          isExpanded: true,
+          underline: const SizedBox(),
+          dropdownColor: Colors.white,
+          icon: const FaIcon(
+            FontAwesomeIcons.chevronDown,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'all',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.users, size: 14, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text('Todos'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'student',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.graduationCap, size: 14, color: Colors.blue),
+                  SizedBox(width: 10),
+                  Text('Estudiante'),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'non_student',
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.building, size: 14, color: Colors.orange),
+                  SizedBox(width: 10),
+                  Text('Propietario'),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _selectedFilter = value);
+              _loadUsers();
+            }
+          },
+        ),
       ),
     );
   }
@@ -341,46 +379,675 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _showEditUserDialog(BuildContext context, Map<String, dynamic> user) {
+    final profile = user['profiles'] is List && (user['profiles'] as List).isNotEmpty
+        ? user['profiles'][0]
+        : null;
+    
     String selectedRole = user['role'] ?? 'student';
+    TextEditingController fullNameController = TextEditingController(text: profile?['full_name'] ?? '');
+    TextEditingController bioController = TextEditingController(text: profile?['bio'] ?? '');
+    String selectedGender = profile?['gender'] ?? 'other';
+    DateTime? selectedBirthDate = profile?['birth_date'] != null ? DateTime.parse(profile?['birth_date']) : null;
+    bool isVerified = profile?['verified'] ?? false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar Usuario'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Email: ${user['email']}'),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: selectedRole,
-              decoration: const InputDecoration(
-                labelText: 'Rol',
-                border: OutlineInputBorder(),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) => DefaultTabController(
+              length: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // HEADER
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const FaIcon(
+                            FontAwesomeIcons.wrench,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Editar Usuario',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Actualiza la información del usuario',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // TABBAR
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[300]!),
+                      ),
+                    ),
+                    child: TabBar(
+                      labelColor: AppColors.primary,
+                      unselectedLabelColor: Colors.grey[500],
+                      indicatorColor: AppColors.primary,
+                      indicatorWeight: 4,
+                      labelPadding: const EdgeInsets.symmetric(vertical: 16),
+                      tabs: [
+                        Tab(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const FaIcon(FontAwesomeIcons.shield, size: 16),
+                              const SizedBox(width: 8),
+                              const Text('Rol', style: TextStyle(fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                        Tab(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const FaIcon(FontAwesomeIcons.circleUser, size: 16),
+                              const SizedBox(width: 8),
+                              const Text('Perfil', style: TextStyle(fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // TABBAR VIEW
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // TAB 1: ROL
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Email Card
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.blue[50]!, Colors.blue[100]!],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.blue[200]!),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade400,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const FaIcon(
+                                        FontAwesomeIcons.envelope,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Email',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            user['email'] ?? 'Sin email',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+
+                              // Rol Label
+                              Text(
+                                'Selecciona un Rol',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Rol Dropdown
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.primary, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primary.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                child: DropdownButton<String>(
+                                  value: selectedRole,
+                                  isExpanded: true,
+                                  underline: const SizedBox(),
+                                  dropdownColor: Colors.white,
+                                  icon: const FaIcon(
+                                    FontAwesomeIcons.chevronDown,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: 'student',
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const FaIcon(
+                                              FontAwesomeIcons.graduationCap,
+                                              size: 14,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Text('Estudiante'),
+                                        ],
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'non_student',
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const FaIcon(
+                                              FontAwesomeIcons.building,
+                                              size: 14,
+                                              color: Colors.orange,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Text('Propietario'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() => selectedRole = value ?? 'student');
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // TAB 2: PERFIL
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Nombre
+                              _buildFieldLabel('Nombre Completo'),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                fullNameController,
+                                'Ej: Juan Pérez',
+                                FontAwesomeIcons.user,
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Fecha de Nacimiento
+                              _buildFieldLabel('Fecha de Nacimiento'),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedBirthDate ?? DateTime.now(),
+                                    firstDate: DateTime(1950),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() => selectedBirthDate = picked);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const FaIcon(
+                                        FontAwesomeIcons.calendar,
+                                        size: 14,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          selectedBirthDate != null
+                                              ? '${selectedBirthDate!.day}/${selectedBirthDate!.month}/${selectedBirthDate!.year}'
+                                              : 'Selecciona una fecha',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: selectedBirthDate != null ? Colors.black : Colors.grey[500],
+                                          ),
+                                        ),
+                                      ),
+                                      const FaIcon(
+                                        FontAwesomeIcons.chevronDown,
+                                        size: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Género
+                              _buildFieldLabel('Género'),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                child: DropdownButton<String>(
+                                  value: selectedGender,
+                                  isExpanded: true,
+                                  underline: const SizedBox(),
+                                  dropdownColor: Colors.white,
+                                  icon: const FaIcon(
+                                    FontAwesomeIcons.chevronDown,
+                                    size: 12,
+                                    color: Colors.grey,
+                                  ),
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 14,
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'male',
+                                      child: Row(
+                                        children: [
+                                          FaIcon(FontAwesomeIcons.mars, size: 12, color: Colors.blue),
+                                          SizedBox(width: 8),
+                                          Text('Hombre'),
+                                        ],
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'female',
+                                      child: Row(
+                                        children: [
+                                          FaIcon(FontAwesomeIcons.venus, size: 12, color: Colors.pink),
+                                          SizedBox(width: 8),
+                                          Text('Mujer'),
+                                        ],
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'other',
+                                      child: Row(
+                                        children: [
+                                          FaIcon(FontAwesomeIcons.circle, size: 12, color: Colors.purple),
+                                          SizedBox(width: 8),
+                                          Text('Otro'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() => selectedGender = value ?? 'other');
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Biografía
+                              _buildFieldLabel('Sobre mí'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: bioController,
+                                maxLines: 4,
+                                decoration: InputDecoration(
+                                  hintText: 'Escribe algo sobre ti...',
+                                  prefixIcon: const Padding(
+                                    padding: EdgeInsets.only(top: 10.0),
+                                    child: FaIcon(
+                                      FontAwesomeIcons.penToSquare,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(color: Colors.grey[300]!),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[50],
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Toggle Verificado
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isVerified ? Colors.green[50] : Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isVerified ? Colors.green[300]! : Colors.grey[300]!,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: isVerified ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: FaIcon(
+                                            FontAwesomeIcons.checkCircle,
+                                            size: 14,
+                                            color: isVerified ? Colors.green : Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'Verificado',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey[800],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Switch(
+                                      value: isVerified,
+                                      onChanged: (value) {
+                                        setState(() => isVerified = value);
+                                      },
+                                      activeColor: Colors.green,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // BOTONES
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Colors.grey[200]!),
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              foregroundColor: Colors.grey[700],
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                FaIcon(FontAwesomeIcons.xmark, size: 16),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Cancelar',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 3,
+                            ),
+                            onPressed: () async {
+                              // Actualizar rol
+                              context.read<AdminProvider>().updateUserRole(user['id'], selectedRole);
+
+                              // Actualizar perfil
+                              if (profile != null) {
+                                await SupabaseProvider.databaseService.updateProfile(
+                                  profile['id'],
+                                  {
+                                    'full_name': fullNameController.text,
+                                    'bio': bioController.text,
+                                    'gender': selectedGender,
+                                    'birth_date': selectedBirthDate?.toIso8601String(),
+                                    'verified': isVerified,
+                                  },
+                                );
+                              }
+
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        FaIcon(FontAwesomeIcons.checkCircle, color: Colors.white, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('✅ Usuario actualizado correctamente'),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.green.shade500,
+                                    duration: const Duration(seconds: 3),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                // Recargar usuarios
+                                context.read<AdminProvider>().loadAllUsers();
+                              }
+                            },
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                FaIcon(FontAwesomeIcons.floppyDisk, size: 16),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Guardar Cambios',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              items: const [
-                DropdownMenuItem(value: 'student', child: Text('Estudiante')),
-                DropdownMenuItem(
-                    value: 'non_student', child: Text('No Estudiante')),
-                DropdownMenuItem(value: 'admin', child: Text('Administrador')),
-              ],
-              onChanged: (value) => selectedRole = value ?? 'student',
             ),
-          ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      ),
+    );
+  }
+
+  Widget _buildFieldLabel(String label) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey[800],
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: FaIcon(
+          icon,
+          size: 14,
+          color: AppColors.primary,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.primary,
+            width: 2,
           ),
-          TextButton(
-            onPressed: () {
-              context.read<AdminProvider>().updateUserRole(user['id'], selectedRole);
-              Navigator.pop(context);
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
     );
   }
