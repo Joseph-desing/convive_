@@ -6,6 +6,7 @@ import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
+import 'feedback_detail_screen.dart';
 
 class AdminFeedbackScreen extends StatefulWidget {
   const AdminFeedbackScreen({Key? key}) : super(key: key);
@@ -158,11 +159,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Quejas y Sugerencias'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-      ),
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
           if (adminProvider.isLoading) {
@@ -284,16 +280,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                     ],
                   ),
                 ),
-                DropdownMenuItem(
-                  value: 'closed',
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.lockOpen, size: 14, color: Color(0xFF546E7A)),
-                      SizedBox(width: 10),
-                      Text('Cerrados'),
-                    ],
-                  ),
-                ),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -352,177 +338,73 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     UserFeedback feedback,
     AdminProvider adminProvider,
   ) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ExpansionTile(
-        title: Row(
-          children: [
-            _buildTypeIcon(feedback.type),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    feedback.subject,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatDate(feedback.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: _getStatusColor(feedback.status).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                _getStatusLabel(feedback.status),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: _getStatusColor(feedback.status),
-                ),
-              ),
-            ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Información de quién reporta (Usuario)
-                _buildUserReportSection('Usuario que Reporta', feedback.userId),
-                const SizedBox(height: 16),
-
-                // Información de la queja
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline, 
-                            color: Colors.blue[700], 
-                            size: 20
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Detalles del Reporte',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Tipo:', _getTypeLabel(feedback.type), isShort: true),
-                      const SizedBox(height: 8),
-                      _buildDetailRow('Publicación:', _extractPropertyName(feedback.message), isShort: false),
-                      const SizedBox(height: 8),
-                      _buildDetailRow('Usuario Reportado:', _extractReportedUserName(feedback.message), isShort: false),
-                      const SizedBox(height: 8),
-                      if (feedback.category != null) ...[
-                        _buildDetailRow('Categoría:', _getCategoryLabel(feedback.category), isShort: true),
-                        const SizedBox(height: 8),
-                      ],
-                      _buildDetailRow('Estado:', _getStatusLabel(feedback.status), isShort: true),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Información del usuario reportado (extraído del mensaje)
-                _buildReportedUserSection(feedback),
-                const SizedBox(height: 16),
-
-                // Detalles del mensaje
-                _buildSectionTitle('Descripción de la Queja:'),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _extractComplaintDescription(feedback.message),
-                    style: const TextStyle(fontSize: 13, height: 1.6),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Respuesta del administrador
-                if (feedback.adminResponse != null) ...[
-                  _buildSectionTitle('Respuesta del Administrador:'),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[300]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          feedback.adminResponse!,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Respondido: ${_formatDate(feedback.adminResponseAt ?? DateTime.now())}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ] else ...[
-                  // Campo de respuesta mejorado
-                  _buildImprovedResponseSection(context, feedback, adminProvider),
-                ],
-
-                const SizedBox(height: 16),
-
-                // Botones de acción
-                _buildActionButtons(
-                    context, feedback, adminProvider),
-              ],
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FeedbackDetailScreen(feedback: feedback),
           ),
-        ],
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              _buildTypeIcon(feedback.type),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      feedback.subject,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDate(feedback.createdAt),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(feedback.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _getStatusLabel(feedback.status),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: _getStatusColor(feedback.status),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.arrow_forward_ios, 
+                size: 16, 
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -828,53 +710,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                       ),
                       child: const Text(
                         '✓ Resuelto',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  // Botón "Cerrar"
-                  if (feedback.status != FeedbackStatus.closed)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.done_all, size: 16),
-                        label: const Text('Cerrar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF616161),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () {
-                          adminProvider.closeFeedback(feedback.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('✅ Cambio a "Cerrado"'),
-                              backgroundColor: Color(0xFF616161),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF616161),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        '✓ Cerrado',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,

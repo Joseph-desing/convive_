@@ -689,7 +689,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color = AppColors.primary;
         break;
       case UserRole.non_student:
-        text = 'Profesional';
+        text = 'Propietario';
         color = Colors.blue;
         break;
       case UserRole.admin:

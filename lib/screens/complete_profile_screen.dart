@@ -266,7 +266,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _buildRoleButtonInForm(
-                                label: 'Profesional',
+                                label: 'Propietario',
                                 isSelected: _selectedRole == UserRole.non_student,
                                 onTap: () => setState(() => _selectedRole = UserRole.non_student),
                                 color: Colors.blue,
