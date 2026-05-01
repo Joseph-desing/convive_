@@ -148,49 +148,74 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildFilterBar() {
+    final Map<String, Map<String, dynamic>> filterOptions = {
+      'all': {'label': 'Todos', 'icon': Icons.list},
+      'departamento': {'label': 'Departamento', 'icon': Icons.apartment},
+      'roommate': {'label': 'Rommi', 'icon': Icons.people},
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterButton('Todos', 'all', Icons.list),
-            const SizedBox(width: 12),
-            _buildFilterButton('👤 Roommates', 'roommate', Icons.person),
-            const SizedBox(width: 12),
-            _buildFilterButton('🏠 Departamentos', 'departamento', Icons.apartment),
-          ],
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            _getFilterLabel(),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (String value) {
+              setState(() {
+                _selectedFilter = value;
+              });
+            },
+            itemBuilder: (BuildContext context) {
+              return filterOptions.entries.map((entry) {
+                return PopupMenuItem<String>(
+                  value: entry.key,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        entry.value['icon'] as IconData,
+                        size: 20,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        entry.value['label'] as String,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList();
+            },
+            icon: Icon(
+              Icons.tune_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+            position: PopupMenuPosition.under,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilterButton(String label, String filterValue, IconData icon) {
-    final isSelected = _selectedFilter == filterValue;
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
-        foregroundColor: isSelected ? Colors.white : Colors.grey[700],
-        elevation: isSelected ? 4 : 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-      onPressed: () {
-        setState(() {
-          _selectedFilter = filterValue;
-        });
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
+  String _getFilterLabel() {
+    switch (_selectedFilter) {
+      case 'departamento':
+        return '🏠 Departamentos';
+      case 'roommate':
+        return '👤 Rommi';
+      case 'all':
+      default:
+        return '≡ Todos';
+    }
   }
 
   Widget _buildEmptyFilterState() {

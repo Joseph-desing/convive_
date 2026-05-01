@@ -23,7 +23,6 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   String? _selectedUserId; // Usuario seleccionado
   final TextEditingController _complaintController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
-  String _searchType = 'property'; // 'property' o 'roommate'
 
   @override
   void initState() {
@@ -41,26 +40,11 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     setState(() {
       _isSearching = query.isNotEmpty;
       
-      // Primero filtra por tipo
-      List<Map<String, dynamic>> typeFiltered = _users;
-      if (_searchType != 'all') {
-        typeFiltered = _users.where((user) {
-          final userType = user['type']?.toString() ?? 'property';
-          if (userType == 'both') {
-            // Si tiene ambos, incluir en todos los filtros
-            return true;
-          }
-          return _searchType == 'property'
-              ? userType == 'property'
-              : userType == 'roommate';
-        }).toList();
-      }
-      
-      // Luego filtra por búsqueda
+      // Solo mostrar usuarios si hay búsqueda activa
       if (query.isEmpty) {
-        _filteredUsers = typeFiltered;
+        _filteredUsers = [];
       } else {
-        _filteredUsers = typeFiltered.where((user) {
+        _filteredUsers = _users.where((user) {
           final name = (user['owner_name']?.toString() ?? '').toLowerCase();
           return name.contains(query);
         }).toList();
@@ -267,7 +251,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       setState(() {
         _properties = allItems;
         _users = usersMap.values.toList();
-        _filteredUsers = _users;
+        _filteredUsers = []; // Inicialmente vacío, solo mostrar al buscar
         _isLoading = false;
       });
     } catch (e) {
@@ -308,6 +292,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       ) as Map<String, dynamic>;
 
       final title = selectedProperty['title']?.toString() ?? 'Sin título';
+      final propType = selectedProperty['type']?.toString() ?? 'property';
       final reportedUserName = _users.firstWhere(
         (u) => u['user_id'] == _selectedUserId,
         orElse: () => {'owner_name': 'Usuario desconocido'},
@@ -329,7 +314,7 @@ ${_complaintController.text}
         'status': 'open',
         'subject': 'Queja: $title',
         'message': completeMessage,
-        'category': _searchType == 'roommate' 
+        'category': propType == 'roommate' 
           ? 'roommate_search_complaint' 
           : 'property_complaint',
       });
@@ -361,45 +346,7 @@ ${_complaintController.text}
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.report_problem_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Reportar Quejas',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  'Ayuda a mejorar nuestra comunidad',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        title: const Text('Reportar Quejas'),
         backgroundColor: AppColors.primary,
         elevation: 0,
       ),
@@ -410,127 +357,6 @@ ${_complaintController.text}
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Card de introducción
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.1),
-                          AppColors.primary.withOpacity(0.05),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.primary.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.info_rounded,
-                            color: AppColors.primary,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tu retroalimentación importa',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Selecciona un usuario y cuéntanos qué sucedió',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[700],
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Filtros
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _searchType,
-                          decoration: InputDecoration(
-                            labelText: 'Tipo',
-                            prefixIcon: const Icon(Icons.filter_list),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                          ),
-                          items: [
-                            DropdownMenuItem(
-                              value: 'property',
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.apartment, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Departamento'),
-                                ],
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'roommate',
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.people, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Rommi'),
-                                ],
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'all',
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.list, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Todos'),
-                                ],
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _searchType = value ?? 'property';
-                              _filterUsers();
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
                   // Buscador
                   TextField(
                     controller: _searchController,
@@ -702,20 +528,9 @@ ${_complaintController.text}
                         .where((prop) {
                           if (prop is! Map) return false;
                           final propUserId = (prop['user_id'] ?? '').toString();
-                          final propType = (prop['type'] ?? 'property').toString();
                           
-                          // Filtrar por usuario ID
-                          if (propUserId != _selectedUserId) return false;
-                          
-                          // Filtrar por tipo si está seleccionado
-                          if (_searchType == 'all') return true;
-                          
-                          if (_searchType == 'property') {
-                            return propType == 'property';
-                          } else if (_searchType == 'roommate') {
-                            return propType == 'roommate';
-                          }
-                          return true;
+                          // Mostrar todas las publicaciones del usuario seleccionado
+                          return propUserId == _selectedUserId;
                         })
                         .map((item) {
                       final itemMap = item as Map<String, dynamic>;
