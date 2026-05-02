@@ -362,7 +362,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          notification.senderName ?? 'Usuario',
+                          notification.title,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -537,10 +537,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (type) {
       case 'match':
         return Icons.person;
+      case 'match_confirmed':
+        return Icons.favorite_rounded;
       case 'message':
         return Icons.chat_bubble_outline;
       case 'like':
-        return Icons.person;
+        return Icons.favorite_rounded;
       case 'system':
         return Icons.info_outline;
       default:
@@ -552,6 +554,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (type) {
       case 'match':
         return Colors.red;
+      case 'match_confirmed':
+        return Colors.green;
       case 'message':
         return Colors.blue;
       case 'like':
@@ -576,9 +580,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'match_confirmed':
         // Navegar al perfil del usuario que dio match/like
         if (mounted && notification.senderUserId != null) {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
+          Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => UserProfileScreen(
                 userId: notification.senderUserId!,

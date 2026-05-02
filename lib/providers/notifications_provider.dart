@@ -13,6 +13,30 @@ class NotificationsProvider extends ChangeNotifier {
   Timer? _debounceTimer; // ✅ NUEVO: Timer para debounce de notifyListeners
   bool _pendingNotification = false; // ✅ NUEVO: Flag para saber si hay cambios pendientes
 
+  String _notificationKey(Notification notification) {
+    return [
+      notification.type,
+      notification.senderUserId ?? '',
+      notification.publicationId ?? '',
+      notification.publicationType ?? '',
+      notification.publicationTitle ?? '',
+    ].join('|');
+  }
+
+  List<Notification> _dedupeNotifications(Iterable<Notification> items) {
+    final seen = <String>{};
+    final deduped = <Notification>[];
+
+    for (final item in items) {
+      final key = _notificationKey(item);
+      if (seen.add(key)) {
+        deduped.add(item);
+      }
+    }
+
+    return deduped;
+  }
+
   List<Notification> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -83,9 +107,9 @@ class NotificationsProvider extends ChangeNotifier {
           print('ℹ️ No hay notificaciones para este usuario');
         }
       } else {
-        _notifications = (response as List)
+        _notifications = _dedupeNotifications((response as List)
             .map((data) => Notification.fromJson(data as Map<String, dynamic>))
-            .toList();
+            .toList());
         if (kDebugMode) {
           print('✅ Notificaciones cargadas: ${_notifications.length}');
           for (var notif in _notifications) {
@@ -160,10 +184,7 @@ class NotificationsProvider extends ChangeNotifier {
               
               final newNotification = Notification.fromJson(newRecord);
               // ✅ DEDUPLICACIÓN ROBUSTA: Verificar por ID y timestamp para evitar duplicados
-              final isDuplicate = _notifications.any((n) => 
-                n.id == newNotification.id &&
-                n.createdAt == newNotification.createdAt
-              );
+              final isDuplicate = _notifications.any((n) => _notificationKey(n) == _notificationKey(newNotification));
               if (!isDuplicate) {
                 _notifications.insert(0, newNotification);
                 // ✅ NUEVO: Usar debounce en lugar de notifyListeners directo

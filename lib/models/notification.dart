@@ -43,14 +43,17 @@ class Notification {
     switch (type) {
       case 'match':
         return '${senderName ?? 'Alguien'} te dió match ❤️';
+      case 'match_confirmed':
+        return senderName != null && senderName!.isNotEmpty
+            ? 'Genial, $senderName te devolvió el 💚'
+            : 'Genial, alguien te devolvió el 💚';
       case 'like':
-        final pubType = publicationType == 'roommate' ? ' (Roommate)' : ' (Departamento)';
         if (publicationType == 'roommate') {
-          return '${senderName ?? 'Alguien'} dio ❤️ a tu perfil$pubType';
+          return '${senderName ?? 'Alguien'} dio 💚 a tu perfil';
         } else if (publicationType == 'departamento') {
-          return '${senderName ?? 'Alguien'} dio ❤️ a: ${publicationTitle ?? 'tu departamento'}$pubType';
+          return '${senderName ?? 'Alguien'} dio 💚 a: ${publicationTitle ?? 'tu departamento'}';
         }
-        return '${senderName ?? 'Alguien'} dio ❤️';
+        return '${senderName ?? 'Alguien'} dio 💚';
       case 'system':
         return publicationTitle ?? 'Notificación del sistema';
       default:
@@ -63,6 +66,10 @@ class Notification {
     switch (type) {
       case 'match':
         return '${senderName ?? 'Nuevo match'}';
+      case 'match_confirmed':
+        return senderName != null && senderName!.isNotEmpty
+            ? senderName!
+            : '¡Genial!';
       case 'like':
         return '${senderName ?? 'Nuevo like'}';
       case 'system':

@@ -601,6 +601,30 @@ class SupabaseDatabaseService {
     String? publicationType, // 'roommate' o 'departamento'
   }) async {
     try {
+      final duplicateQuery = _supabase
+          .from('notifications')
+          .select('id')
+          .eq('recipient_user_id', recipientUserId)
+          .eq('type', type);
+
+      if (senderUserId != null && senderUserId.isNotEmpty) {
+        duplicateQuery.eq('sender_user_id', senderUserId);
+      }
+
+      if (publicationId != null && publicationId.isNotEmpty) {
+        duplicateQuery.eq('publication_id', publicationId);
+      }
+
+      if (publicationType != null && publicationType.isNotEmpty) {
+        duplicateQuery.eq('publication_type', publicationType);
+      }
+
+      final existing = await duplicateQuery.limit(1).maybeSingle();
+      if (existing != null) {
+        print('⏭️ Notificación duplicada ignorada: $type para $recipientUserId');
+        return;
+      }
+
       await _supabase.from('notifications').insert({
         'recipient_user_id': recipientUserId,
         'type': type,
