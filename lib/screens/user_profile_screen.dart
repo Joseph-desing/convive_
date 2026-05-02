@@ -11,11 +11,15 @@ import '../utils/colors.dart';
 class UserProfileScreen extends StatefulWidget {
   final String userId;
   final String? senderUserId; // El usuario que hizo like (opcional, desde notificación)
-  
+  final String? publicationType; // 'roommate' | 'departamento' | 'profile'
+  final String? publicationId;   // ID de la propiedad o búsqueda de roommate
+
   const UserProfileScreen({
-    Key? key, 
+    Key? key,
     required this.userId,
     this.senderUserId,
+    this.publicationType,
+    this.publicationId,
   }) : super(key: key);
 
   @override
@@ -77,6 +81,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         : name[0].toUpperCase();
   }
 
+  /// Determina el contextType correcto según el tipo de publicación que recibió el like
+  String _resolveContextType() {
+    final pubType = widget.publicationType;
+    if (pubType == 'departamento' || pubType == 'property') return 'property';
+    if (pubType == 'roommate') return 'search';
+    return 'profile'; // Fallback para likes de perfil directo
+  }
+
+  /// Determina el contextId correcto: ID de la publicación o del usuario como fallback
+  String _resolveContextId() {
+    final pubId = widget.publicationId;
+    if (pubId != null && pubId.isNotEmpty) return pubId;
+    return widget.userId; // Fallback
+  }
+
   Future<void> _returnMatch() async {
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) {
@@ -86,41 +105,49 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       print('🚀 Iniciando creación de match...');
-      
+
+      // ✅ Determinar contexto correcto según el tipo de publicación que recibió el like
+      final contextType = _resolveContextType();
+      final contextId = _resolveContextId();
+      print('📌 Contexto del match: type=$contextType, id=$contextId');
+
       // Obtener perfiles para la notificación
       final currentProfile = await SupabaseProvider.databaseService.getProfile(currentUserId);
-      
-      // Crear el match bilateral
+
+      // ✅ Crear el match bilateral con contexto correcto
       final compatibility = _calculateCompatibilityScore();
       final match = Match(
         userA: currentUserId,
         userB: widget.userId,
         compatibilityScore: compatibility,
-        contextType: 'profile',
-        contextId: widget.userId,
+        contextType: contextType,  // ✅ 'property' | 'search' | 'profile'
+        contextId: contextId,      // ✅ ID real de la publicación
       );
-      
-      print('📋 Match object creado: userA=$currentUserId, userB=${widget.userId}');
-      
+
+      print('📋 Match object creado: userA=$currentUserId, userB=${widget.userId}, type=$contextType');
+
       final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
       print('✅ Match creado con ID: ${createdMatch.id}');
-      
-      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
-      print('📬 Enviando notificación a ${widget.userId}...');
+
+      // ✅ Notificación con publicationType correcto según contexto
+      final notifPubType = contextType == 'property' ? 'departamento' : (contextType == 'search' ? 'roommate' : 'profile');
+      print('📬 Enviando notificación a ${widget.userId} (pubType=$notifPubType)...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.userId,
-        type: 'match',
+        type: 'match_confirmed',   // ✅ Tipo distinto para evitar anti-duplicado
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
-        publicationId: widget.userId,
+        publicationId: contextId,
         publicationTitle: currentProfile?.fullName ?? 'Alguien',
-        publicationType: 'profile',
+        publicationType: notifPubType, // ✅ 'departamento' | 'roommate' | 'profile'
       );
       print('💚 Match confirmado y notificación enviada al usuario');
-      
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
-      
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
+      }
+
       // Esperar un poco y volver atrás para que se recarguen los matches
       await Future.delayed(const Duration(milliseconds: 1000));
       if (mounted) {
@@ -128,7 +155,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       }
     } catch (e) {
       print('❌ ERROR EN _returnMatch: $e');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error confirmando match: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error confirmando match: $e')));
+      }
     }
   }
 
@@ -145,7 +174,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     try {
-      final existing = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.userId, 'profile', widget.userId);
+      // ✅ Buscar match con el contexto correcto
+      final contextType = _resolveContextType();
+      final contextId = _resolveContextId();
+      final existing = await SupabaseProvider.databaseService.getExistingMatch(
+        currentUserId, widget.userId, contextType, contextId,
+      );
       if (existing == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Necesitas confirmar el match primero')));
         return;
@@ -196,10 +230,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     try {
-      print('🔍 Buscando match existente: user1=$currentUserId, user2=${widget.userId}, type=profile');
-      final match = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.userId, 'profile', widget.userId)
+      // ✅ Buscar match con el contexto correcto
+      final contextType = _resolveContextType();
+      final contextId = _resolveContextId();
+      print('🔍 Buscando match existente: user1=$currentUserId, user2=${widget.userId}, type=$contextType, id=$contextId');
+      final match = await SupabaseProvider.databaseService
+          .getExistingMatch(currentUserId, widget.userId, contextType, contextId)
           .timeout(const Duration(seconds: 5));
-      
+
       final hasMatch = match != null;
       print('${hasMatch ? '✅' : '❌'} Match existente encontrado: $hasMatch');
       return hasMatch;

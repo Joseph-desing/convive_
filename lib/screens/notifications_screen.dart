@@ -597,13 +597,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'match':
       case 'like':
       case 'match_confirmed':
-        // Navegar al perfil del usuario que dio match/like
+        // Navegar al perfil del usuario que dio match/like,
+        // pasando el contexto de la publicación para que _returnMatch() sea correcto
         if (mounted && notification.senderUserId != null) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => UserProfileScreen(
                 userId: notification.senderUserId!,
                 senderUserId: notification.senderUserId,
+                publicationType: notification.publicationType, // ✅ 'roommate' | 'departamento'
+                publicationId: notification.publicationId,    // ✅ ID real de la publicación
               ),
             ),
           );

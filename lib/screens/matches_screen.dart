@@ -177,14 +177,13 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) return [];
 
-    // Compañero/a: Matches donde diste like a búsqueda de roommate (contextType='search')
+    // Compañero/a: matches de búsqueda de roommate o perfil directo
     return _matches.where((m) {
-      if (m.contextType != null && m.contextType!.isNotEmpty) {
-        // Mostrar matches de búsqueda/perfil: aceptar 'search', 'roommate_search' y 'profile'
-        return m.contextType == 'search' || m.contextType == 'roommate_search' || m.contextType == 'profile';
-      }
-      // Fallback si no hay contextType
-      return false;
+      final ct = m.contextType;
+      if (ct == null || ct.isEmpty) return false;
+      // ✅ 'search' y 'roommate_search' son los tipos correctos de Compañero/a
+      // 'profile' es el fallback para matches devueltos antes del fix (compatibilidad legado)
+      return ct == 'search' || ct == 'roommate_search' || ct == 'profile';
     }).toList();
   }
 
@@ -192,14 +191,12 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) return [];
 
-    // Departamento: Matches donde diste like a propiedad (contextType='property')
+    // Departamento: matches de propiedad
     return _matches.where((m) {
-      if (m.contextType != null && m.contextType!.isNotEmpty) {
-        // ✅ CORRECTO: Mostrar matches de propiedad (property) en "Departamento"
-        return m.contextType == 'property';
-      }
-      // Fallback si no hay contextType
-      return false;
+      final ct = m.contextType;
+      if (ct == null || ct.isEmpty) return false;
+      // ✅ Solo 'property' corresponde a Departamento
+      return ct == 'property';
     }).toList();
   }
 
