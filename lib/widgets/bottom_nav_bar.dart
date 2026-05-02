@@ -50,8 +50,8 @@ class CustomBottomNavBar extends StatelessWidget {
                   index: 2,
                 ),
                 _buildNavItem(
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'Mensajes',
+                  icon: Icons.smart_toy_rounded,
+                  label: 'Chatbot',
                   index: 3,
                 ),
                 _buildNavItem(

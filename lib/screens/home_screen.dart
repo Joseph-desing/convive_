@@ -7,7 +7,6 @@ import '../utils/theme_helper.dart';
 import '../widgets/property_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'profile_screen.dart';
-import 'messages_screen.dart';
 import 'matches_screen.dart';
 import 'complaints_screen.dart';
 import 'notifications_screen.dart';
@@ -300,56 +299,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: CustomBottomNavBar(
               currentIndex: _currentIndex,
               onTap: (index) {
-                setState(() => _currentIndex = index);
-              },
-            ),
-          ),
-          
-          // Floating Action Button - Chatbot (Siempre visible)
-          Positioned(
-            bottom: 100,
-            right: 20,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 600),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.pink.shade600,
-                      borderRadius: BorderRadius.circular(60),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.pink.shade600.withOpacity(0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          context.push('/chatbot');
-                        },
-                        borderRadius: BorderRadius.circular(60),
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(60),
-                          ),
-                          child: const Icon(
-                            Icons.smart_toy_rounded,
-                            size: 28,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
+                  if (index == 3) {
+                    context.push('/chatbot');
+                    return;
+                  }
+
+                  setState(() => _currentIndex = index);
               },
             ),
           ),
@@ -870,11 +825,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return const ProfileScreen();
     }
     
-    // Mostrar la pantalla de mensajes cuando se selecciona
-    if (_currentIndex == 3) {
-      return const MessagesScreen();
-    }
-
     // Mostrar la pantalla de quejas cuando se selecciona
     if (_currentIndex == 2) {
       return const ComplaintsScreen();
