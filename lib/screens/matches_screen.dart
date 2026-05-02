@@ -5,7 +5,7 @@ import '../models/profile.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
-import '../screens/user_profile_screen.dart';
+import '../screens/match_profile_screen.dart';
 import '../providers/notifications_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -760,7 +760,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => UserProfileScreen(userId: userId),
+        builder: (context) => MatchProfileScreen(userId: userId),
       ),
     );
   }
@@ -769,16 +769,55 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar conexión'),
-        content: const Text('Esto borrará la conexión y el chat asociado. ¿Continuar?'),
+        backgroundColor: const Color(0xFFFFF7F8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.warning_rounded,
+                color: Colors.red.shade600,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '¿Eliminar este match?',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          '¿Seguro que quieres eliminar este match? Se borrará la conexión y el chat asociado de tu vista.',
+          style: TextStyle(height: 1.4),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Sí, eliminar'),
           ),
         ],
       ),
