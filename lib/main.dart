@@ -378,7 +378,6 @@ class _ConViveAppState extends State<ConViveApp> {
         ChangeNotifierProvider(create: (_) => MatchingProvider()),
         ChangeNotifierProvider(create: (_) => PropertyProvider()),
         ChangeNotifierProvider(create: (_) => RoommateSearchProvider()),
-        ChangeNotifierProvider(create: (_) => MessagesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(
