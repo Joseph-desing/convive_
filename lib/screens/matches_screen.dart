@@ -5,6 +5,7 @@ import '../models/profile.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
+import '../screens/user_profile_screen.dart';
 import '../providers/notifications_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -446,7 +447,6 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     final name = otherProfile?.fullName ?? 'Usuario desconocido';
     final imageUrl = otherProfile?.profileImageUrl;
     final age = otherProfile != null ? _calculateAge(otherProfile.birthDate) : 0;
-    final bio = otherProfile?.bio ?? 'Sin descripción';
     
     // Log para debugging
     print('🎴 Renderizando match: usuario=$otherUserId, nombre=$name, tieneImagen=${imageUrl?.isNotEmpty ?? false}');
@@ -556,7 +556,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                       // Badges (wrap para evitar overflow en pantallas angostas)
                       Wrap(
                         spacing: 6,
@@ -675,57 +675,33 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        bio,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Botones de acciones: chat y eliminar - SizedBox para mantener ancho fijo
-                SizedBox(
-                  width: 50,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _openChat(match),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            shape: BoxShape.circle,
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          _buildMatchActionButton(
+                            icon: Icons.chat_bubble,
+                            backgroundColor: Colors.pink.shade600,
+                            iconColor: Colors.white,
+                            onTap: () => _openChat(match),
                           ),
-                          child: const Icon(
-                            Icons.chat_bubble,
-                            color: Colors.white,
-                            size: 20,
+                          const SizedBox(width: 14),
+                          _buildMatchActionButton(
+                            icon: Icons.person_outline,
+                            backgroundColor: Colors.blue.shade50,
+                            iconColor: Colors.blue.shade700,
+                            borderColor: Colors.blue.shade200,
+                            onTap: () => _openProfile(otherUserId),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () => _confirmDeleteMatch(match),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.red.shade200),
+                          const SizedBox(width: 14),
+                          _buildMatchActionButton(
+                            icon: Icons.delete_outline,
+                            backgroundColor: Colors.red.shade50,
+                            iconColor: Colors.red.shade600,
+                            borderColor: Colors.red.shade200,
+                            onTap: () => _confirmDeleteMatch(match),
                           ),
-                          child: Icon(
-                            Icons.delete_outline,
-                            color: Colors.red.shade600,
-                            size: 20,
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -738,11 +714,53 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     );
   }
 
+  Widget _buildMatchActionButton({
+    required IconData icon,
+    required Color backgroundColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+    Color? borderColor,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: BoxShape.circle,
+          border: borderColor != null ? Border.all(color: borderColor) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: iconColor,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
   void _openChat(Match match) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatScreen(matchId: match.id),
+      ),
+    );
+  }
+
+  void _openProfile(String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserProfileScreen(userId: userId),
       ),
     );
   }
