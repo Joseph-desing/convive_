@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../models/notification.dart' as notification_model;
 import '../providers/notifications_provider.dart';
+import '../config/supabase_provider.dart';
+import 'property_details_screen.dart';
+import 'roommate_search_details_screen.dart';
+import 'user_profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -569,10 +573,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (notification.type) {
       case 'match':
       case 'like':
+      case 'match_confirmed':
         // Navegar al perfil del usuario que dio match/like
         if (mounted && notification.senderUserId != null) {
           Navigator.pop(context);
-          context.push('/user-profile', extra: notification.senderUserId);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => UserProfileScreen(
+                userId: notification.senderUserId!,
+                senderUserId: notification.senderUserId,
+              ),
+            ),
+          );
         }
         break;
       case 'message':

@@ -9,6 +9,7 @@ part of 'feedback.dart';
 UserFeedback _$UserFeedbackFromJson(Map<String, dynamic> json) => UserFeedback(
       id: json['id'] as String?,
       userId: json['user_id'] as String,
+      reportedUserId: json['reported_user_id'] as String?,
       type: $enumDecode(_$FeedbackTypeEnumMap, json['type']),
       status: $enumDecodeNullable(_$FeedbackStatusEnumMap, json['status']) ??
           FeedbackStatus.open,
@@ -33,6 +34,7 @@ Map<String, dynamic> _$UserFeedbackToJson(UserFeedback instance) =>
     <String, dynamic>{
       'id': instance.id,
       'user_id': instance.userId,
+      'reported_user_id': instance.reportedUserId,
       'type': _$FeedbackTypeEnumMap[instance.type]!,
       'status': _$FeedbackStatusEnumMap[instance.status]!,
       'subject': instance.subject,

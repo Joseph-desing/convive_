@@ -233,6 +233,15 @@ class SupabaseDatabaseService {
     return Property.fromJson(response);
   }
 
+  Future<RoommateSearch> getRoommateSearch(String searchId) async {
+    final response = await _supabase
+        .from('roommate_searches')
+        .select('*')
+        .eq('id', searchId)
+        .single();
+    return RoommateSearch.fromJson(response);
+  }
+
   Future<List<Property>> getUserProperties(String userId) async {
     final response =
         await _supabase.from('properties').select('*').eq('owner_id', userId);
@@ -350,11 +359,19 @@ class SupabaseDatabaseService {
 
   // ==================== MATCHES ====================
   Future<List<Match>> getUserMatches(String userId) async {
-    final response = await _supabase
-        .from('matches')
-        .select('*')
-        .or('user_a_id.eq.$userId,user_b_id.eq.$userId');
-    return (response as List).map((m) => Match.fromJson(m)).toList();
+    try {
+      print('🔍 Consultando matches para usuario: $userId');
+      final response = await _supabase
+          .from('matches')
+          .select('*')
+          .or('user_a_id.eq.$userId,user_b_id.eq.$userId');
+      
+      print('✅ Matches encontrados: ${(response as List).length}');
+      return (response as List).map((m) => Match.fromJson(m)).toList();
+    } catch (e) {
+      print('❌ Error al obtener matches: $e');
+      return [];
+    }
   }
 
   Future<Match?> getMatch(String matchId) async {
@@ -389,17 +406,25 @@ class SupabaseDatabaseService {
     matchData.remove('createdAt');
     matchData.remove('updatedAt');
 
-    // upsert evita el error de unique; devuelve la fila existente o la nueva
-    final response = await _supabase
-        .from('matches')
-        .upsert(
-          matchData,
-          onConflict: 'user_a_id,user_b_id,context_type,context_id',
-        )
-        .select('*')
-        .single();
+    try {
+      print('💾 Guardando match: ${matchData['user_a_id']} <-> ${matchData['user_b_id']}');
+      
+      // upsert evita el error de unique; devuelve la fila existente o la nueva
+      final response = await _supabase
+          .from('matches')
+          .upsert(
+            matchData,
+            onConflict: 'user_a_id,user_b_id,context_type,context_id',
+          )
+          .select('*')
+          .single();
 
-    return Match.fromJson(response);
+      print('✅ Match guardado exitosamente: ${response['id']}');
+      return Match.fromJson(response);
+    } catch (e) {
+      print('❌ Error al guardar match: $e');
+      rethrow;
+    }
   }
 
   // ==================== SWIPES ====================

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/match.dart';
 import '../models/profile.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
+import '../providers/notifications_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -12,7 +14,7 @@ class MatchesScreen extends StatefulWidget {
   State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateMixin {
+class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   bool _isLoading = true;
   List<Match> _matches = [];
   final Map<String, Profile> _profileCache = {};
@@ -22,7 +24,38 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMatches();
+    
+    // ✅ NUEVO: Escuchar notificaciones de match para recargar automáticamente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationsProvider = context.read<NotificationsProvider>();
+      notificationsProvider.addListener(_onNotificationsChanged);
+    });
+  }
+
+  /// ✅ NUEVO: Callback cuando llegan nuevas notificaciones
+  void _onNotificationsChanged() {
+    final notificationsProvider = context.read<NotificationsProvider>();
+    
+    // Verificar si hay nuevas notificaciones de 'match'
+    final hasNewMatchNotification = notificationsProvider.notifications.any(
+      (n) => n.type == 'match' && !n.isRead,
+    );
+    
+    if (hasNewMatchNotification && mounted) {
+      print('🔔 Nueva notificación de match detectada - Recargando matches...');
+      _loadMatches();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Cuando la app vuelve al foreground, recargar matches
+      print('📱 App volvió al foreground - Recargando matches...');
+      _loadMatches();
+    }
   }
 
   void _initializeTabController() {
@@ -33,6 +66,13 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // ✅ NUEVO: Remover listener de notificaciones
+    try {
+      context.read<NotificationsProvider>().removeListener(_onNotificationsChanged);
+    } catch (e) {
+      // Si falla, ignorar (el context podría no estar disponible)
+    }
     _tabController?.dispose();
     super.dispose();
   }
@@ -49,20 +89,35 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
 
       // Cargar matches desde la base de datos
       final matchesData = await SupabaseProvider.databaseService.getUserMatches(currentUserId);
+      print('📊 Matches cargados: ${matchesData.length}');
       
       // Precargar perfiles de los matches
       final userIds = matchesData.expand((m) => [m.userA, m.userB])
           .where((id) => id != currentUserId)
           .toSet();
       
+      print('👥 IDs a precargar: ${userIds.length}');
       await _preloadProfiles(userIds);
       await _preloadUserTypes(userIds);
+      
+      print('✅ Caché de perfiles: ${_profileCache.length} perfiles cargados');
       
       if (mounted) {
         setState(() {
           _matches = matchesData;
           _isLoading = false;
         });
+        
+        // ✅ DEBUG: Mostrar matches cargados y su distribución
+        final companeroMatches = _getCompaneroMatches();
+        final departamentoMatches = _getDepartamentoMatches();
+        print('📊 DEBUG MatchesScreen:');
+        print('  - Total matches: ${_matches.length}');
+        print('  - Compañero/a: ${companeroMatches.length}');
+        print('  - Departamento: ${departamentoMatches.length}');
+        for (final m in _matches) {
+          print('    • Match ${m.id.substring(0, 8)}: contextType=${m.contextType}, contextId=${m.contextId?.substring(0, 8) ?? 'null'}');
+        }
       }
     } catch (e) {
       print('❌ Error cargando matches: $e');
@@ -71,15 +126,22 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   }
 
   Future<void> _preloadProfiles(Set<String> userIds) async {
+    print('🔄 Precargando ${userIds.length} perfiles...');
     for (final userId in userIds) {
-      if (_profileCache.containsKey(userId)) continue;
+      if (_profileCache.containsKey(userId)) {
+        print('✓ Perfil de $userId ya en caché');
+        continue;
+      }
       try {
         final profile = await SupabaseProvider.databaseService.getProfile(userId);
         if (profile != null) {
           _profileCache[userId] = profile;
+          print('✅ Perfil de $userId cargado: ${profile.fullName}');
+        } else {
+          print('⚠️ Perfil de $userId es null');
         }
       } catch (e) {
-        print('⚠️ Error cargando perfil $userId: $e');
+        print('❌ Error cargando perfil $userId: $e');
       }
     }
   }
@@ -111,28 +173,32 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   }
 
   List<Match> _getCompaneroMatches() {
-    // Filtra matches por contextType='property' (busca compañero/a para propiedad)
-    // Si contextType no existe, usa fallback a userTypeCache
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) return [];
+
+    // Compañero/a: Matches donde diste like a búsqueda de roommate (contextType='search')
     return _matches.where((m) {
       if (m.contextType != null && m.contextType!.isNotEmpty) {
-        return m.contextType == 'property';
+        // ✅ CORRECTO: Mostrar matches de búsqueda (search) en "Compañero/a"
+        return m.contextType == 'search';
       }
-      // Fallback: si no hay contextType, usar userTypeCache
-      final otherUserId = m.userA == SupabaseProvider.client.auth.currentUser?.id ? m.userB : m.userA;
-      return _userTypeCache[otherUserId] == 'property';
+      // Fallback si no hay contextType
+      return false;
     }).toList();
   }
 
   List<Match> _getDepartamentoMatches() {
-    // Filtra matches por contextType='search' (busca departamento)
-    // Si contextType no existe, usa fallback a userTypeCache
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) return [];
+
+    // Departamento: Matches donde diste like a propiedad (contextType='property')
     return _matches.where((m) {
       if (m.contextType != null && m.contextType!.isNotEmpty) {
-        return m.contextType == 'search';
+        // ✅ CORRECTO: Mostrar matches de propiedad (property) en "Departamento"
+        return m.contextType == 'property';
       }
-      // Fallback: si no hay contextType, usar userTypeCache
-      final otherUserId = m.userA == SupabaseProvider.client.auth.currentUser?.id ? m.userB : m.userA;
-      return _userTypeCache[otherUserId] == 'search';
+      // Fallback si no hay contextType
+      return false;
     }).toList();
   }
 
@@ -377,11 +443,13 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     final otherUserId = match.userA == currentUserId ? match.userB : match.userA;
     final otherProfile = _profileCache[otherUserId];
     
-    final name = otherProfile?.fullName ?? 'Usuario';
-    final imageUrl = otherProfile?.profileImageUrl ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=9C27B0&color=fff';
-    final age = _calculateAge(otherProfile?.birthDate);
+    final name = otherProfile?.fullName ?? 'Usuario desconocido';
+    final imageUrl = otherProfile?.profileImageUrl;
+    final age = otherProfile != null ? _calculateAge(otherProfile.birthDate) : 0;
     final bio = otherProfile?.bio ?? 'Sin descripción';
+    
+    // Log para debugging
+    print('🎴 Renderizando match: usuario=$otherUserId, nombre=$name, tieneImagen=${imageUrl?.isNotEmpty ?? false}');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -421,11 +489,23 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             color: AppColors.primary,
                             width: 3,
                           ),
-                          image: DecorationImage(
-                            image: NetworkImage(imageUrl),
-                            fit: BoxFit.cover,
-                          ),
+                          color: Colors.grey[200],
+                          image: imageUrl != null && imageUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(imageUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
+                        child: imageUrl == null || imageUrl.isEmpty
+                            ? Center(
+                                child: Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Colors.grey[400],
+                                ),
+                              )
+                            : null,
                       ),
                     ),
                     Positioned(
@@ -466,14 +546,14 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$age',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.textSecondary,
+                          if (age > 0)
+                            Text(
+                              ', $age',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -515,33 +595,33 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: match.contextType == 'property'
-                                    ? Colors.blue.shade100
-                                    : Colors.orange.shade100,
+                                color: match.contextType == 'search'
+                                    ? Colors.orange.shade100
+                                    : Colors.blue.shade100,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    match.contextType == 'property'
-                                        ? Icons.home
-                                        : Icons.search,
-                                    color: match.contextType == 'property'
-                                        ? Colors.blue.shade700
-                                        : Colors.orange.shade700,
+                                    match.contextType == 'search'
+                                        ? Icons.people
+                                        : Icons.apartment,
+                                    color: match.contextType == 'search'
+                                        ? Colors.orange.shade700
+                                        : Colors.blue.shade700,
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
-                                      match.contextType == 'property'
-                                          ? '📦 Busca compañero/a'
-                                          : '🔍 Busca departamento',
+                                      match.contextType == 'search'
+                                          ? '👤 Busca compañero/a'
+                                          : '🏠 Busca departamento',
                                       style: TextStyle(
-                                        color: match.contextType == 'property'
-                                            ? Colors.blue.shade700
-                                            : Colors.orange.shade700,
+                                        color: match.contextType == 'search'
+                                            ? Colors.orange.shade700
+                                            : Colors.blue.shade700,
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                       ),

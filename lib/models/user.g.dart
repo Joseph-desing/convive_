@@ -9,6 +9,7 @@ part of 'user.dart';
 User _$UserFromJson(Map<String, dynamic> json) => User(
       id: json['id'] as String?,
       email: json['email'] as String,
+      fullName: json['full_name'] as String?,
       role: $enumDecode(_$UserRoleEnumMap, json['role'],
           unknownValue: UserRole.student),
       subscriptionType: $enumDecodeNullable(
@@ -26,6 +27,7 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
       'id': instance.id,
       'email': instance.email,
+      'full_name': instance.fullName,
       'role': _$UserRoleEnumMap[instance.role]!,
       'subscription_type':
           _$SubscriptionTypeEnumMap[instance.subscriptionType]!,

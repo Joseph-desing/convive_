@@ -10,7 +10,13 @@ import '../utils/colors.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
-  const UserProfileScreen({Key? key, required this.userId}) : super(key: key);
+  final String? senderUserId; // El usuario que hizo like (opcional, desde notificación)
+  
+  const UserProfileScreen({
+    Key? key, 
+    required this.userId,
+    this.senderUserId,
+  }) : super(key: key);
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -23,11 +29,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   RoommateSearch? _roommateSearch; // Búsqueda de roommate para ubicación
   bool _loading = true;
   String? _error;
+  late Future<List<bool>> _buttonStateFuture;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Cachear el futuro para evitar múltiples ejecuciones
+    _buttonStateFuture = Future.wait([_hasExistingMatch(), _hasIncomingLike()]);
   }
 
   Future<void> _load() async {
@@ -68,6 +77,67 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         : name[0].toUpperCase();
   }
 
+  Future<void> _returnMatch() async {
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inicia sesión para devolver el match')));
+      return;
+    }
+
+    try {
+      print('🚀 Iniciando creación de match...');
+      
+      // Obtener perfiles para la notificación
+      final currentProfile = await SupabaseProvider.databaseService.getProfile(currentUserId);
+      
+      // Crear el match bilateral
+      final compatibility = _calculateCompatibilityScore();
+      final match = Match(
+        userA: currentUserId,
+        userB: widget.userId,
+        compatibilityScore: compatibility,
+        contextType: 'profile',
+        contextId: widget.userId,
+      );
+      
+      print('📋 Match object creado: userA=$currentUserId, userB=${widget.userId}');
+      
+      final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
+      print('✅ Match creado con ID: ${createdMatch.id}');
+      
+      // Enviar notificación al usuario que hizo el like original
+      print('📬 Enviando notificación a ${widget.userId}...');
+      await SupabaseProvider.databaseService.createNotification(
+        recipientUserId: widget.userId,
+        type: 'match_confirmed',
+        senderUserId: currentUserId,
+        senderName: currentProfile?.fullName ?? 'Alguien',
+        senderProfileImageUrl: currentProfile?.profileImageUrl,
+        publicationId: widget.userId,
+        publicationTitle: currentProfile?.fullName ?? 'Alguien',
+        publicationType: 'profile',
+      );
+      
+      print('💚 Match confirmado y notificación enviada al usuario');
+      
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
+      
+      // Esperar un poco y volver atrás para que se recarguen los matches
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('❌ ERROR EN _returnMatch: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error confirmando match: $e')));
+    }
+  }
+
+  double _calculateCompatibilityScore() {
+    // Aquí puedes implementar la lógica de compatibilidad
+    return 75.0; // Valor por defecto
+  }
+
   Future<void> _openChat() async {
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) {
@@ -77,16 +147,66 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       final existing = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.userId, 'profile', widget.userId);
-      Match match;
-      if (existing != null) {
-        match = existing;
-      } else {
-        final m = Match(userA: currentUserId, userB: widget.userId, compatibilityScore: 0.0, contextType: 'profile', contextId: widget.userId);
-        match = await SupabaseProvider.databaseService.createMatch(m);
+      if (existing == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Necesitas confirmar el match primero')));
+        return;
       }
-      if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(matchId: match.id)));
+      if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(matchId: existing.id)));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir chat: $e')));
+    }
+  }
+
+  Future<bool> _hasIncomingLike() async {
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      print('❌ No hay usuario autenticado');
+      return false;
+    }
+
+    try {
+      // Si viene desde una notificación, usamos el senderUserId
+      final swiperId = widget.senderUserId ?? widget.userId;
+      
+      print('🔍 Buscando like incoming: swiper=$swiperId, target=$currentUserId');
+      
+      // Query con timeout
+      final swipes = await SupabaseProvider.client
+          .from('swipes')
+          .select()
+          .eq('swiper_id', swiperId)
+          .eq('target_user_id', currentUserId)
+          .eq('direction', 'like')
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+      
+      final hasLike = swipes != null;
+      print('${hasLike ? '✅' : '❌'} Like incoming encontrado: $hasLike');
+      return hasLike;
+    } catch (e) {
+      print('❌ Error en _hasIncomingLike: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _hasExistingMatch() async {
+    final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      print('❌ No hay usuario autenticado para verificar match');
+      return false;
+    }
+
+    try {
+      print('🔍 Buscando match existente: user1=$currentUserId, user2=${widget.userId}, type=profile');
+      final match = await SupabaseProvider.databaseService.getExistingMatch(currentUserId, widget.userId, 'profile', widget.userId)
+          .timeout(const Duration(seconds: 5));
+      
+      final hasMatch = match != null;
+      print('${hasMatch ? '✅' : '❌'} Match existente encontrado: $hasMatch');
+      return hasMatch;
+    } catch (e) {
+      print('❌ Error en _hasExistingMatch: $e');
+      return false;
     }
   }
 
@@ -247,23 +367,81 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           // BOTONES DE ACCIÓN
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton.icon(
-                                onPressed: _openChat,
-                                icon: const Icon(Icons.mail_outline),
-                                label: const Text(
-                                  'Enviar mensaje',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 2,
-                                ),
-                              ),
+                            child: FutureBuilder<List<bool>>(
+                              future: _buttonStateFuture,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    height: 52,
+                                    child: ElevatedButton(
+                                      onPressed: null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      child: const CircularProgressIndicator(color: Colors.white),
+                                    ),
+                                  );
+                                }
+                                
+                                if (snapshot.hasError) {
+                                  print('❌ Error en FutureBuilder: ${snapshot.error}');
+                                  return const SizedBox.shrink();
+                                }
+                                
+                                final hasMatch = snapshot.data?[0] ?? false;
+                                final hasIncomingLike = snapshot.data?[1] ?? false;
+                                
+                                print('📊 Estado botones - Match: $hasMatch, Like: $hasIncomingLike');
+                                
+                                // Si hay like incoming, PRIORIZAR "Devolver match"
+                                if (hasIncomingLike) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    height: 52,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _returnMatch,
+                                      icon: const Icon(Icons.favorite_rounded),
+                                      label: const Text(
+                                        'Devolver match',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                
+                                // Si ya existe match (sin like pendiente), mostrar "Enviar mensaje"
+                                if (hasMatch) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    height: 52,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _openChat,
+                                      icon: const Icon(Icons.mail_outline),
+                                      label: const Text(
+                                        'Enviar mensaje',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        elevation: 2,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                
+                                // No mostrar nada si no hay match ni like
+                                return const SizedBox.shrink();
+                              },
                             ),
                           ),
                           const SizedBox(height: 16),

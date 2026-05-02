@@ -135,6 +135,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadUserProfile().then((_) {
       _loadData();
     });
+    
+    // Inicializar notificaciones en tiempo real
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationsProvider = context.read<NotificationsProvider>();
+      notificationsProvider.loadNotifications();
+      print('📬 Cargando notificaciones en HomeScreen...');
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -917,7 +924,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // Like - guardar y verificar si hay match
+    // Like - solo guardar swipe y notificación (sin crear match automático)
     try {
       _showActionOverlay(Icons.favorite_rounded, Colors.green);
 
@@ -942,48 +949,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         publicationTitle: property.title,
         publicationType: 'departamento',
       );
+      
+      // ✅ VERIFICAR: ¿El otro usuario ya me dio like (swipe inverso)?
+      print('🔍 Verificando si $targetUserId ya dio like a $currentUserId...');
+      final hasIncomingLike = await SupabaseProvider.databaseService.hasSwipedLike(targetUserId, currentUserId);
+      print('${hasIncomingLike ? '✅' : '❌'} Incoming like: $hasIncomingLike');
+      
+      if (hasIncomingLike) {
+        // ✅ SI HAY LIKE MUTUO: crear match
+        print('💚 ¡MATCH MUTUO DETECTADO! Creando match...');
+        final existingMatch = await SupabaseProvider.databaseService
+            .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
 
-      final existingMatch = await SupabaseProvider.databaseService
-          .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
+        if (existingMatch == null) {
+          print('📝 Creando nuevo match: $currentUserId ↔️ $targetUserId');
+          final compatibility = _calculateCompatibility(targetUserId);
 
-      if (existingMatch == null) {
-        final compatibility = _calculateCompatibility(targetUserId);
+          final createdMatch = await SupabaseProvider.databaseService.createMatch(
+            Match(
+              userA: currentUserId,
+              userB: targetUserId,
+              compatibilityScore: compatibility.toDouble(),
+              contextType: contextType,
+              contextId: contextId,
+            ),
+          );
+          
+          print('✅ Match creado: ${createdMatch.id}');
 
-        await SupabaseProvider.databaseService.createMatch(
-          Match(
-            userA: currentUserId,
-            userB: targetUserId,
-            compatibilityScore: compatibility.toDouble(),
-            contextType: contextType,
-            contextId: contextId,
-          ),
-        );
+          // Crear notificación de MATCH a ambos usuarios
+          final targetProfile = _profileCache[targetUserId];
+          
+          await SupabaseProvider.databaseService.createNotification(
+            recipientUserId: targetUserId,
+            type: 'match',
+            senderUserId: currentUserId,
+            senderName: senderProfile?.fullName ?? 'Alguien',
+            senderProfileImageUrl: senderProfile?.profileImageUrl,
+            publicationId: contextId,
+            publicationTitle: property.title,
+            publicationType: contextType,
+          );
 
-        // Crear notificación de MATCH a ambos usuarios
-        final senderProfile = _profileCache[currentUserId];
-        final targetProfile = _profileCache[targetUserId];
-        
-        await SupabaseProvider.databaseService.createNotification(
-          recipientUserId: targetUserId,
-          type: 'match',
-          senderUserId: currentUserId,
-          senderName: senderProfile?.fullName ?? 'Alguien',
-          senderProfileImageUrl: senderProfile?.profileImageUrl,
-        );
-        
-        await SupabaseProvider.databaseService.createNotification(
-          recipientUserId: currentUserId,
-          type: 'match',
-          senderUserId: targetUserId,
-          senderName: targetProfile?.fullName ?? 'Alguien',
-          senderProfileImageUrl: targetProfile?.profileImageUrl,
-        );
+          await SupabaseProvider.databaseService.createNotification(
+            recipientUserId: currentUserId,
+            type: 'match',
+            senderUserId: targetUserId,
+            senderName: targetProfile?.fullName ?? 'Alguien',
+            senderProfileImageUrl: targetProfile?.profileImageUrl,
+            publicationId: contextId,
+            publicationTitle: property.title,
+            publicationType: contextType,
+          );
 
-        try {
-          await SupabaseProvider.messagesService.getOrCreateChat(existingMatch?.id ?? '');
-        } catch (e) {
-          print('⚠️ Error creando chat: $e');
+          print('💚 ¡MATCH CONFIRMADO Y NOTIFICACIONES ENVIADAS!');
+        } else {
+          print('ℹ️ Match ya existía: ${existingMatch.id}');
         }
+      } else {
+        print('⏳ Like enviado - Esperando reciprocidad de $targetUserId');
       }
     } catch (e) {
       print('❌ Error en el proceso de like: $e');
@@ -1000,6 +1024,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final targetUserId = search.userId;
     final contextType = 'search';
     final contextId = search.id;
+    
+    // Validar que contextId no sea null
+    if (contextId == null || contextId.isEmpty) {
+      print('⚠️ ID de búsqueda inválido, no se puede procesar el swipe');
+      setState(() {
+        _currentRoommateCardIndex++;
+      });
+      return;
+    }
     
     setState(() {
       _currentRoommateCardIndex++;
@@ -1046,28 +1079,71 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         publicationTitle: search.title,
         publicationType: 'roommate',
       );
+      
+      // ✅ VERIFICAR: ¿El otro usuario ya me dio like (swipe inverso)?
+      print('🔍 Verificando si $targetUserId ya dio like a $currentUserId...');
+      final hasIncomingLike = await SupabaseProvider.databaseService.hasSwipedLike(targetUserId, currentUserId);
+      print('${hasIncomingLike ? '✅' : '❌'} Incoming like: $hasIncomingLike');
+      
+      if (hasIncomingLike) {
+        // ✅ SI HAY LIKE MUTUO: crear match
+        print('💚 ¡MATCH MUTUO DETECTADO! Creando match...');
+        final existingMatch = await SupabaseProvider.databaseService
+            .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
 
-      final existingMatch = await SupabaseProvider.databaseService
-          .getExistingMatch(currentUserId, targetUserId, contextType, contextId);
+        if (existingMatch == null) {
+          print('📝 Creando nuevo match: $currentUserId ↔️ $targetUserId');
+          final compatibility = _calculateCompatibility(targetUserId);
 
-      if (existingMatch == null) {
-        final compatibility = _calculateCompatibility(targetUserId);
+          final createdMatch = await SupabaseProvider.databaseService.createMatch(
+            Match(
+              userA: currentUserId,
+              userB: targetUserId,
+              compatibilityScore: compatibility.toDouble(),
+              contextType: contextType,
+              contextId: contextId,
+            ),
+          );
+          
+          print('✅ Match creado: ${createdMatch.id}');
 
-        await SupabaseProvider.databaseService.createMatch(
-          Match(
-            userA: currentUserId,
-            userB: targetUserId,
-            compatibilityScore: compatibility.toDouble(),
-            contextType: contextType,
-            contextId: contextId,
-          ),
-        );
+          // Crear notificación de MATCH a ambos usuarios
+          final targetProfile = _profileCache[targetUserId];
+          
+          await SupabaseProvider.databaseService.createNotification(
+            recipientUserId: targetUserId,
+            type: 'match',
+            senderUserId: currentUserId,
+            senderName: senderProfile?.fullName ?? 'Alguien',
+            senderProfileImageUrl: senderProfile?.profileImageUrl,
+            publicationId: contextId,
+            publicationTitle: search.title,
+            publicationType: contextType,
+          );
 
-        try {
-          await SupabaseProvider.messagesService.getOrCreateChat(existingMatch?.id ?? '');
-        } catch (e) {
-          print('⚠️ Error creando chat: $e');
+          await SupabaseProvider.databaseService.createNotification(
+            recipientUserId: currentUserId,
+            type: 'match',
+            senderUserId: targetUserId,
+            senderName: targetProfile?.fullName ?? 'Alguien',
+            senderProfileImageUrl: targetProfile?.profileImageUrl,
+            publicationId: contextId,
+            publicationTitle: search.title,
+            publicationType: contextType,
+          );
+
+          try {
+            await SupabaseProvider.messagesService.getOrCreateChat(createdMatch.id);
+          } catch (e) {
+            print('⚠️ Error creando chat: $e');
+          }
+
+          print('💚 ¡MATCH CONFIRMADO Y NOTIFICACIONES ENVIADAS!');
+        } else {
+          print('ℹ️ Match ya existía: ${existingMatch.id}');
         }
+      } else {
+        print('⏳ Like enviado - Esperando reciprocidad de $targetUserId');
       }
     } catch (e) {
       print('❌ Error en el proceso de like: $e');

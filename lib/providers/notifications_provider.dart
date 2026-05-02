@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 import '../models/notification.dart';
 import '../config/supabase_provider.dart';
 
@@ -8,6 +9,9 @@ class NotificationsProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   RealtimeChannel? _channel;
+  bool _isSubscribed = false; // ✅ NUEVO: Flag para evitar múltiples suscripciones
+  Timer? _debounceTimer; // ✅ NUEVO: Timer para debounce de notifyListeners
+  bool _pendingNotification = false; // ✅ NUEVO: Flag para saber si hay cambios pendientes
 
   List<Notification> get notifications => _notifications;
   bool get isLoading => _isLoading;
@@ -16,11 +20,35 @@ class NotificationsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel(); // ✅ NUEVO: Limpiar timer
     _unsubscribeFromRealtime();
     super.dispose();
   }
 
+  /// ✅ NUEVO: Notificar cambios con debounce (máximo 1 notificación por 500ms)
+  void _notifyChangesDebounced() {
+    _pendingNotification = true;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_pendingNotification) {
+        notifyListeners();
+        _pendingNotification = false;
+        if (kDebugMode) {
+          print('🔔 Notificaciones actualizadas (debounced)');
+        }
+      }
+    });
+  }
+
   Future<void> loadNotifications() async {
+    // ✅ GUARD: Evitar múltiples cargas simultáneas
+    if (_isLoading) {
+      if (kDebugMode) {
+        print('⏳ Ya se está cargando, ignorando nueva solicitud');
+      }
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -31,7 +59,14 @@ class NotificationsProvider extends ChangeNotifier {
         _error = 'Usuario no autenticado';
         _isLoading = false;
         notifyListeners();
+        if (kDebugMode) {
+          print('⚠️ Usuario no autenticado para cargar notificaciones');
+        }
         return;
+      }
+
+      if (kDebugMode) {
+        print('📥 Iniciando carga de notificaciones para usuario: $userId');
       }
 
       // Cargar notificaciones de Supabase (tabla: notifications)
@@ -44,23 +79,37 @@ class NotificationsProvider extends ChangeNotifier {
 
       if (response.isEmpty) {
         _notifications = [];
+        if (kDebugMode) {
+          print('ℹ️ No hay notificaciones para este usuario');
+        }
       } else {
         _notifications = (response as List)
             .map((data) => Notification.fromJson(data as Map<String, dynamic>))
             .toList();
+        if (kDebugMode) {
+          print('✅ Notificaciones cargadas: ${_notifications.length}');
+          for (var notif in _notifications) {
+            print('  - ${notif.type}: ${notif.message}');
+          }
+        }
       }
 
-      if (kDebugMode) {
-        print('✅ Notificaciones cargadas: ${_notifications.length}');
+      // ✅ NUEVO: Solo iniciar realtime si aún no está suscrito
+      if (!_isSubscribed) {
+        if (kDebugMode) {
+          print('🔌 Inicializando realtime para usuario: $userId');
+        }
+        _subscribeToRealtimeNotifications(userId);
+        _isSubscribed = true;
+      } else if (kDebugMode) {
+        print('✅ Ya estamos suscritos a realtime, no reinicializando');
       }
-
-      // Iniciar escucha de notificaciones en tiempo real
-      _subscribeToRealtimeNotifications(userId);
     } catch (e) {
       if (kDebugMode) {
-        print('Error cargando notificaciones: $e');
+        print('❌ Error cargando notificaciones: $e');
       }
       _notifications = [];
+      _error = 'Error cargando notificaciones';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -70,13 +119,18 @@ class NotificationsProvider extends ChangeNotifier {
   void _subscribeToRealtimeNotifications(String userId) {
     _unsubscribeFromRealtime();
 
-    final channelName = 'notifications_${DateTime.now().millisecondsSinceEpoch}_$userId';
+    // ✅ Usar un nombre de canal consistente (sin timestamp) para evitar múltiples suscripciones
+    final channelName = 'notifications:recipient_user_id=eq.$userId';
     _channel = SupabaseProvider.client.channel(
       channelName,
       opts: const RealtimeChannelConfig(
         ack: true,
       ),
     );
+
+    if (kDebugMode) {
+      print('🔄 Creando canal realtime: $channelName');
+    }
 
     _channel!
         .onPostgresChanges(
@@ -91,6 +145,10 @@ class NotificationsProvider extends ChangeNotifier {
           ),
           callback: (payload) {
             try {
+              if (kDebugMode) {
+                print('🔔 Evento INSERT recibido: ${payload.newRecord}');
+              }
+              
               final newRecord = payload.newRecord;
               // Validar que sea un Map válido
               if (newRecord is! Map<String, dynamic>) {
@@ -101,13 +159,17 @@ class NotificationsProvider extends ChangeNotifier {
               }
               
               final newNotification = Notification.fromJson(newRecord);
-              // Verificar que no sea duplicado
-              final isDuplicate = _notifications.any((n) => n.id == newNotification.id);
+              // ✅ DEDUPLICACIÓN ROBUSTA: Verificar por ID y timestamp para evitar duplicados
+              final isDuplicate = _notifications.any((n) => 
+                n.id == newNotification.id &&
+                n.createdAt == newNotification.createdAt
+              );
               if (!isDuplicate) {
                 _notifications.insert(0, newNotification);
-                notifyListeners();
+                // ✅ NUEVO: Usar debounce en lugar de notifyListeners directo
+                _notifyChangesDebounced();
                 if (kDebugMode) {
-                  print('✅ 📨 REALTIME: Notificación recibida: ${newNotification.message}');
+                  print('✅ 📨 REALTIME: Notificación recibida: ${newNotification.message} (ID: ${newNotification.id})');
                 }
               } else if (kDebugMode) {
                 print('⚠️ Notificación duplicada ignorada: ${newNotification.id}');
@@ -135,7 +197,8 @@ class NotificationsProvider extends ChangeNotifier {
                 final deletedId = oldRecord['id'] as String?;
                 if (deletedId != null) {
                   _notifications.removeWhere((n) => n.id == deletedId);
-                  notifyListeners();
+                  // ✅ NUEVO: Usar debounce en lugar de notifyListeners directo
+                  _notifyChangesDebounced();
                   if (kDebugMode) {
                     print('🗑️ Notificación eliminada: $deletedId');
                   }
@@ -155,6 +218,13 @@ class NotificationsProvider extends ChangeNotifier {
               print('❌ Error de suscripción: $error');
             }
           }
+          
+          // Si la suscripción fue exitosa
+          if (status == 'SUBSCRIBED' || status.toString() == 'RealtimeSubscriptionStatus.subscribed') {
+            if (kDebugMode) {
+              print('✅ Canal realtime ACTIVO para usuario: $userId');
+            }
+          }
         });
     
     if (kDebugMode) {
@@ -166,6 +236,10 @@ class NotificationsProvider extends ChangeNotifier {
     if (_channel != null) {
       SupabaseProvider.client.removeChannel(_channel!);
       _channel = null;
+      _isSubscribed = false; // ✅ NUEVO: Resetear flag al desuscribirse
+      if (kDebugMode) {
+        print('🔌 Desuscrito del realtime');
+      }
     }
   }
 
