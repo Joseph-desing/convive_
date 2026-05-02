@@ -303,12 +303,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: isUnread 
-              ? _getNotificationColor(notification.type).withOpacity(0.08)
+              ? _getNotificationColor(notification).withOpacity(0.08)
               : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isUnread 
-                ? _getNotificationColor(notification.type).withOpacity(0.4)
+                ? _getNotificationColor(notification).withOpacity(0.4)
                 : Colors.grey.withOpacity(0.15),
               width: isUnread ? 2 : 1,
             ),
@@ -334,13 +334,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
-                        color: _getNotificationColor(notification.type),
+                        color: _getNotificationColor(notification),
                         width: 2.5,
                       ),
                       gradient: LinearGradient(
                         colors: [
-                          _getNotificationColor(notification.type).withOpacity(0.1),
-                          _getNotificationColor(notification.type).withOpacity(0.05),
+                          _getNotificationColor(notification).withOpacity(0.1),
+                          _getNotificationColor(notification).withOpacity(0.05),
                         ],
                       ),
                     ),
@@ -407,11 +407,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             width: 12,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: _getNotificationColor(notification.type),
+                              color: _getNotificationColor(notification),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: _getNotificationColor(notification.type).withOpacity(0.4),
+                                  color: _getNotificationColor(notification).withOpacity(0.4),
                                   blurRadius: 4,
                                 ),
                               ],
@@ -479,12 +479,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getNotificationColor(notification.type).withOpacity(0.15),
+                      color: _getNotificationColor(notification).withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _getNotificationIcon(notification.type),
-                      color: _getNotificationColor(notification.type),
+                      _getNotificationIcon(notification),
+                      color: _getNotificationColor(notification),
                       size: 20,
                     ),
                   ),
@@ -515,8 +515,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         borderRadius: BorderRadius.circular(26),
         gradient: LinearGradient(
           colors: [
-            _getNotificationColor(notification.type).withOpacity(0.3),
-            _getNotificationColor(notification.type).withOpacity(0.1),
+                _getNotificationColor(notification).withOpacity(0.3),
+                _getNotificationColor(notification).withOpacity(0.1),
           ],
         ),
       ),
@@ -526,15 +526,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: _getNotificationColor(notification.type),
+                color: _getNotificationColor(notification),
           ),
         ),
       ),
     );
   }
 
-  IconData _getNotificationIcon(String type) {
-    switch (type) {
+      bool _isProfileMatch(notification_model.Notification notification) {
+        final normalizedTitle = (notification.publicationTitle ?? '').trim().toLowerCase();
+        return notification.type == 'match' &&
+            (notification.publicationType == 'profile' ||
+             notification.senderName == null ||
+             notification.senderName!.isEmpty ||
+             normalizedTitle == 'nuevo match' ||
+             normalizedTitle == '¡nuevo match!' ||
+             normalizedTitle == '!nuevo match!');
+      }
+
+      IconData _getNotificationIcon(notification_model.Notification notification) {
+        if (_isProfileMatch(notification)) {
+          return Icons.favorite_rounded;
+        }
+
+        switch (notification.type) {
       case 'match':
         return Icons.person;
       case 'match_confirmed':
@@ -550,8 +565,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Color _getNotificationColor(String type) {
-    switch (type) {
+  Color _getNotificationColor(notification_model.Notification notification) {
+    if (_isProfileMatch(notification)) {
+      return Colors.green;
+    }
+
+    switch (notification.type) {
       case 'match':
         return Colors.red;
       case 'match_confirmed':

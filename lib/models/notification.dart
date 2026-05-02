@@ -42,6 +42,12 @@ class Notification {
   String get message {
     switch (type) {
       case 'match':
+        // Si es de tipo 'profile' o viene sin contexto, es una devolución de match bilateral
+        if (publicationType == 'profile' || _looksLikeReturnMatch) {
+          return senderName != null && senderName!.isNotEmpty
+              ? 'Genial, $senderName te devolvió el 💚'
+              : 'Genial, alguien te devolvió el 💚';
+        }
         return '${senderName ?? 'Alguien'} te dió match ❤️';
       case 'match_confirmed':
         return senderName != null && senderName!.isNotEmpty
@@ -65,11 +71,13 @@ class Notification {
   String get title {
     switch (type) {
       case 'match':
+        // En devoluciones de match, el título siempre debe ser genérico
+        if (publicationType == 'profile' || _looksLikeReturnMatch) {
+          return '¡Genial!';
+        }
         return '${senderName ?? 'Nuevo match'}';
       case 'match_confirmed':
-        return senderName != null && senderName!.isNotEmpty
-            ? senderName!
-            : '¡Genial!';
+        return '¡Genial!';
       case 'like':
         return '${senderName ?? 'Nuevo like'}';
       case 'system':
@@ -77,6 +85,14 @@ class Notification {
       default:
         return publicationTitle ?? 'Notificación';
     }
+  }
+
+  bool get _looksLikeReturnMatch {
+    final normalizedTitle = (publicationTitle ?? '').trim().toLowerCase();
+    return senderName == null || senderName!.isEmpty ||
+        normalizedTitle == 'nuevo match' ||
+        normalizedTitle == '¡nuevo match!' ||
+        normalizedTitle == '!nuevo match!';
   }
 
   Map<String, dynamic> toJson() => {

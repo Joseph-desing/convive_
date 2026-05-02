@@ -60,10 +60,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       
       await SupabaseProvider.databaseService.createMatch(match);
       
-      // Enviar notificación al usuario que hizo el like original
+      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
+      print('📬 Enviando notificación a ${widget.property.ownerId}...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.property.ownerId,
-        type: 'match_confirmed',
+        type: 'match',
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
@@ -71,7 +72,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         publicationTitle: widget.property.title,
         publicationType: 'departamento',
       );
-      
       print('💚 Match confirmado y notificación enviada al propietario');
       
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));

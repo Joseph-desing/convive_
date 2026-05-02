@@ -37,6 +37,15 @@ class NotificationsProvider extends ChangeNotifier {
     return deduped;
   }
 
+  bool _shouldShowNotification(Notification notification, String currentUserId) {
+    if (notification.type == 'match' &&
+        notification.senderUserId == currentUserId) {
+      return false;
+    }
+
+    return true;
+  }
+
   List<Notification> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -107,9 +116,11 @@ class NotificationsProvider extends ChangeNotifier {
           print('ℹ️ No hay notificaciones para este usuario');
         }
       } else {
-        _notifications = _dedupeNotifications((response as List)
+        final loadedNotifications = (response as List)
             .map((data) => Notification.fromJson(data as Map<String, dynamic>))
-            .toList());
+            .where((notification) => _shouldShowNotification(notification, userId));
+
+        _notifications = _dedupeNotifications(loadedNotifications.toList());
         if (kDebugMode) {
           print('✅ Notificaciones cargadas: ${_notifications.length}');
           for (var notif in _notifications) {
@@ -183,6 +194,12 @@ class NotificationsProvider extends ChangeNotifier {
               }
               
               final newNotification = Notification.fromJson(newRecord);
+              if (!_shouldShowNotification(newNotification, userId)) {
+                if (kDebugMode) {
+                  print('⚠️ Notificación de match propia ignorada: ${newNotification.id}');
+                }
+                return;
+              }
               // ✅ DEDUPLICACIÓN ROBUSTA: Verificar por ID y timestamp para evitar duplicados
               final isDuplicate = _notifications.any((n) => _notificationKey(n) == _notificationKey(newNotification));
               if (!isDuplicate) {

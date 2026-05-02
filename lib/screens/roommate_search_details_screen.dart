@@ -61,10 +61,11 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
       
       await SupabaseProvider.databaseService.createMatch(match);
       
-      // Enviar notificación al usuario que hizo el like original
+      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
+      print('📬 Enviando notificación a ${widget.search.userId}...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.search.userId,
-        type: 'match_confirmed',
+        type: 'match',
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
@@ -72,7 +73,6 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
         publicationTitle: widget.search.title,
         publicationType: 'roommate',
       );
-      
       print('💚 Match confirmado y notificación enviada al autor de la búsqueda');
       
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));

@@ -105,11 +105,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
       print('✅ Match creado con ID: ${createdMatch.id}');
       
-      // Enviar notificación al usuario que hizo el like original
+      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
       print('📬 Enviando notificación a ${widget.userId}...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.userId,
-        type: 'match_confirmed',
+        type: 'match',
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
@@ -117,7 +117,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         publicationTitle: currentProfile?.fullName ?? 'Alguien',
         publicationType: 'profile',
       );
-      
       print('💚 Match confirmado y notificación enviada al usuario');
       
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));

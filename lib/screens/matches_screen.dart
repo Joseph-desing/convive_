@@ -180,8 +180,8 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     // Compañero/a: Matches donde diste like a búsqueda de roommate (contextType='search')
     return _matches.where((m) {
       if (m.contextType != null && m.contextType!.isNotEmpty) {
-        // ✅ CORRECTO: Mostrar matches de búsqueda (search) en "Compañero/a"
-        return m.contextType == 'search';
+        // Mostrar matches de búsqueda/perfil: aceptar 'search', 'roommate_search' y 'profile'
+        return m.contextType == 'search' || m.contextType == 'roommate_search' || m.contextType == 'profile';
       }
       // Fallback si no hay contextType
       return false;
@@ -595,33 +595,33 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: match.contextType == 'search'
-                                    ? Colors.orange.shade100
-                                    : Colors.blue.shade100,
+                                color: (match.contextType == 'search' || match.contextType == 'roommate_search' || match.contextType == 'profile')
+                                  ? Colors.orange.shade100
+                                  : Colors.blue.shade100,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    match.contextType == 'search'
-                                        ? Icons.people
-                                        : Icons.apartment,
-                                    color: match.contextType == 'search'
-                                        ? Colors.orange.shade700
-                                        : Colors.blue.shade700,
+                                    (match.contextType == 'search' || match.contextType == 'roommate_search' || match.contextType == 'profile')
+                                      ? Icons.people
+                                      : Icons.apartment,
+                                    color: (match.contextType == 'search' || match.contextType == 'roommate_search' || match.contextType == 'profile')
+                                      ? Colors.orange.shade700
+                                      : Colors.blue.shade700,
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
-                                      match.contextType == 'search'
+                                        (match.contextType == 'search' || match.contextType == 'roommate_search' || match.contextType == 'profile')
                                           ? '👤 Busca compañero/a'
                                           : '🏠 Busca departamento',
-                                      style: TextStyle(
-                                        color: match.contextType == 'search'
-                                            ? Colors.orange.shade700
-                                            : Colors.blue.shade700,
+                                        style: TextStyle(
+                                        color: (match.contextType == 'search' || match.contextType == 'roommate_search' || match.contextType == 'profile')
+                                          ? Colors.orange.shade700
+                                          : Colors.blue.shade700,
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                       ),
