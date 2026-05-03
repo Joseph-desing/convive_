@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/match.dart';
 import '../models/profile.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
 import '../screens/match_profile_screen.dart';
-import '../providers/notifications_provider.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -19,38 +18,18 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   bool _isLoading = true;
   List<Match> _matches = [];
   final Map<String, Profile> _profileCache = {};
-  final Map<String, String> _userTypeCache = {}; // 'property' o 'search'
+  final Map<String, String> _userTypeCache = {};
+  Map<String, bool> _unreadByMatch = {};
+  final Map<String, String> _chatToMatch = {}; // chatId → matchId para realtime
+  RealtimeChannel? _messagesChannel;
   TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
+    _unreadByMatch = {}; // garantizar inicialización en este State
     WidgetsBinding.instance.addObserver(this);
     _loadMatches();
-    
-    // ✅ NUEVO: Escuchar notificaciones de match para recargar automáticamente
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final notificationsProvider = context.read<NotificationsProvider>();
-      notificationsProvider.addListener(_onNotificationsChanged);
-    });
-  }
-
-  /// ✅ Callback cuando llegan nuevas notificaciones
-  void _onNotificationsChanged() {
-    // ✅ Verificar mounted ANTES de usar context
-    if (!mounted) return;
-
-    final notificationsProvider = context.read<NotificationsProvider>();
-
-    // Verificar si hay nuevas notificaciones de 'match'
-    final hasNewMatchNotification = notificationsProvider.notifications.any(
-      (n) => n.type == 'match' && !n.isRead,
-    );
-
-    if (hasNewMatchNotification) {
-      print('🔔 Nueva notificación de match detectada - Recargando matches...');
-      _loadMatches();
-    }
   }
 
   @override
@@ -71,14 +50,28 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // ✅ NUEVO: Remover listener de notificaciones
-    try {
-      context.read<NotificationsProvider>().removeListener(_onNotificationsChanged);
-    } catch (e) {
-      // Si falla, ignorar (el context podría no estar disponible)
-    }
+    _messagesChannel?.unsubscribe();
     _tabController?.dispose();
     super.dispose();
+  }
+
+  /// Accede al estado de no-leído de forma segura.
+  /// Protege contra el campo siendo `undefined` en hot reload de Dart Web.
+  bool _getUnread(String matchId) {
+    try {
+      return _unreadByMatch[matchId] ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Marca un match como leído de forma segura.
+  void _setUnread(String matchId, bool value) {
+    try {
+      _unreadByMatch[matchId] = value;
+    } catch (_) {
+      _unreadByMatch = {matchId: value};
+    }
   }
 
   Future<void> _loadMatches() async {
@@ -91,42 +84,132 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
         return;
       }
 
-      // Cargar matches desde la base de datos
       final matchesData = await SupabaseProvider.databaseService.getUserMatches(currentUserId);
-      print('📊 Matches cargados: ${matchesData.length}');
       
-      // Precargar perfiles de los matches
       final userIds = matchesData.expand((m) => [m.userA, m.userB])
           .where((id) => id != currentUserId)
           .toSet();
       
-      print('👥 IDs a precargar: ${userIds.length}');
       await _preloadProfiles(userIds);
       await _preloadUserTypes(userIds);
-      
-      print('✅ Caché de perfiles: ${_profileCache.length} perfiles cargados');
       
       if (mounted) {
         setState(() {
           _matches = matchesData;
           _isLoading = false;
         });
-        
-        // ✅ DEBUG: Mostrar matches cargados y su distribución
-        final companeroMatches = _getCompaneroMatches();
-        final departamentoMatches = _getDepartamentoMatches();
-        print('📊 DEBUG MatchesScreen:');
-        print('  - Total matches: ${_matches.length}');
-        print('  - Compañero/a: ${companeroMatches.length}');
-        print('  - Departamento: ${departamentoMatches.length}');
-        for (final m in _matches) {
-          print('    • Match ${m.id.substring(0, 8)}: contextType=${m.contextType}, contextId=${m.contextId?.substring(0, 8) ?? 'null'}');
-        }
+        // Cargar badges de mensajes sin leer (operación separada, sin bloquear UI)
+        _loadUnreadStatus(matchesData);
       }
     } catch (e) {
       print('❌ Error cargando matches: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Verifica para cada match si hay mensajes no leídos.
+  /// Hace UN SOLO setState al final para no causar rebuilds en cascada.
+  Future<void> _loadUnreadStatus(List<Match> matches) async {
+    final me = SupabaseProvider.client.auth.currentUser?.id;
+    if (me == null) return;
+
+    final Map<String, bool> results = {};
+
+    for (final match in matches) {
+      if (!mounted) return;
+      try {
+        // 1. Obtener el chat de este match
+        final chatData = await SupabaseProvider.client
+            .from('chats')
+            .select('id')
+            .eq('match_id', match.id)
+            .maybeSingle();
+
+        if (chatData == null) { results[match.id] = false; continue; }
+        final chatId = chatData['id'] as String;
+        _chatToMatch[chatId] = match.id; // guardar mapeo para realtime
+
+        // 2. Obtener el último mensaje que NO sea mío
+        final lastMsg = await SupabaseProvider.client
+            .from('messages')
+            .select('sender_id, created_at')
+            .eq('chat_id', chatId)
+            .neq('sender_id', me)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (lastMsg == null) { results[match.id] = false; continue; }
+
+        // 3. Comparar con cuándo leí por última vez
+        final readData = await SupabaseProvider.client
+            .from('chat_reads')
+            .select('last_read_at')
+            .eq('chat_id', chatId)
+            .eq('user_id', me)
+            .maybeSingle();
+
+        if (readData == null) {
+          results[match.id] = true; // Nunca ha leído
+        } else {
+          final lastReadAt = readData['last_read_at'];
+          if (lastReadAt == null) {
+            results[match.id] = true;
+          } else {
+            final msgTime = DateTime.parse(lastMsg['created_at']);
+            final readTime = DateTime.parse(lastReadAt);
+            results[match.id] = msgTime.isAfter(readTime);
+          }
+        }
+      } catch (_) {
+        results[match.id] = false;
+      }
+    }
+
+    // ✅ Un solo setState con TODOS los resultados
+    if (mounted) setState(() => _unreadByMatch.addAll(results));
+
+    // Activar suscripción realtime después de conocer el mapeo chatId → matchId
+    _subscribeToMessages();
+  }
+
+  /// Suscripción Realtime para detectar mensajes nuevos en tiempo real.
+  void _subscribeToMessages() {
+    final me = SupabaseProvider.client.auth.currentUser?.id;
+    if (me == null || _chatToMatch.isEmpty) return;
+
+    // Cancelar suscripción anterior si existe
+    _messagesChannel?.unsubscribe();
+
+    _messagesChannel = SupabaseProvider.client
+        .channel('matches_messages_$me')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            if (!mounted) return;
+            try {
+              final record = payload.newRecord;
+              final senderId = record['sender_id'] as String?;
+              final chatId = record['chat_id'] as String?;
+
+              // Solo procesar mensajes del OTRO usuario
+              if (senderId == null || chatId == null) return;
+              if (senderId == me) return;
+
+              // Buscar a qué match pertenece este chat
+              final matchId = _chatToMatch[chatId];
+              if (matchId == null) return;
+
+              // Activar badge ✅
+              if (mounted) {
+                setState(() => _setUnread(matchId, true));
+              }
+            } catch (_) {}
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _preloadProfiles(Set<String> userIds) async {
@@ -679,11 +762,32 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                       Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          _buildMatchActionButton(
-                            icon: Icons.chat_bubble,
-                            backgroundColor: Colors.pink.shade600,
-                            iconColor: Colors.white,
-                            onTap: () => _openChat(match),
+                          // Botón de chat con badge de no leído
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              _buildMatchActionButton(
+                                icon: Icons.chat_bubble,
+                                backgroundColor: Colors.pink.shade600,
+                                iconColor: Colors.white,
+                                onTap: () => _openChat(match),
+                              ),
+                              // 🔴 Punto rojo si hay mensajes sin leer
+                              if (match.id.isNotEmpty && _getUnread(match.id))
+                                Positioned(
+                                  right: -1,
+                                  top: -1,
+                                  child: Container(
+                                    width: 13,
+                                    height: 13,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade500,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(width: 14),
                           _buildMatchActionButton(
@@ -748,12 +852,20 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
   }
 
   void _openChat(Match match) {
+    // Limpiar badge inmediatamente (UX instantánea)
+    if (mounted && _getUnread(match.id)) {
+      setState(() => _setUnread(match.id, false));
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatScreen(matchId: match.id),
       ),
-    );
+    ).then((_) {
+      // Al volver del chat, refrescar badges para todos los matches
+      _loadUnreadStatus(_matches);
+    });
   }
 
   void _openProfile(String userId) {
