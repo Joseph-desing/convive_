@@ -14,12 +14,16 @@ class NotificationsProvider extends ChangeNotifier {
   bool _pendingNotification = false; // ✅ NUEVO: Flag para saber si hay cambios pendientes
 
   String _notificationKey(Notification notification) {
+    // ✅ Normalizar: 'match' y 'match_confirmed' del mismo sender se consideran
+    // el mismo tipo para deduplicación (evita duplicados históricos en BD)
+    final normalizedType = (notification.type == 'match' || notification.type == 'match_confirmed')
+        ? 'match_any'
+        : notification.type;
+
     return [
-      notification.type,
+      normalizedType,
       notification.senderUserId ?? '',
       notification.publicationId ?? '',
-      notification.publicationType ?? '',
-      notification.publicationTitle ?? '',
     ].join('|');
   }
 

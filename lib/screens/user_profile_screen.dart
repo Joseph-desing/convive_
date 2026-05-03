@@ -129,6 +129,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
       print('✅ Match creado con ID: ${createdMatch.id}');
 
+      // ✅ Limpiar notificaciones antiguas de match entre estos dos usuarios
+      // para evitar que queden duplicadas del código anterior o de intentos fallidos
+      await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
+        recipientUserId: widget.userId,
+        senderUserId: currentUserId,
+      );
+      print('🗑️ Notificaciones antiguas limpiadas');
+
       // ✅ Notificación con publicationType correcto según contexto
       final notifPubType = contextType == 'property' ? 'departamento' : (contextType == 'search' ? 'roommate' : 'profile');
       print('📬 Enviando notificación a ${widget.userId} (pubType=$notifPubType)...');

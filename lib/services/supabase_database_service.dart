@@ -589,10 +589,40 @@ class SupabaseDatabaseService {
   }
 
   // ==================== NOTIFICACIONES ====================
+  /// Eliminar notificaciones antiguas de match/match_confirmed entre dos usuarios.
+  /// Se llama antes de crear la notificación de "devolver match" para evitar duplicados.
+  Future<void> deleteMatchNotificationsFrom({
+    required String recipientUserId,
+    required String senderUserId,
+  }) async {
+    try {
+      // ✅ Eliminar notificaciones donde sender = currentUser (las del código nuevo)
+      await _supabase
+          .from('notifications')
+          .delete()
+          .eq('recipient_user_id', recipientUserId)
+          .eq('sender_user_id', senderUserId)
+          .or('type.eq.match,type.eq.match_confirmed');
+
+      // ✅ También eliminar notificaciones de match SIN sender_user_id
+      // (las antiguas creadas sin nombre que se escapan del filtro anterior)
+      await _supabase
+          .from('notifications')
+          .delete()
+          .eq('recipient_user_id', recipientUserId)
+          .isFilter('sender_user_id', null)
+          .or('type.eq.match,type.eq.match_confirmed');
+
+      print('🗑️ Notificaciones antiguas de match eliminadas: $senderUserId → $recipientUserId');
+    } catch (e) {
+      print('❌ Error eliminando notificaciones antiguas: $e');
+    }
+  }
+
   /// Crear una notificación
   Future<void> createNotification({
     required String recipientUserId,
-    required String type, // 'match', 'like', 'system'
+    required String type, // 'match', 'match_confirmed', 'like', 'system'
     String? senderUserId,
     String? senderName,
     String? senderProfileImageUrl,
@@ -601,22 +631,23 @@ class SupabaseDatabaseService {
     String? publicationType, // 'roommate' o 'departamento'
   }) async {
     try {
-      final duplicateQuery = _supabase
+      // ✅ FIX: usar `var` y reasignar para que los filtros encadenados no se descarten
+      var duplicateQuery = _supabase
           .from('notifications')
           .select('id')
           .eq('recipient_user_id', recipientUserId)
           .eq('type', type);
 
       if (senderUserId != null && senderUserId.isNotEmpty) {
-        duplicateQuery.eq('sender_user_id', senderUserId);
+        duplicateQuery = duplicateQuery.eq('sender_user_id', senderUserId);
       }
 
       if (publicationId != null && publicationId.isNotEmpty) {
-        duplicateQuery.eq('publication_id', publicationId);
+        duplicateQuery = duplicateQuery.eq('publication_id', publicationId);
       }
 
       if (publicationType != null && publicationType.isNotEmpty) {
-        duplicateQuery.eq('publication_type', publicationType);
+        duplicateQuery = duplicateQuery.eq('publication_type', publicationType);
       }
 
       final existing = await duplicateQuery.limit(1).maybeSingle();
@@ -635,7 +666,6 @@ class SupabaseDatabaseService {
         'publication_title': publicationTitle,
         'publication_type': publicationType,
         'read': false,
-        // Supabase generará created_at con now() automáticamente en el servidor
       });
       print('📨 Notificación creada: $type para $recipientUserId');
     } catch (e) {

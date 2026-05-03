@@ -42,14 +42,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   Future<void> _returnMatch() async {
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inicia sesión para devolver el match')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inicia sesión para devolver el match')));
       return;
     }
 
     try {
-      // Obtener perfil del usuario actual para la notificación
       final currentProfile = await SupabaseProvider.databaseService.getProfile(currentUserId);
-      
+
+      // ✅ Crear match con contextType='property' y contextId=propertyId
       final match = Match(
         userA: currentUserId,
         userB: widget.property.ownerId,
@@ -57,14 +57,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         contextType: 'property',
         contextId: widget.property.id,
       );
-      
       await SupabaseProvider.databaseService.createMatch(match);
-      
-      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
-      print('📬 Enviando notificación a ${widget.property.ownerId}...');
+
+      // ✅ Limpiar notificaciones antiguas antes de crear la nueva
+      await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
+        recipientUserId: widget.property.ownerId,
+        senderUserId: currentUserId,
+      );
+
+      // ✅ Notificación con tipo match_confirmed y publicationType correcto
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.property.ownerId,
-        type: 'match',
+        type: 'match_confirmed',
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
@@ -73,16 +77,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         publicationType: 'departamento',
       );
       print('💚 Match confirmado y notificación enviada al propietario');
-      
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
-      
-      // Esperar un poco y volver atrás para que se recarguen los matches
+
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
+
       await Future.delayed(const Duration(milliseconds: 1000));
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 

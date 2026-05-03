@@ -35,16 +35,19 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     });
   }
 
-  /// ✅ NUEVO: Callback cuando llegan nuevas notificaciones
+  /// ✅ Callback cuando llegan nuevas notificaciones
   void _onNotificationsChanged() {
+    // ✅ Verificar mounted ANTES de usar context
+    if (!mounted) return;
+
     final notificationsProvider = context.read<NotificationsProvider>();
-    
+
     // Verificar si hay nuevas notificaciones de 'match'
     final hasNewMatchNotification = notificationsProvider.notifications.any(
       (n) => n.type == 'match' && !n.isRead,
     );
-    
-    if (hasNewMatchNotification && mounted) {
+
+    if (hasNewMatchNotification) {
       print('🔔 Nueva notificación de match detectada - Recargando matches...');
       _loadMatches();
     }

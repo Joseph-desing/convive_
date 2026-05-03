@@ -5,9 +5,7 @@ import '../utils/colors.dart';
 import '../models/notification.dart' as notification_model;
 import '../providers/notifications_provider.dart';
 import '../config/supabase_provider.dart';
-import 'property_details_screen.dart';
-import 'roommate_search_details_screen.dart';
-import 'user_profile_screen.dart';
+import 'notification_match_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -597,31 +595,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'match':
       case 'like':
       case 'match_confirmed':
-        // Navegar al perfil del usuario que dio match/like,
-        // pasando el contexto de la publicación para que _returnMatch() sea correcto
         if (mounted && notification.senderUserId != null) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => UserProfileScreen(
-                userId: notification.senderUserId!,
-                senderUserId: notification.senderUserId,
-                publicationType: notification.publicationType, // ✅ 'roommate' | 'departamento'
-                publicationId: notification.publicationId,    // ✅ ID real de la publicación
+              builder: (_) => NotificationMatchScreen(
+                senderUserId: notification.senderUserId!,
+                publicationType: notification.publicationType,
+                publicationId: notification.publicationId,
               ),
             ),
           );
         }
         break;
       case 'message':
-        // Cerrar notificaciones
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context);
         break;
       case 'system':
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context);
         break;
       default:
         break;
