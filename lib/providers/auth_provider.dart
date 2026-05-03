@@ -104,8 +104,8 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         emailRedirectTo: kIsWeb
-            ? 'https://convive-app-6debf.web.app' // Web: usa el Site URL (GoRouter detecta la sesión)
-            : 'com.example.convive://login-callback', // Mobile: deep link (agregar en Supabase whitelist)
+            ? 'https://convive-app-6debf.web.app/#/email-confirmed' // Flutter Web
+            : 'com.example.convive://login-callback', // Mobile deep link
       );
 
       // Esperar a que el trigger cree el usuario en BD
@@ -262,8 +262,8 @@ class AuthProvider extends ChangeNotifier {
       await SupabaseProvider.client.auth.resetPasswordForEmail(
         email,
         redirectTo: kIsWeb 
-          ? 'https://convive-app-6debf.web.app/reset-password' // ✅ Ya está en whitelist de Supabase
-          : 'com.example.convive://reset-password',             // ✅ Ya está en whitelist de Supabase
+          ? 'https://convive-app-6debf.web.app/#/reset-password' // Flutter Web hash routing
+          : 'com.example.convive://reset-password',              // Mobile deep link
       );
 
       print('✅ Email de recuperación enviado');
