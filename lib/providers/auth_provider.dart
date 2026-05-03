@@ -103,6 +103,9 @@ class AuthProvider extends ChangeNotifier {
       final authResponse = await SupabaseProvider.authService.signUp(
         email: email,
         password: password,
+        emailRedirectTo: kIsWeb
+            ? 'https://convive-app-6debf.web.app' // Web: usa el Site URL (GoRouter detecta la sesión)
+            : 'com.example.convive://login-callback', // Mobile: deep link (agregar en Supabase whitelist)
       );
 
       // Esperar a que el trigger cree el usuario en BD
@@ -259,8 +262,8 @@ class AuthProvider extends ChangeNotifier {
       await SupabaseProvider.client.auth.resetPasswordForEmail(
         email,
         redirectTo: kIsWeb 
-          ? 'https://convive-app-6debf.web.app/reset-password'
-          : 'com.example.convive://reset-password',
+          ? 'https://convive-app-6debf.web.app/reset-password' // ✅ Ya está en whitelist de Supabase
+          : 'com.example.convive://reset-password',             // ✅ Ya está en whitelist de Supabase
       );
 
       print('✅ Email de recuperación enviado');

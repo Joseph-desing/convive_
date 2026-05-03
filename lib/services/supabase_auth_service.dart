@@ -9,10 +9,12 @@ class SupabaseAuthService {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
+    String? emailRedirectTo,
   }) async {
     return await _supabase.auth.signUp(
       email: email,
       password: password,
+      emailRedirectTo: emailRedirectTo,
     );
   }
 

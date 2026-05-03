@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -45,7 +45,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ),
           );
           
-          Navigator.of(context).pushReplacementNamed('/home');
+          // ✅ Usar GoRouter en vez de Navigator tradicional
+          context.go('/home');
         }
         return false;
       }
@@ -286,9 +287,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   height: 52,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
+                      // ✅ Usar GoRouter en vez de Navigator tradicional
+                      context.go('/login');
                     },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(

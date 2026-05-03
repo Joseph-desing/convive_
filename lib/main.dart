@@ -84,35 +84,57 @@ class _ConViveAppState extends State<ConViveApp> {
         print('🔗 Query Parameters: ${uri.queryParameters}');
         print('🔗 Fragment: ${uri.fragment}');
 
-        // Si es un reset password
-        if (uri.host == 'auth-callback' || uri.path.contains('auth-callback')) {
-          // Intentar obtener el token del fragment (donde Supabase lo pone)
+        final host = uri.host;
+        final path = uri.path;
+
+        // ── CASO 1: Reset password con code (flujo PKCE de Supabase) ──
+        // URI: com.example.convive://reset-password?code=XXX
+        if (host == 'reset-password' || path.contains('reset-password')) {
+          String code = uri.queryParameters['code'] ?? '';
+          String token = uri.queryParameters['token'] ?? '';
+          String email = uri.queryParameters['email'] ?? '';
+
+          // Fallback: buscar en fragment
+          if (code.isEmpty && token.isEmpty && uri.fragment.isNotEmpty) {
+            final fp = Uri.parse('http://x.com?${uri.fragment}').queryParameters;
+            code = fp['code'] ?? '';
+            token = fp['access_token'] ?? '';
+            email = fp['email'] ?? '';
+          }
+
+          print('📝 Code: $code | Token: $token | Email: $email');
+
+          if (code.isNotEmpty) {
+            _router.push('/reset-password?code=${Uri.encodeComponent(code)}&email=${Uri.encodeComponent(email)}');
+          } else if (token.isNotEmpty) {
+            _router.push('/reset-password?token=${Uri.encodeComponent(token)}&email=${Uri.encodeComponent(email)}');
+          }
+        }
+
+        // ── CASO 2: Email confirmado (com.example.convive://login-callback) ──
+        else if (host == 'login-callback' || path.contains('login-callback')) {
+          print('✅ Email confirmado via deep link mobile. Redirigiendo a home...');
+          _router.go('/home');
+        }
+
+        // ── CASO 3: Auth callback legacy ──
+        else if (host == 'auth-callback' || path.contains('auth-callback')) {
           String token = '';
-          String type = '';
           String email = '';
 
-          // Primero buscar en query parameters (fallback)
           if (uri.queryParameters.containsKey('token')) {
             token = uri.queryParameters['token'] ?? '';
-            type = uri.queryParameters['type'] ?? '';
             email = uri.queryParameters['email'] ?? '';
-          }
-          // Si no, buscar en el fragment (donde Supabase lo envía realmente)
-          else if (uri.fragment.isNotEmpty) {
-            // El fragment viene como: access_token=...&type=recovery
-            final fragmentParams = Uri.parse('http://example.com?${uri.fragment}').queryParameters;
-            token = fragmentParams['access_token'] ?? '';
-            type = fragmentParams['type'] ?? '';
-            email = fragmentParams['email'] ?? '';
+          } else if (uri.fragment.isNotEmpty) {
+            final fp = Uri.parse('http://x.com?${uri.fragment}').queryParameters;
+            token = fp['access_token'] ?? '';
+            email = fp['email'] ?? '';
           }
 
-          print('📝 Token extraído: $token');
-          print('📝 Type: $type');
-          print('📝 Email: $email');
+          print('📝 Token: $token | Email: $email');
 
           if (token.isNotEmpty) {
-            // Navegar a ResetPasswordScreen
-            context.push('/reset-password?token=$token&email=$email');
+            _router.push('/reset-password?token=${Uri.encodeComponent(token)}&email=${Uri.encodeComponent(email)}');
           }
         }
       },
@@ -135,13 +157,14 @@ class _ConViveAppState extends State<ConViveApp> {
         final session = SupabaseProvider.client.auth.currentSession;
         final location = state.matchedLocation;
         
-        // Si es una ruta de recuperación de contraseña o forgot password, permitir (sin redirigir)
+        // Si es una ruta de recuperación de contraseña, forgot password o email-confirmed, permitir (sin redirigir)
         if (location == '/auth-callback' || 
             location == '/reset-password' ||
             location.startsWith('/reset-password?') ||
             location.startsWith('/reset-password#') ||
             location == '/forgot-password' ||
-            location.startsWith('/forgot-password?')) {
+            location.startsWith('/forgot-password?') ||
+            location == '/email-confirmed') {
           return null;
         }
         
@@ -186,11 +209,12 @@ class _ConViveAppState extends State<ConViveApp> {
           return null;
         }
 
-        // Si no hay sesión, ir a login (pero excepto en reset/forgot password)
+        // Si no hay sesión, ir a login (pero excepto en reset/forgot password/email-confirmed)
         if (session == null && !location.startsWith('/login') && 
             !location.startsWith('/reset-password') && 
             !location.startsWith('/forgot-password') &&
-            !location.startsWith('/auth-callback')) {
+            !location.startsWith('/auth-callback') &&
+            location != '/email-confirmed') {
           return '/login';
         }
 
@@ -221,6 +245,28 @@ class _ConViveAppState extends State<ConViveApp> {
         GoRoute(
           path: '/forgot-password',
           builder: (context, state) => const ForgotPasswordScreen(),
+        ),
+        // ✅ RUTA: Confirmación de email exitosa (desde el link del correo)
+        GoRoute(
+          path: '/email-confirmed',
+          builder: (context, state) {
+            // Cuando el usuario llega aquí después de confirmar su email,
+            // Supabase ya estableció una sesión. Redirigir a home.
+            final session = SupabaseProvider.client.auth.currentSession;
+            if (session != null) {
+              // Sesión activa → ir a home
+              Future.microtask(() => context.go('/home'));
+            } else {
+              // Sin sesión → ir a login con mensaje
+              Future.microtask(() => context.go('/login'));
+            }
+            // Mostrar loading mientras redirige
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          },
         ),
         // 🔐 RUTA DE RECUPERACIÓN DE CONTRASEÑA (desde el email)
         GoRoute(
