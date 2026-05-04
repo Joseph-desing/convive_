@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
@@ -1015,8 +1016,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         if (editMode) {
           Navigator.of(context).pop(true);
         } else {
-          // Navegar a home
-          Navigator.of(context).pushReplacementNamed('/home');
+          // Navegar a home usando GoRouter
+          if (mounted) {
+            context.go('/home');
+          }
         }
       }
     } catch (e) {
