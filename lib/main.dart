@@ -239,6 +239,10 @@ class _ConViveAppState extends State<ConViveApp> {
           builder: (context, state) => const HomeScreen(),
         ),
         GoRoute(
+          path: '/profile',
+          builder: (context, state) => const HomeScreen(initialIndex: 4),
+        ),
+        GoRoute(
           path: '/welcome',
           builder: (context, state) => const WelcomeScreen(),
         ),

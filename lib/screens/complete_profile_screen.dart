@@ -1016,9 +1016,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         if (editMode) {
           Navigator.of(context).pop(true);
         } else {
-          // Navegar a home usando GoRouter
+          // Navegar a perfil para ver los cambios registrados
           if (mounted) {
-            context.go('/home');
+            context.go('/profile');
           }
         }
       }

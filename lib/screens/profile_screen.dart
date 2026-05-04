@@ -81,6 +81,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
@@ -91,10 +93,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final authUser = SupabaseProvider.authService.getCurrentUser();
       
       if (authUser == null) {
-        setState(() {
-          _error = 'No hay usuario autenticado. Por favor inicia sesión.';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'No hay usuario autenticado. Por favor inicia sesión.';
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -103,17 +107,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = await SupabaseProvider.databaseService.getProfile(authUser.id);
       final habits = await SupabaseProvider.databaseService.getHabits(authUser.id);
 
-      setState(() {
-        _user = user;
-        _profile = profile;
-        _habits = habits;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _profile = profile;
+          _habits = habits;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Error al cargar perfil: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Error al cargar perfil: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 

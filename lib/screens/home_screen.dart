@@ -27,15 +27,16 @@ import '../providers/notifications_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
+  final int initialIndex;
   
-  const HomeScreen({Key? key, this.userName = 'Usuario'}) : super(key: key);
+  const HomeScreen({Key? key, this.userName = 'Usuario', this.initialIndex = 0}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  late int _currentIndex;
   int _currentCardIndex = 0;
   int _currentRoommateCardIndex = 0;
   List<Property> _properties = [];
@@ -131,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _loadUserProfile().then((_) {
       _loadData();
     });
