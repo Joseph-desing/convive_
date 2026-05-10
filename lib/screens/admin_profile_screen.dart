@@ -69,6 +69,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             userId: authUser.id,
             fullName: 'Administrador',
           );
+          _nameController.text = 'Administrador';
         }
       });
     } catch (e) {
@@ -81,20 +82,39 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   }
 
   Future<void> _saveProfileChanges() async {
-    if (_profile == null) return;
-    
     try {
+      final authUser = SupabaseProvider.authService.getCurrentUser();
+      if (authUser == null) return;
+
+      final existingProfile =
+          await SupabaseProvider.databaseService.getProfile(authUser.id);
       final updates = <String, dynamic>{
         'full_name': _nameController.text,
         if (_selectedBirthDate != null)
           'birth_date': _selectedBirthDate!.toIso8601String(),
       };
-      
-      await SupabaseProvider.databaseService.updateProfile(_profile!.id, updates);
-      
+
+      final savedProfile = existingProfile == null
+          ? await SupabaseProvider.databaseService.createProfile(
+              Profile(
+                userId: authUser.id,
+                fullName: _nameController.text,
+                birthDate: _selectedBirthDate,
+                profileImageUrl: _profile?.profileImageUrl,
+              ),
+            )
+          : existingProfile;
+
+      if (existingProfile != null) {
+        await SupabaseProvider.databaseService.updateProfile(
+          existingProfile.id,
+          updates,
+        );
+      }
+
       // Actualizar el objeto local
       setState(() {
-        _profile = _profile!.copyWith(
+        _profile = savedProfile.copyWith(
           fullName: _nameController.text,
           birthDate: _selectedBirthDate,
         );
@@ -112,10 +132,14 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   }
 
   Future<void> _pickAndUploadImage() async {
-    if (_profile == null) return;
-
     try {
       setState(() => _uploadingImage = true);
+
+      final authUser = SupabaseProvider.authService.getCurrentUser();
+      if (authUser == null) {
+        setState(() => _uploadingImage = false);
+        return;
+      }
 
       final image = await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image == null) {
@@ -125,19 +149,38 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
       // Subir a Supabase Storage
       final imageUrl = await SupabaseProvider.storageService.uploadProfileImageXFile(
-        userId: _profile!.userId,
+        userId: authUser.id,
         file: image,
       );
+      final versionedImageUrl =
+          '$imageUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+
+      final existingProfile =
+          await SupabaseProvider.databaseService.getProfile(authUser.id);
+      final savedProfile = existingProfile == null
+          ? await SupabaseProvider.databaseService.createProfile(
+              Profile(
+                userId: authUser.id,
+                fullName: _nameController.text.isNotEmpty
+                    ? _nameController.text
+                    : (_profile?.fullName ?? 'Administrador'),
+                birthDate: _selectedBirthDate,
+                profileImageUrl: versionedImageUrl,
+              ),
+            )
+          : existingProfile;
 
       // Actualizar perfil en BD
-      await SupabaseProvider.databaseService.updateProfile(
-        _profile!.id,
-        {'profile_image_url': imageUrl},
-      );
+      if (existingProfile != null) {
+        await SupabaseProvider.databaseService.updateProfile(
+          existingProfile.id,
+          {'profile_image_url': versionedImageUrl},
+        );
+      }
 
       // Actualizar estado local
       setState(() {
-        _profile = _profile!.copyWith(profileImageUrl: imageUrl);
+        _profile = savedProfile.copyWith(profileImageUrl: versionedImageUrl);
         _uploadingImage = false;
       });
 
@@ -172,7 +215,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             slivers: [
               // Header con fondo gradiente
               SliverAppBar(
-                expandedHeight: 220,
+                expandedHeight: 236,
                 floating: false,
                 pinned: true,
                 backgroundColor: AppColors.primary,
@@ -205,15 +248,20 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                         Stack(
                           children: [
                             Container(
-                              width: 100,
-                              height: 100,
+                              width: 108,
+                              height: 108,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Colors.white,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.75),
+                                  width: 4,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 10,
+                                    color: Colors.black.withOpacity(0.16),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
@@ -243,8 +291,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: AppColors.primary,
                                       shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withOpacity(0.2),
@@ -259,13 +308,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
                                               valueColor: AlwaysStoppedAnimation<Color>(
-                                                Colors.orange,
+                                                Colors.white,
                                               ),
                                             ),
                                           )
                                         : const FaIcon(
                                             FontAwesomeIcons.camera,
-                                            color: Colors.orange,
+                                            color: Colors.white,
                                             size: 16,
                                           ),
                                   ),
@@ -278,8 +327,8 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                           _profile?.fullName ?? 'Administrador',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -293,7 +342,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
-                            'Administrador Verificado',
+                            'Administrador',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -325,10 +374,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
                               // Seguridad
                               _buildSecuritySection(context),
-                        const SizedBox(height: 28),
-
-                        // Actividad Reciente
-                        _buildActivityStatsSection(),
                         const SizedBox(height: 28),
 
                         // Botón Cerrar Sesión
@@ -403,128 +448,196 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           )
         else
           // Vista editable
-          Column(
-            children: [
-              // Nombre
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
+          Container(
+            decoration: AdminUi.panelDecoration(),
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _nameController,
+                  decoration: AdminUi.inputDecoration(
+                    hintText: 'Nombre completo',
+                    icon: Icons.badge_outlined,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Nombre Completo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _birthdateController,
+                  decoration: AdminUi.inputDecoration(
+                    hintText: 'Fecha de nacimiento',
+                    icon: Icons.calendar_today_outlined,
+                  ).copyWith(
+                    suffixIcon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AdminUi.muted,
                     ),
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              // Fecha de Nacimiento
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Fecha de Nacimiento',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    TextField(
-                      controller: _birthdateController,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                        hintText: 'DD/MM/YYYY',
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                      readOnly: true,
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedBirthDate ?? DateTime.now(),
-                          firstDate: DateTime(1950),
-                          lastDate: DateTime.now(),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedBirthDate ?? DateTime.now(),
+                      firstDate: DateTime(1950),
+                      lastDate: DateTime.now(),
+                      cancelText: 'CANCELAR',
+                      confirmText: 'ACEPTAR',
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: AppColors.primary,
+                              onPrimary: Colors.white,
+                              surface: Colors.white,
+                              onSurface: AdminUi.ink,
+                            ),
+                            dialogBackgroundColor: Colors.white,
+                            datePickerTheme: DatePickerThemeData(
+                              backgroundColor: Colors.white,
+                              headerBackgroundColor: AppColors.primary,
+                              headerForegroundColor: Colors.white,
+                              todayBorder: const BorderSide(
+                                color: AppColors.primary,
+                              ),
+                              dayForegroundColor:
+                                  MaterialStateProperty.resolveWith((states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.white;
+                                }
+                                if (states.contains(MaterialState.disabled)) {
+                                  return AdminUi.muted.withOpacity(0.45);
+                                }
+                                return AdminUi.ink;
+                              }),
+                              dayBackgroundColor:
+                                  MaterialStateProperty.resolveWith((states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return AppColors.primary;
+                                }
+                                return null;
+                              }),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              cancelButtonStyle: TextButton.styleFrom(
+                                foregroundColor: AdminUi.ink,
+                                backgroundColor: const Color(0xFFF3F4F6),
+                                minimumSize: const Size(96, 40),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: const BorderSide(
+                                    color: Color(0xFFD1D5DB),
+                                  ),
+                                ),
+                              ),
+                              confirmButtonStyle: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: AppColors.primary,
+                                minimumSize: const Size(96, 40),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                            textButtonTheme: TextButtonThemeData(
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                backgroundColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: child!,
                         );
-                        if (date != null) {
-                          setState(() {
-                            _selectedBirthDate = date;
-                            _birthdateController.text = DateFormat('dd/MM/yyyy').format(date);
-                          });
-                        }
                       },
-                    ),
-                  ],
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _selectedBirthDate = date;
+                        _birthdateController.text =
+                            DateFormat('dd/MM/yyyy').format(date);
+                      });
+                    }
+                  },
                 ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Email (read-only)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue[200]!),
-                ),
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Icon(Icons.email, color: Colors.blue[600], size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Email',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user?.email ?? 'Sin especificar',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 12),
+                Container(
+                  decoration: AdminUi.panelDecoration(
+                    borderColor: Colors.blue.shade200,
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.email_outlined,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Email',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AdminUi.muted,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              user?.email ?? 'Sin especificar',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AdminUi.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
       ],
     );
@@ -823,38 +936,63 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        child: InkWell(
-          onTap: () => _showLogoutDialog(context),
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
-              border: Border.all(color: Colors.red.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FaIcon(
-                  FontAwesomeIcons.rightFromBracket,
-                  color: Colors.red,
-                  size: 18,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showLogoutDialog(context),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: AdminUi.panelDecoration(
+            borderColor: Colors.red.shade200,
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Cerrar Sesión',
-                  style: TextStyle(
+                child: const Center(
+                  child: FaIcon(
+                    FontAwesomeIcons.rightFromBracket,
                     color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    size: 16,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cerrar Sesion',
+                      style: TextStyle(
+                        color: AdminUi.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Salir de la cuenta administrativa',
+                      style: TextStyle(
+                        color: AdminUi.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: AdminUi.muted,
+              ),
+            ],
           ),
         ),
       ),
@@ -865,40 +1003,63 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 0,
         child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70,
-                height: 70,
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
                 ),
-                child: const FaIcon(
-                  FontAwesomeIcons.rightFromBracket,
-                  color: Colors.red,
-                  size: 30,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: FaIcon(
+                          FontAwesomeIcons.rightFromBracket,
+                          color: Colors.red,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Cerrar Sesion',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AdminUi.ink,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               const Text(
-                'Cerrar Sesión',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '¿Estás seguro de que quieres cerrar sesión?',
+                'Seguro que quieres cerrar sesion?',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: AdminUi.muted,
+                  height: 1.4,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -906,21 +1067,30 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: OutlinedButton.icon(
+                      icon: const FaIcon(FontAwesomeIcons.xmark, size: 14),
+                      label: const Text('Cancelar'),
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: const BorderSide(color: Colors.grey),
+                        foregroundColor: AdminUi.ink,
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Text('Cancelar'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
+                      icon: const FaIcon(FontAwesomeIcons.rightFromBracket, size: 14),
+                      label: const Text('Salir'),
                       onPressed: () async {
                         await context.read<AuthProvider>().signOut();
                         if (context.mounted) {
@@ -929,13 +1099,18 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: Colors.red.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
+                        elevation: 0,
                       ),
-                      child: const Text('Cerrar Sesión'),
                     ),
                   ),
                 ],
