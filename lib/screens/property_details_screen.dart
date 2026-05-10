@@ -59,10 +59,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       );
       await SupabaseProvider.databaseService.createMatch(match);
 
-      // ✅ Limpiar notificaciones antiguas antes de crear la nueva
+      // Limpiar notificaciones antiguas antes de crear la nueva
       await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
         recipientUserId: widget.property.ownerId,
         senderUserId: currentUserId,
+        publicationType: 'departamento', // Scope: solo del mismo tipo
       );
 
       // ✅ Notificación con tipo match_confirmed y publicationType correcto

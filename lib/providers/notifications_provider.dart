@@ -14,11 +14,18 @@ class NotificationsProvider extends ChangeNotifier {
   bool _pendingNotification = false; // ✅ NUEVO: Flag para saber si hay cambios pendientes
 
   String _notificationKey(Notification notification) {
-    // ✅ Normalizar: 'match' y 'match_confirmed' del mismo sender se consideran
-    // el mismo tipo para deduplicación (evita duplicados históricos en BD)
-    final normalizedType = (notification.type == 'match' || notification.type == 'match_confirmed')
-        ? 'match_any'
-        : notification.type;
+    final normalizedType =
+        (notification.type == 'match' || notification.type == 'match_confirmed')
+            ? 'match_any'
+            : notification.type;
+
+    // Para match/match_confirmed: deduplicar por sender + publicationType.
+    // Esto permite tener un match de Roommate Y uno de Departamento del mismo
+    // sender, pero evita mostrar duplicados del mismo tipo (ej: dos "roommate"
+    // del mismo sender, uno con publicationId y otro sin él).
+    if (normalizedType == 'match_any') {
+      return 'match_any|${notification.senderUserId ?? ''}|${notification.publicationType ?? ''}';
+    }
 
     return [
       normalizedType,
@@ -28,10 +35,39 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   List<Notification> _dedupeNotifications(Iterable<Notification> items) {
+    final list = items.toList();
+
+    // Pre-pass: identificar senders que ya tienen al menos un match_confirmed
+    // CON publicationType real (departamento/roommate/profile).
+    // Las notificaciones stale (sin publicationType) del mismo sender se omiten.
+    final sendersWithTypedMatch = <String>{};
+    for (final item in list) {
+      final isMatch = item.type == 'match' || item.type == 'match_confirmed';
+      if (isMatch &&
+          item.senderUserId != null &&
+          item.senderUserId!.isNotEmpty &&
+          item.publicationType != null &&
+          item.publicationType!.isNotEmpty) {
+        sendersWithTypedMatch.add(item.senderUserId!);
+      }
+    }
+
     final seen = <String>{};
     final deduped = <Notification>[];
 
-    for (final item in items) {
+    for (final item in list) {
+      final isMatch = item.type == 'match' || item.type == 'match_confirmed';
+
+      // Omitir notificaciones match stale (sin publicationType) si el sender
+      // ya tiene una notificación de match con publicationType real.
+      // Esto elimina las notificaciones 'fantasma' legacy sin publicationType.
+      if (isMatch &&
+          (item.publicationType == null || item.publicationType!.isEmpty) &&
+          item.senderUserId != null &&
+          sendersWithTypedMatch.contains(item.senderUserId)) {
+        continue;
+      }
+
       final key = _notificationKey(item);
       if (seen.add(key)) {
         deduped.add(item);

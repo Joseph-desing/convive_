@@ -589,23 +589,45 @@ class SupabaseDatabaseService {
   }
 
   // ==================== NOTIFICACIONES ====================
-  /// Eliminar notificaciones antiguas de match/match_confirmed entre dos usuarios.
-  /// Se llama antes de crear la notificación de "devolver match" para evitar duplicados.
+  /// Eliminar notificaciones match/match_confirmed del mismo sender y mismo publicationType.
+  /// Usar publicationType para no borrar notificaciones de otros contextos del mismo sender.
   Future<void> deleteMatchNotificationsFrom({
     required String recipientUserId,
     required String senderUserId,
+    String? publicationType, // 'roommate' | 'departamento' | 'profile'
   }) async {
     try {
-      // ✅ Eliminar notificaciones donde sender = currentUser (las del código nuevo)
+      // 1. Borrar notificaciones del mismo sender + mismo publicationType
+      if (publicationType != null && publicationType.isNotEmpty) {
+        await _supabase
+            .from('notifications')
+            .delete()
+            .eq('recipient_user_id', recipientUserId)
+            .eq('sender_user_id', senderUserId)
+            .eq('publication_type', publicationType)
+            .or('type.eq.match,type.eq.match_confirmed');
+      } else {
+        // Sin publicationType: borrar todo del sender (caso genérico)
+        await _supabase
+            .from('notifications')
+            .delete()
+            .eq('recipient_user_id', recipientUserId)
+            .eq('sender_user_id', senderUserId)
+            .or('type.eq.match,type.eq.match_confirmed');
+      }
+
+      // 2. Limpiar notificaciones stale del mismo sender SIN publication_type.
+      //    Son las notificaciones "fantasma" creadas por código antiguo que no
+      //    incluía publicationType → aparecen como "alguien te devolvió el match".
       await _supabase
           .from('notifications')
           .delete()
           .eq('recipient_user_id', recipientUserId)
           .eq('sender_user_id', senderUserId)
+          .isFilter('publication_type', null)
           .or('type.eq.match,type.eq.match_confirmed');
 
-      // ✅ También eliminar notificaciones de match SIN sender_user_id
-      // (las antiguas creadas sin nombre que se escapan del filtro anterior)
+      // 3. Limpiar notificaciones sin sender_user_id (código muy antiguo)
       await _supabase
           .from('notifications')
           .delete()
@@ -613,7 +635,7 @@ class SupabaseDatabaseService {
           .isFilter('sender_user_id', null)
           .or('type.eq.match,type.eq.match_confirmed');
 
-      print('🗑️ Notificaciones antiguas de match eliminadas: $senderUserId → $recipientUserId');
+      print('🗑️ Notificaciones match eliminadas: sender=$senderUserId, type=$publicationType');
     } catch (e) {
       print('❌ Error eliminando notificaciones antiguas: $e');
     }

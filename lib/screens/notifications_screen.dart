@@ -6,6 +6,7 @@ import '../models/notification.dart' as notification_model;
 import '../providers/notifications_provider.dart';
 import '../config/supabase_provider.dart';
 import 'notification_match_screen.dart';
+import 'match_returned_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -592,11 +593,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _handleNotificationTap(notification_model.Notification notification) {
     switch (notification.type) {
-      case 'match':
-      case 'like':
+      // Alguien te devolvió el match → pantalla de perfil + botón chat
       case 'match_confirmed':
         if (mounted && notification.senderUserId != null) {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MatchReturnedScreen(
+                senderUserId: notification.senderUserId!,
+                publicationType: notification.publicationType,
+                publicationId: notification.publicationId,
+                senderName: notification.senderName,
+                senderImageUrl: notification.senderProfileImageUrl,
+              ),
+            ),
+          );
+        }
+        break;
+
+      // Alguien te dio like → pantalla para ver el perfil y devolver el match
+      case 'match':
+      case 'like':
+        if (mounted && notification.senderUserId != null) {
+          Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => NotificationMatchScreen(
                 senderUserId: notification.senderUserId!,
@@ -607,6 +625,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         }
         break;
+
       case 'message':
         if (mounted) Navigator.pop(context);
         break;

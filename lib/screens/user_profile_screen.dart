@@ -129,26 +129,28 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final createdMatch = await SupabaseProvider.databaseService.createMatch(match);
       print('✅ Match creado con ID: ${createdMatch.id}');
 
-      // ✅ Limpiar notificaciones antiguas de match entre estos dos usuarios
-      // para evitar que queden duplicadas del código anterior o de intentos fallidos
+      // Determinar publicationType antes de limpiar y notificar
+      final notifPubType = contextType == 'property' ? 'departamento' : (contextType == 'search' ? 'roommate' : 'profile');
+
+      // Limpiar notificaciones antiguas del mismo tipo antes de crear la nueva
       await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
         recipientUserId: widget.userId,
         senderUserId: currentUserId,
+        publicationType: notifPubType, // Scope: solo del mismo tipo
       );
       print('🗑️ Notificaciones antiguas limpiadas');
 
-      // ✅ Notificación con publicationType correcto según contexto
-      final notifPubType = contextType == 'property' ? 'departamento' : (contextType == 'search' ? 'roommate' : 'profile');
+      // Notificación con publicationType correcto según contexto
       print('📬 Enviando notificación a ${widget.userId} (pubType=$notifPubType)...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.userId,
-        type: 'match_confirmed',   // ✅ Tipo distinto para evitar anti-duplicado
+        type: 'match_confirmed',
         senderUserId: currentUserId,
         senderName: currentProfile?.fullName ?? 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
         publicationId: contextId,
         publicationTitle: currentProfile?.fullName ?? 'Alguien',
-        publicationType: notifPubType, // ✅ 'departamento' | 'roommate' | 'profile'
+        publicationType: notifPubType,
       );
       print('💚 Match confirmado y notificación enviada al usuario');
 

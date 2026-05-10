@@ -162,6 +162,7 @@ class _NotificationMatchScreenState extends State<NotificationMatchScreen> {
       await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
         recipientUserId: widget.senderUserId,
         senderUserId: me,
+        publicationType: _notifPubType, // Scope: solo borrar del mismo tipo
       );
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.senderUserId,
