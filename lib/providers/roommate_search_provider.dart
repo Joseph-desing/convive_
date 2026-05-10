@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/roommate_search.dart';
 import '../config/supabase_provider.dart';
 
@@ -24,6 +25,7 @@ class RoommateSearchProvider extends ChangeNotifier {
     required List<String> habitsPreferences,
     required List<String> imageUrls,
     bool includeAlicuota = false,
+    PlatformFile? verificationPdfFile,
   }) async {
     _isLoading = true;
     _error = null;
@@ -61,6 +63,20 @@ class RoommateSearchProvider extends ChangeNotifier {
       }
       
       // Actualizar objeto local con las imágenes cargadas
+      if (verificationPdfFile != null) {
+        final verificationPdfUrl =
+            await SupabaseProvider.storageService.uploadVerificationPdf(
+          ownerId: userId,
+          publicationType: 'roommate',
+          publicationId: createdSearch.id ?? '',
+          file: verificationPdfFile,
+        );
+        await SupabaseProvider.databaseService.updateRoommateSearch(
+          createdSearch.id ?? '',
+          {'verification_pdf_url': verificationPdfUrl},
+        );
+      }
+
       createdSearch.imageUrls.addAll(imageUrls);
       _searches.add(createdSearch);
       

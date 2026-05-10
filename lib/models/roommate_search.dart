@@ -14,6 +14,7 @@ class RoommateSearch {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool? _includeAlicuota;
+  final String? verificationPdfUrl;
 
   bool get includeAlicuota => _includeAlicuota ?? false;
 
@@ -33,6 +34,7 @@ class RoommateSearch {
     this.createdAt,
     this.updatedAt,
     bool? includeAlicuota,
+    this.verificationPdfUrl,
   }) : _includeAlicuota = includeAlicuota ?? false;
 
   Map<String, dynamic> toJson() {
@@ -49,6 +51,7 @@ class RoommateSearch {
       'image_urls': imageUrls,
       'status': status,
       'include_alicuota': _includeAlicuota ?? false,
+      if (verificationPdfUrl != null) 'verification_pdf_url': verificationPdfUrl,
     };
   }
 
@@ -69,6 +72,7 @@ class RoommateSearch {
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
+      verificationPdfUrl: json['verification_pdf_url'] as String?,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/admin_provider.dart';
 import '../utils/colors.dart';
 import '../widgets/admin/admin_ui.dart';
@@ -391,10 +392,37 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
             ),
             const SizedBox(height: 8),
 
+            // Badge PDF
+            _buildPdfBadge(search['verification_pdf_url']),
+            const SizedBox(height: 8),
             // Acciones
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.end,
               children: [
+                if (search['verification_pdf_url'] != null &&
+                    (search['verification_pdf_url'] as String).isNotEmpty)
+                  ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.filePdf, size: 11),
+                    label: const Text('Revisar PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 2,
+                    ),
+                    onPressed: () => _showPdfReviewDialog(
+                      context: context,
+                      id: search['id'],
+                      type: 'roommate',
+                      title: search['title'] ?? '',
+                      pdfUrl: search['verification_pdf_url'],
+                      adminProvider: adminProvider,
+                    ),
+                  ),
                 if (!isActive)
                   ElevatedButton.icon(
                     icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 12),
@@ -402,56 +430,39 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade500,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      adminProvider.updateRoommateSearchStatus(search['id'], 'active');
-                    },
+                    onPressed: () => adminProvider.updateRoommateSearchStatus(search['id'], 'active'),
                   ),
-                if (isActive) ...[
-                  const SizedBox(width: 8),
+                if (isActive)
                   ElevatedButton.icon(
                     icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
                     label: const Text('Desactivar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade600,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      adminProvider.updateRoommateSearchStatus(search['id'], 'inactive');
-                    },
+                    onPressed: () => adminProvider.updateRoommateSearchStatus(search['id'], 'inactive'),
                   ),
-                ],
-                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
                   label: const Text('Eliminar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.shade500,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 2,
                   ),
-                  onPressed: () => _showDeleteRoommieDialog(
-                      context, search['id'], adminProvider),
+                  onPressed: () => _showDeleteRoommieDialog(context, search['id'], adminProvider),
                 ),
               ],
             ),
@@ -916,10 +927,38 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
             ),
             const SizedBox(height: 10),
 
-            // Acciones con mejor espaciado
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            // Badge PDF
+            _buildPdfBadge(property['verification_pdf_url']),
+            const SizedBox(height: 8),
+            // Acciones
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.end,
               children: [
+                // Revisar PDF (siempre visible si hay PDF)
+                if (property['verification_pdf_url'] != null &&
+                    (property['verification_pdf_url'] as String).isNotEmpty)
+                  ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.filePdf, size: 11),
+                    label: const Text('Revisar PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 2,
+                    ),
+                    onPressed: () => _showPdfReviewDialog(
+                      context: context,
+                      id: property['id'],
+                      type: 'property',
+                      title: property['title'] ?? '',
+                      pdfUrl: property['verification_pdf_url'],
+                      adminProvider: adminProvider,
+                    ),
+                  ),
                 if (status != 'active')
                   ElevatedButton.icon(
                     icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 11),
@@ -927,18 +966,12 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade500,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      adminProvider.updatePropertyStatus(
-                          property['id'], 'active');
-                    },
+                    onPressed: () => adminProvider.updatePropertyStatus(property['id'], 'active'),
                   ),
                 if (status == 'active')
                   ElevatedButton.icon(
@@ -947,36 +980,25 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade600,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      adminProvider.updatePropertyStatus(
-                          property['id'], 'inactive');
-                    },
+                    onPressed: () => adminProvider.updatePropertyStatus(property['id'], 'inactive'),
                   ),
-                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
                   label: const Text('Eliminar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.shade500,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 2,
                   ),
-                  onPressed: () => _showDeleteDialog(
-                      context, property['id'], adminProvider),
+                  onPressed: () => _showDeleteDialog(context, property['id'], adminProvider),
                 ),
               ],
             ),
@@ -1150,6 +1172,271 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
           ),
         ),
       ),
+    );
+  }
+
+  // ==================== PDF REVIEW ====================
+
+  Widget _buildPdfBadge(dynamic pdfUrl) {
+    final hasPdf = pdfUrl != null && (pdfUrl as String).isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: hasPdf ? Colors.indigo.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: hasPdf ? Colors.indigo.shade300 : Colors.red.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FaIcon(
+                hasPdf ? FontAwesomeIcons.filePdf : FontAwesomeIcons.triangleExclamation,
+                size: 11,
+                color: hasPdf ? Colors.indigo.shade600 : Colors.red.shade600,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                hasPdf ? 'PDF de verificacion adjunto' : 'Sin PDF de verificacion',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: hasPdf ? Colors.indigo.shade700 : Colors.red.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showPdfReviewDialog({
+    required BuildContext context,
+    required String id,
+    required String type,
+    required String title,
+    required String pdfUrl,
+    required AdminProvider adminProvider,
+  }) {
+    final noteController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: FaIcon(FontAwesomeIcons.filePdf,
+                              color: Colors.indigo.shade600, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Revision de Publicacion',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87),
+                              ),
+                              Text(
+                                title,
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[600]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Abrir PDF
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.indigo.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Documento de verificacion',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: const FaIcon(FontAwesomeIcons.arrowUpRightFromSquare, size: 13),
+                              label: const Text('Abrir PDF en nueva pestana'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.indigo.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () async {
+                                final uri = Uri.tryParse(pdfUrl);
+                                if (uri != null && await canLaunchUrl(uri)) {
+                                  await launchUrl(uri,
+                                      mode: LaunchMode.externalApplication);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Nota del admin
+                    const Text(
+                      'Nota para el usuario (opcional)',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Ej: Documento aprobado. / Falta planilla de servicios...',
+                        hintStyle:
+                            TextStyle(fontSize: 12, color: Colors.grey[400]),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                BorderSide(color: Colors.grey.shade300)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                BorderSide(color: Colors.grey.shade300)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Botones Aprobar / Rechazar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const FaIcon(FontAwesomeIcons.xmark, size: 13),
+                            label: const Text('Rechazar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red.shade600,
+                              side: BorderSide(color: Colors.red.shade400),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              await adminProvider.rejectPublication(
+                                id: id,
+                                type: type,
+                                adminNote: noteController.text.trim(),
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Publicacion rechazada'),
+                                    backgroundColor: Colors.red.shade600,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const FaIcon(FontAwesomeIcons.check, size: 13),
+                            label: const Text('Aprobar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              await adminProvider.approvePublication(
+                                id: id,
+                                type: type,
+                                adminNote: noteController.text.trim(),
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Publicacion aprobada'),
+                                    backgroundColor: Colors.green.shade600,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Cancelar
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancelar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        });
+      },
     );
   }
 

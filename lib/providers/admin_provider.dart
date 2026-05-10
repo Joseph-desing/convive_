@@ -58,14 +58,13 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.updateUserRole(userId, newRole);
-      
-      // Actualizar en la lista local
+
       final userIndex = allUsers.indexWhere((u) => u['id'] == userId);
       if (userIndex != -1) {
         allUsers[userIndex]['role'] = newRole;
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error updating user role: $e');
@@ -78,14 +77,13 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.suspendUser(userId, suspend);
-      
-      // Actualizar en la lista local
+
       final userIndex = allUsers.indexWhere((u) => u['id'] == userId);
       if (userIndex != -1) {
         allUsers[userIndex]['is_suspended'] = suspend;
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error suspending user: $e');
@@ -101,8 +99,7 @@ class AdminProvider with ChangeNotifier {
   }) async {
     try {
       _setLoading(true);
-      
-      // Guardar mensaje en tabla admin_messages
+
       await _supabase.from('admin_messages').insert({
         'user_id': userId,
         'email': email,
@@ -166,15 +163,14 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.updatePropertyStatus(propertyId, newStatus);
-      
-      // Actualizar en la lista local
+
       final propIndex =
           allProperties.indexWhere((p) => p['id'] == propertyId);
       if (propIndex != -1) {
         allProperties[propIndex]['status'] = newStatus;
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error updating property status: $e');
@@ -187,11 +183,10 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.deleteProperty(propertyId);
-      
-      // Remover de la lista local
+
       allProperties.removeWhere((p) => p['id'] == propertyId);
       notifyListeners();
-      
+
       _clearError();
     } catch (e) {
       _setError('Error deleting property: $e');
@@ -216,10 +211,12 @@ class AdminProvider with ChangeNotifier {
 
   // ==================== ROOMMATE SEARCHES MANAGEMENT ====================
 
-  Future<void> loadAllRoommateSearches({int limit = 50, int offset = 0}) async {
+  Future<void> loadAllRoommateSearches(
+      {int limit = 50, int offset = 0}) async {
     try {
       _setLoading(true);
-      allRoommateSearches = await _adminService.getAllRoommateSearches(limit: limit, offset: offset);
+      allRoommateSearches = await _adminService.getAllRoommateSearches(
+          limit: limit, offset: offset);
       _clearError();
     } catch (e) {
       _setError('Error loading roommate searches: $e');
@@ -231,7 +228,8 @@ class AdminProvider with ChangeNotifier {
   Future<void> loadRoommateSearchesByStatus(String status) async {
     try {
       _setLoading(true);
-      allRoommateSearches = await _adminService.getRoommateSearchesByStatus(status);
+      allRoommateSearches =
+          await _adminService.getRoommateSearchesByStatus(status);
       selectedRoommateFilter = status;
       _clearError();
     } catch (e) {
@@ -241,18 +239,20 @@ class AdminProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateRoommateSearchStatus(String searchId, String status) async {
+  Future<void> updateRoommateSearchStatus(
+      String searchId, String status) async {
     try {
       _setLoading(true);
       await _adminService.updateRoommateSearchStatus(searchId, status);
-      
-      // Actualizar en la lista local
-      final searchIndex = allRoommateSearches.indexWhere((s) => s['id'] == searchId);
+
+      final searchIndex =
+          allRoommateSearches.indexWhere((s) => s['id'] == searchId);
       if (searchIndex != -1) {
-        allRoommateSearches[searchIndex]['is_active'] = status.toLowerCase() == 'active';
+        allRoommateSearches[searchIndex]['is_active'] =
+            status.toLowerCase() == 'active';
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error updating roommate search status: $e');
@@ -284,6 +284,104 @@ class AdminProvider with ChangeNotifier {
       _clearError();
     } catch (e) {
       _setError('Error loading roommate searches stats: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ==================== PUBLICATION APPROVAL ====================
+
+  /// Aprobar una publicación tras revisar el PDF de verificación.
+  /// [type] = 'property' | 'roommate'
+  Future<void> approvePublication({
+    required String id,
+    required String type,
+    String? adminNote,
+  }) async {
+    try {
+      _setLoading(true);
+      if (type == 'property') {
+        await _supabase.from('properties').update({
+          'status': 'active',
+          'is_active': true,
+          if (adminNote != null && adminNote.isNotEmpty)
+            'admin_notes': adminNote,
+        }).eq('id', id);
+
+        final idx = allProperties.indexWhere((p) => p['id'] == id);
+        if (idx != -1) {
+          allProperties[idx]['status'] = 'active';
+          allProperties[idx]['is_active'] = true;
+          if (adminNote != null) allProperties[idx]['admin_notes'] = adminNote;
+        }
+      } else {
+        await _supabase.from('roommate_searches').update({
+          'is_active': true,
+          if (adminNote != null && adminNote.isNotEmpty)
+            'admin_notes': adminNote,
+        }).eq('id', id);
+
+        final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
+        if (idx != -1) {
+          allRoommateSearches[idx]['is_active'] = true;
+          if (adminNote != null) {
+            allRoommateSearches[idx]['admin_notes'] = adminNote;
+          }
+        }
+      }
+      notifyListeners();
+      _clearError();
+    } catch (e) {
+      _setError('Error aprobando publicacion: $e');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Rechazar una publicación tras revisar el PDF de verificación.
+  /// [type] = 'property' | 'roommate'
+  Future<void> rejectPublication({
+    required String id,
+    required String type,
+    String? adminNote,
+  }) async {
+    try {
+      _setLoading(true);
+      if (type == 'property') {
+        await _supabase.from('properties').update({
+          'status': 'inactive',
+          'is_active': false,
+          if (adminNote != null && adminNote.isNotEmpty)
+            'admin_notes': adminNote,
+        }).eq('id', id);
+
+        final idx = allProperties.indexWhere((p) => p['id'] == id);
+        if (idx != -1) {
+          allProperties[idx]['status'] = 'inactive';
+          allProperties[idx]['is_active'] = false;
+          if (adminNote != null) allProperties[idx]['admin_notes'] = adminNote;
+        }
+      } else {
+        await _supabase.from('roommate_searches').update({
+          'is_active': false,
+          if (adminNote != null && adminNote.isNotEmpty)
+            'admin_notes': adminNote,
+        }).eq('id', id);
+
+        final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
+        if (idx != -1) {
+          allRoommateSearches[idx]['is_active'] = false;
+          if (adminNote != null) {
+            allRoommateSearches[idx]['admin_notes'] = adminNote;
+          }
+        }
+      }
+      notifyListeners();
+      _clearError();
+    } catch (e) {
+      _setError('Error rechazando publicacion: $e');
+      rethrow;
     } finally {
       _setLoading(false);
     }
@@ -329,12 +427,12 @@ class AdminProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateFeedbackStatus(String feedbackId, String newStatus) async {
+  Future<void> updateFeedbackStatus(
+      String feedbackId, String newStatus) async {
     try {
       _setLoading(true);
       await _adminService.updateFeedbackStatus(feedbackId, newStatus);
-      
-      // Actualizar en la lista local
+
       final fbIndex = allFeedback.indexWhere((f) => f.id == feedbackId);
       if (fbIndex != -1) {
         allFeedback[fbIndex] = allFeedback[fbIndex].copyWith(
@@ -349,7 +447,7 @@ class AdminProvider with ChangeNotifier {
         );
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error updating feedback status: $e');
@@ -366,8 +464,7 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.respondToFeedback(feedbackId, response, adminId);
-      
-      // Actualizar en la lista local
+
       final fbIndex = allFeedback.indexWhere((f) => f.id == feedbackId);
       if (fbIndex != -1) {
         allFeedback[fbIndex] = allFeedback[fbIndex].copyWith(
@@ -376,7 +473,7 @@ class AdminProvider with ChangeNotifier {
         );
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error responding to feedback: $e');
@@ -389,15 +486,14 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       await _adminService.closeFeedback(feedbackId);
-      
-      // Actualizar en la lista local
+
       final fbIndex = allFeedback.indexWhere((f) => f.id == feedbackId);
       if (fbIndex != -1) {
         allFeedback[fbIndex] =
             allFeedback[fbIndex].copyWith(status: FeedbackStatus.closed);
         notifyListeners();
       }
-      
+
       _clearError();
     } catch (e) {
       _setError('Error closing feedback: $e');

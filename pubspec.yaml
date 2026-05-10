@@ -44,7 +44,9 @@ dependencies:
   
   # Image handling
   image_picker: ^1.0.0
+  file_picker: ^8.1.2
   cached_network_image: ^3.3.0
+  web: ^1.1.0
   
   # URL Launcher
   url_launcher: ^6.2.0

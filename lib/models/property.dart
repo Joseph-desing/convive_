@@ -15,6 +15,7 @@ class Property {
   final DateTime? updatedAt;
   final int bedrooms;
   final bool? _includeAlicuota;
+  final String? verificationPdfUrl;
 
   bool get includeAlicuota => _includeAlicuota ?? false;
 
@@ -33,6 +34,7 @@ class Property {
     this.updatedAt,
     this.bedrooms = 1,
     bool? includeAlicuota,
+    this.verificationPdfUrl,
   })  : _includeAlicuota = includeAlicuota ?? false,
         id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
@@ -53,6 +55,7 @@ class Property {
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       bedrooms: json['bedrooms'] is num ? (json['bedrooms'] as num).toInt() : (int.tryParse(json['bedrooms']?.toString() ?? '') ?? 1),
       includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
+      verificationPdfUrl: json['verification_pdf_url'] as String?,
     );
   }
 
@@ -72,6 +75,7 @@ class Property {
       'updated_at': updatedAt?.toIso8601String(),
       'bedrooms': bedrooms,
       'include_alicuota': _includeAlicuota ?? false,
+      if (verificationPdfUrl != null) 'verification_pdf_url': verificationPdfUrl,
     };
   }
 
@@ -90,6 +94,7 @@ class Property {
     DateTime? updatedAt,
     int? bedrooms,
     bool? includeAlicuota,
+    String? verificationPdfUrl,
   }) {
     return Property(
       id: id ?? this.id,
@@ -106,6 +111,7 @@ class Property {
       updatedAt: updatedAt ?? this.updatedAt,
       bedrooms: bedrooms ?? this.bedrooms,
       includeAlicuota: includeAlicuota ?? _includeAlicuota,
+      verificationPdfUrl: verificationPdfUrl ?? this.verificationPdfUrl,
     );
   }
 }

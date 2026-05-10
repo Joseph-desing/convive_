@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/colors.dart';
+import '../utils/pdf_picker.dart';
 import '../models/roommate_search.dart';
 import '../providers/roommate_search_provider.dart';
 import '../config/supabase_provider.dart';
@@ -39,6 +41,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   final List<File> _selectedImages = [];
   final List<String> _existingImageUrls = []; // Para imágenes existentes en edición
   final List<String> _deletedImageUrls = []; // Para rastrear eliminadas
+  PlatformFile? _verificationPdfFile;
+  String? _existingVerificationPdfUrl;
   double? _latitude;
   double? _longitude;
   String? _addressFromGeocoding;
@@ -78,6 +82,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       _latitude = search.latitude;
       _longitude = search.longitude;
       _includeAlicuota = search.includeAlicuota;
+      _existingVerificationPdfUrl = search.verificationPdfUrl;
       
       // Convertir gender_preference de BD (male/female/any) a opciones del dropdown
       if (search.genderPreference != null) {
@@ -95,6 +100,22 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       
       // Cargar imágenes existentes desde BD
       _loadExistingImages(search.id ?? '');
+      _loadExistingVerificationPdf(search.id ?? '');
+    }
+  }
+
+  Future<void> _loadExistingVerificationPdf(String searchId) async {
+    if (searchId.isEmpty) return;
+
+    try {
+      final search =
+          await SupabaseProvider.databaseService.getRoommateSearch(searchId);
+      if (!mounted) return;
+      setState(() {
+        _existingVerificationPdfUrl = search.verificationPdfUrl;
+      });
+    } catch (_) {
+      // Si no se puede refrescar, se conserva el dato recibido al abrir.
     }
   }
   
@@ -539,6 +560,116 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
               },
             ),
           ],
+          const SizedBox(height: 24),
+          _buildVerificationPdfSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerificationPdfSection() {
+    final hasExistingPdf = _existingVerificationPdfUrl != null &&
+        _existingVerificationPdfUrl!.isNotEmpty;
+    final fileName = _verificationPdfFile?.name ??
+        (hasExistingPdf ? 'PDF de verificacion cargado' : null);
+    final buttonText = fileName == null ? 'Subir PDF' : 'Cambiar PDF';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Documento de verificacion',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Obligatorio para revision del administrador',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _pickVerificationPdf,
+            icon: const Icon(Icons.upload_file),
+            label: Text(buttonText),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          if (fileName != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _showVerificationRequirements,
+            icon: const Icon(Icons.info_outline, size: 18),
+            label: const Text('Que debo subir?'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ],
       ),
     );
@@ -779,6 +910,54 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     );
   }
 
+  Future<void> _pickVerificationPdf() async {
+    final file = await pickPdfFile();
+
+    if (file != null) {
+      setState(() {
+        _verificationPdfFile = file;
+      });
+    }
+  }
+
+  void _showVerificationRequirements() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: AppColors.primary),
+              SizedBox(width: 10),
+              Expanded(child: Text('Documentos sugeridos')),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('El PDF debe ayudar a validar que la publicacion es real.'),
+              SizedBox(height: 14),
+              Text('- Copia de cedula del usuario o responsable.'),
+              Text('- Planilla de luz, agua o internet si aplica.'),
+              Text('- Contrato, reserva o respaldo de la direccion.'),
+              Text('- Documento que ayude al administrador a verificar.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _handleNext() {
     if (_tabController.index < 2) {
       // Validar paso actual
@@ -829,11 +1008,20 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       return;
     }
 
+    if (_verificationPdfFile == null &&
+        (_existingVerificationPdfUrl == null ||
+            _existingVerificationPdfUrl!.isEmpty)) {
+      _showSnackBar('Sube el PDF de verificacion');
+      return;
+    }
+
     final currentUser = SupabaseProvider.client.auth.currentUser;
     if (currentUser == null) {
       _showSnackBar('Debes iniciar sesión para publicar');
       return;
     }
+
+    setState(() => _isLoading = true);
 
     final genderPref = _selectedGender == null
         ? null
@@ -872,13 +1060,28 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       }
     }
 
-    setState(() => _isLoading = true);
-
     try {
       final habitsNormalized =
           _selectedHabits.map((h) => h.toLowerCase()).toList();
 
       if (_isEditing) {
+        String? verificationPdfUrl;
+        if (_verificationPdfFile != null) {
+          // Eliminar PDF anterior antes de subir el nuevo
+          if (_existingVerificationPdfUrl != null &&
+              _existingVerificationPdfUrl!.isNotEmpty) {
+            await SupabaseProvider.storageService
+                .deleteVerificationPdf(_existingVerificationPdfUrl!);
+          }
+          verificationPdfUrl =
+              await SupabaseProvider.storageService.uploadVerificationPdf(
+            ownerId: currentUser.id,
+            publicationType: 'roommate',
+            publicationId: widget.search!.id ?? '',
+            file: _verificationPdfFile!,
+          );
+        }
+
         await SupabaseProvider.databaseService.updateRoommateSearch(
           widget.search!.id ?? '',
           {
@@ -892,6 +1095,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
               'include_alicuota': _includeAlicuota,
               if (_latitude != null) 'latitude': _latitude,
               if (_longitude != null) 'longitude': _longitude,
+              if (verificationPdfUrl != null)
+                'verification_pdf_url': verificationPdfUrl,
           },
         );
         
@@ -924,6 +1129,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           habitsPreferences: habitsNormalized,
           imageUrls: imageUrls,
           includeAlicuota: _includeAlicuota,
+          verificationPdfFile: _verificationPdfFile,
         );
 
         if (!success) {

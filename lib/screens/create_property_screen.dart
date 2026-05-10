@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import '../utils/colors.dart';
+import '../utils/pdf_picker.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
 import 'package:image_picker/image_picker.dart';
@@ -66,6 +68,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   final List<String> _existingImageUrls = [];
   final List<String> _deletedImageUrls = [];
   final ImagePicker _picker = ImagePicker();
+  PlatformFile? _verificationPdfFile;
+  String? _existingVerificationPdfUrl;
   
   bool _isLoading = false;
   bool _isLoadingImages = false;
@@ -86,7 +90,9 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       _longitude = prop.longitude;
       _isActive = prop.isActive;
       _includeAlicuota = prop.includeAlicuota;
+      _existingVerificationPdfUrl = prop.verificationPdfUrl;
       _loadExistingImages();
+      _loadExistingVerificationPdf();
     }
   }
 
@@ -464,6 +470,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             _buildAddPhotoButton()
           else
             _buildPhotoGrid(),
+          const SizedBox(height: 24),
+          _buildVerificationPdfSection(),
         ],
       ),
     );
@@ -724,6 +732,114 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     );
   }
 
+  Widget _buildVerificationPdfSection() {
+    final hasExistingPdf = _existingVerificationPdfUrl != null &&
+        _existingVerificationPdfUrl!.isNotEmpty;
+    final fileName = _verificationPdfFile?.name ??
+        (hasExistingPdf ? 'PDF de verificacion cargado' : null);
+    final buttonText = fileName == null ? 'Subir PDF' : 'Cambiar PDF';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Documento de verificacion',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Obligatorio para revision del administrador',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _pickVerificationPdf,
+            icon: const Icon(Icons.upload_file),
+            label: Text(buttonText),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          if (fileName != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _showVerificationRequirements,
+            icon: const Icon(Icons.info_outline, size: 18),
+            label: const Text('Que debo subir?'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -966,6 +1082,67 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     );
   }
 
+  Future<void> _pickVerificationPdf() async {
+    final file = await pickPdfFile();
+
+    if (file != null) {
+      setState(() {
+        _verificationPdfFile = file;
+      });
+    }
+  }
+
+  Future<void> _loadExistingVerificationPdf() async {
+    try {
+      final property = await SupabaseProvider.databaseService
+          .getProperty(widget.property!.id);
+      if (!mounted) return;
+      setState(() {
+        _existingVerificationPdfUrl = property.verificationPdfUrl;
+      });
+    } catch (_) {
+      // Si no se puede refrescar, se conserva el dato recibido al abrir.
+    }
+  }
+
+  void _showVerificationRequirements() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: AppColors.primary),
+              SizedBox(width: 10),
+              Expanded(child: Text('Documentos sugeridos')),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('El PDF debe ayudar a validar que la publicacion es real.'),
+              SizedBox(height: 14),
+              Text('- Copia de cedula del propietario o responsable.'),
+              Text('- Planilla de luz, agua o internet del inmueble.'),
+              Text('- Contrato, predio o documento que relacione la direccion.'),
+              Text('- Fotos o respaldo adicional si aplica.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -1029,6 +1206,16 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       return;
     }
 
+    if (_verificationPdfFile == null &&
+        (_existingVerificationPdfUrl == null ||
+            _existingVerificationPdfUrl!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sube el PDF de verificacion')),
+      );
+      return;
+    }
+
+
     setState(() => _isLoading = true);
 
     try {
@@ -1037,11 +1224,25 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       if (authUser == null) {
         throw Exception('No hay usuario autenticado');
       }
-      if (authUser == null) {
-        throw Exception('Debes iniciar sesión');
-      }
 
       if (_isEditing) {
+        String? verificationPdfUrl;
+        if (_verificationPdfFile != null) {
+          // Eliminar PDF anterior antes de subir el nuevo
+          if (_existingVerificationPdfUrl != null &&
+              _existingVerificationPdfUrl!.isNotEmpty) {
+            await SupabaseProvider.storageService
+                .deleteVerificationPdf(_existingVerificationPdfUrl!);
+          }
+          verificationPdfUrl =
+              await SupabaseProvider.storageService.uploadVerificationPdf(
+            ownerId: authUser.id,
+            publicationType: 'property',
+            publicationId: widget.property!.id,
+            file: _verificationPdfFile!,
+          );
+        }
+
         await SupabaseProvider.databaseService.updateProperty(
           widget.property!.id,
           {
@@ -1056,6 +1257,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             'is_active': _isActive,
             'bedrooms': _bedrooms,
             'include_alicuota': _includeAlicuota,
+            if (verificationPdfUrl != null)
+              'verification_pdf_url': verificationPdfUrl,
           },
         );
 
@@ -1088,6 +1291,20 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
 
         if (_imageFiles.isNotEmpty) {
           await _uploadPropertyImages(createdProperty.id);
+        }
+
+        if (_verificationPdfFile != null) {
+          final verificationPdfUrl =
+              await SupabaseProvider.storageService.uploadVerificationPdf(
+            ownerId: authUser.id,
+            publicationType: 'property',
+            publicationId: createdProperty.id,
+            file: _verificationPdfFile!,
+          );
+          await SupabaseProvider.databaseService.updateProperty(
+            createdProperty.id,
+            {'verification_pdf_url': verificationPdfUrl},
+          );
         }
       }
 

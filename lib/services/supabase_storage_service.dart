@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -145,6 +146,98 @@ class SupabaseStorageService {
     } catch (e) {
       print('❌ Error subiendo imagen de roommate: $e');
       rethrow;
+    }
+  }
+
+  /// Subir PDF de verificación para publicaciones.
+  ///
+  /// Retorna una URL firmada de larga duración (5 años) en lugar de una URL
+  /// pública para proteger documentos sensibles (cédula, planillas, etc.).
+  ///
+  /// ⚠️ Para máxima seguridad: configura el bucket 'properties' como PRIVADO
+  /// en el dashboard de Supabase → Storage → Buckets → properties → Settings.
+  /// Con bucket privado, sólo las signed URLs permiten acceso.
+  Future<String> uploadVerificationPdf({
+    required String ownerId,
+    required String publicationType,
+    required String publicationId,
+    required PlatformFile file,
+  }) async {
+    final safeName = file.name
+        .replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    final fileName =
+        '${ownerId}_${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    final path = 'verification/$publicationType/$publicationId/$fileName';
+
+    if (kIsWeb) {
+      final bytes = file.bytes;
+      if (bytes == null) {
+        throw Exception('No se pudo leer el PDF seleccionado');
+      }
+      await _supabase.storage.from('properties').uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'application/pdf',
+              upsert: true,
+            ),
+          );
+    } else {
+      final filePath = file.path;
+      if (filePath == null) {
+        throw Exception('No se pudo leer la ruta del PDF seleccionado');
+      }
+      await _supabase.storage.from('properties').upload(
+            path,
+            File(filePath),
+            fileOptions: const FileOptions(
+              contentType: 'application/pdf',
+              upsert: true,
+            ),
+          );
+    }
+
+    // Intentar URL firmada (5 años). Si el bucket es público, cae al fallback.
+    try {
+      return await _supabase.storage
+          .from('properties')
+          .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+    } catch (_) {
+      // Fallback para buckets públicos — la firma falla si no está configurado.
+      return _supabase.storage.from('properties').getPublicUrl(path);
+    }
+  }
+
+  /// Eliminar el PDF de verificación anterior del storage.
+  /// Recibe la URL o el path relativo almacenado en la BD.
+  /// No lanza excepción si falla (operación no crítica).
+  Future<void> deleteVerificationPdf(String urlOrPath) async {
+    try {
+      final storagePath = _extractStoragePath(urlOrPath, 'properties');
+      if (storagePath == null || storagePath.isEmpty) return;
+      await _supabase.storage.from('properties').remove([storagePath]);
+      print('🗑️ PDF de verificación anterior eliminado: $storagePath');
+    } catch (e) {
+      print('⚠️ No se pudo eliminar PDF anterior (no crítico): $e');
+    }
+  }
+
+  /// Extrae el path relativo del storage a partir de una URL completa de Supabase.
+  /// Soporta URLs públicas y firmadas.
+  String? _extractStoragePath(String url, String bucket) {
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+      // URLs públicas:  .../storage/v1/object/public/{bucket}/{path...}
+      // URLs firmadas:  .../storage/v1/object/sign/{bucket}/{path...}
+      final bucketIndex = segments.indexOf(bucket);
+      if (bucketIndex == -1 || bucketIndex + 1 >= segments.length) return null;
+      return segments.sublist(bucketIndex + 1).join('/');
+    } catch (_) {
+      // Si ya viene como path relativo (sin dominio), devolverlo tal cual.
+      if (!url.startsWith('http') && url.contains('/')) return url;
+      return null;
     }
   }
 
