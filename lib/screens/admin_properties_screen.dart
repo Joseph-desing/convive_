@@ -683,16 +683,6 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                 ],
               ),
             ),
-            DropdownMenuItem(
-              value: 'pending',
-              child: Row(
-                children: [
-                  FaIcon(FontAwesomeIcons.clock, size: 14, color: Colors.amber),
-                  SizedBox(width: 10),
-                  Text('Pendientes'),
-                ],
-              ),
-            ),
           ],
           onChanged: (value) {
             if (value != null) {
