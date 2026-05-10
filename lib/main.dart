@@ -11,6 +11,7 @@ import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/forgot_password_screen.dart';
+import 'screens/change_password_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/user_profile_screen.dart';
 import 'screens/chat_screen.dart';
@@ -249,6 +250,10 @@ class _ConViveAppState extends State<ConViveApp> {
         GoRoute(
           path: '/forgot-password',
           builder: (context, state) => const ForgotPasswordScreen(),
+        ),
+        GoRoute(
+          path: '/change-password',
+          builder: (context, state) => const ChangePasswordScreen(),
         ),
         // ✅ RUTA: Confirmación de email exitosa (desde el link del correo)
         GoRoute(
