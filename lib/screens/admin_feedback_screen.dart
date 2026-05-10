@@ -306,11 +306,13 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   ) {
     return GestureDetector(
       onTap: () {
-        final detailFeedback = feedback.status == FeedbackStatus.open
+        final shouldAutoReview = feedback.status == FeedbackStatus.open &&
+            !_isManuallyPending(feedback);
+        final detailFeedback = shouldAutoReview
             ? feedback.copyWith(status: FeedbackStatus.in_review)
             : feedback;
 
-        if (feedback.status == FeedbackStatus.open) {
+        if (shouldAutoReview) {
           adminProvider.updateFeedbackStatus(feedback.id, 'in_review');
         }
 
@@ -354,7 +356,8 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                   ],
                 ),
               ),
-              if (feedback.status != FeedbackStatus.open) ...[
+              if (feedback.status != FeedbackStatus.open ||
+                  _isManuallyPending(feedback)) ...[
                 AdminStatusChip(
                   label: _getStatusLabel(feedback.status),
                   color: _getStatusColor(feedback.status),
@@ -693,6 +696,16 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
+  bool _isManuallyPending(UserFeedback feedback) {
+    final updatedAt = feedback.updatedAt;
+    if (feedback.status != FeedbackStatus.open || updatedAt == null) {
+      return false;
+    }
+
+    return updatedAt.difference(feedback.createdAt).abs() >
+        const Duration(seconds: 1);
+  }
+
   Color _getStatusColor(FeedbackStatus status) {
     switch (status) {
       case FeedbackStatus.open:
@@ -742,11 +755,29 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   }
 
   List<UserFeedback> _filterFeedback(List<UserFeedback> feedbacks) {
-    if (_searchController.text.isEmpty) {
-      return feedbacks;
+    var filtered = feedbacks;
+
+    if (_selectedStatusFilter != 'all') {
+      filtered = filtered.where((fb) {
+        switch (_selectedStatusFilter) {
+          case 'open':
+            return fb.status == FeedbackStatus.open;
+          case 'in_review':
+            return fb.status == FeedbackStatus.in_review;
+          case 'resolved':
+            return fb.status == FeedbackStatus.resolved;
+          default:
+            return true;
+        }
+      }).toList();
     }
+
+    if (_searchController.text.isEmpty) {
+      return filtered;
+    }
+
     final query = _searchController.text.toLowerCase();
-    return feedbacks
+    return filtered
         .where((fb) =>
             fb.subject.toLowerCase().contains(query) ||
             fb.message.toLowerCase().contains(query))

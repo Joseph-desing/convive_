@@ -198,6 +198,10 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
     }
   }
 
+  String _cleanSubject(String subject) {
+    return subject.replaceFirst(RegExp(r'^queja:\s*', caseSensitive: false), '');
+  }
+
   @override
   @override
   Widget build(BuildContext context) {
@@ -207,7 +211,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Detalles de la Queja'),
+        title: const Text('Detalles'),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -261,17 +265,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _getTypeLabel(widget.feedback.type),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _getTypeColor(widget.feedback.type),
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  widget.feedback.subject,
+                                  _cleanSubject(widget.feedback.subject),
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -328,7 +322,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
 
                 // Descripción con secciones separadas
                 Text(
-                  'Descripción de la Queja',
+                  'Descripción',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -367,52 +361,6 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                       const SizedBox(height: 8),
                       Text(
                         widget.feedback.message.split('Usuario reportado:')[0].trim(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.5,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Usuario reportado
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red[200]!, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.person_outline, color: Colors.red[600], size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Usuario Reportado',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red[700],
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.feedback.message.contains('Usuario reportado:')
-                            ? widget.feedback.message
-                                .split('Usuario reportado:')[1]
-                                .split('\n')[0]
-                                .trim()
-                            : 'No especificado',
                         style: const TextStyle(
                           fontSize: 13,
                           height: 1.5,
@@ -684,7 +632,6 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                                 backgroundColor: Colors.green,
                               ),
                             );
-                            Navigator.pop(context);
                           }
                         },
                       ),

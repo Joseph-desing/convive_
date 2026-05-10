@@ -345,6 +345,7 @@ class AdminProvider with ChangeNotifier {
                   : newStatus == 'resolved'
                       ? FeedbackStatus.resolved
                       : FeedbackStatus.closed,
+          updatedAt: DateTime.now(),
         );
         notifyListeners();
       }
@@ -371,9 +372,7 @@ class AdminProvider with ChangeNotifier {
       if (fbIndex != -1) {
         allFeedback[fbIndex] = allFeedback[fbIndex].copyWith(
           adminResponse: response,
-          status: FeedbackStatus.resolved,
           adminResponseAt: DateTime.now(),
-          resolvedBy: adminId,
         );
         notifyListeners();
       }

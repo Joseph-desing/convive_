@@ -261,8 +261,6 @@ class AdminService {
       await _supabase.from('feedback').update({
         'admin_response': response,
         'admin_response_at': DateTime.now().toIso8601String(),
-        'resolved_by': adminId,
-        'status': 'resolved',
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', feedbackId);
     } catch (e) {
