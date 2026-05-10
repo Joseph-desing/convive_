@@ -146,10 +146,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         recipientUserId: widget.userId,
         type: 'match_confirmed',
         senderUserId: currentUserId,
-        senderName: currentProfile?.fullName ?? 'Alguien',
+        senderName: (currentProfile?.fullName?.trim().isNotEmpty == true) ? currentProfile!.fullName!.trim() : 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
         publicationId: contextId,
-        publicationTitle: currentProfile?.fullName ?? 'Alguien',
+        publicationTitle: (currentProfile?.fullName?.trim().isNotEmpty == true) ? currentProfile!.fullName!.trim() : 'Alguien',
         publicationType: notifPubType,
       );
       print('💚 Match confirmado y notificación enviada al usuario');

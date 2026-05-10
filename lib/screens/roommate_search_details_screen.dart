@@ -60,14 +60,21 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
       );
       
       await SupabaseProvider.databaseService.createMatch(match);
+
+      // Limpiar notificaciones antiguas del mismo tipo ANTES de crear la nueva
+      await SupabaseProvider.databaseService.deleteMatchNotificationsFrom(
+        recipientUserId: widget.search.userId,
+        senderUserId: currentUserId,
+        publicationType: 'roommate',
+      );
       
-      // Enviar notificación al usuario que hizo el like original (asegurar entrega)
-      print('📬 Enviando notificación a ${widget.search.userId}...');
+      // Notificación con tipo match_confirmed (NO 'match')
+      print('📬 Enviando notificación match_confirmed a ${widget.search.userId}...');
       await SupabaseProvider.databaseService.createNotification(
         recipientUserId: widget.search.userId,
-        type: 'match',
+        type: 'match_confirmed',           // ← CORRECTO: match_confirmed, no 'match'
         senderUserId: currentUserId,
-        senderName: currentProfile?.fullName ?? 'Alguien',
+        senderName: (currentProfile?.fullName?.trim().isNotEmpty == true) ? currentProfile!.fullName!.trim() : 'Alguien',
         senderProfileImageUrl: currentProfile?.profileImageUrl,
         publicationId: widget.search.id,
         publicationTitle: widget.search.title,
@@ -75,15 +82,18 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
       );
       print('💚 Match confirmado y notificación enviada al autor de la búsqueda');
       
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Match confirmado! Ya puedes enviar mensajes')));
+      }
       
-      // Esperar un poco y volver atrás para que se recarguen los matches
       await Future.delayed(const Duration(milliseconds: 1000));
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 

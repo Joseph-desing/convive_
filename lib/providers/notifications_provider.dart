@@ -34,12 +34,12 @@ class NotificationsProvider extends ChangeNotifier {
     ].join('|');
   }
 
-  List<Notification> _dedupeNotifications(Iterable<Notification> items) {
+  List<Notification> _dedupeNotifications(
+      Iterable<Notification> items, String currentUserId) {
     final list = items.toList();
 
     // Pre-pass: identificar senders que ya tienen al menos un match_confirmed
     // CON publicationType real (departamento/roommate/profile).
-    // Las notificaciones stale (sin publicationType) del mismo sender se omiten.
     final sendersWithTypedMatch = <String>{};
     for (final item in list) {
       final isMatch = item.type == 'match' || item.type == 'match_confirmed';
@@ -58,14 +58,27 @@ class NotificationsProvider extends ChangeNotifier {
     for (final item in list) {
       final isMatch = item.type == 'match' || item.type == 'match_confirmed';
 
-      // Omitir notificaciones match stale (sin publicationType) si el sender
-      // ya tiene una notificación de match con publicationType real.
-      // Esto elimina las notificaciones 'fantasma' legacy sin publicationType.
-      if (isMatch &&
-          (item.publicationType == null || item.publicationType!.isEmpty) &&
-          item.senderUserId != null &&
-          sendersWithTypedMatch.contains(item.senderUserId)) {
-        continue;
+      if (isMatch) {
+        // FILTRO 1: Notificaciones completamente vacías (sin sender NI publicationType).
+        // Estas son registros "fantasma" de código antiguo — siempre se omiten.
+        final hasNoSender = item.senderUserId == null || item.senderUserId!.isEmpty;
+        final hasNoType   = item.publicationType == null || item.publicationType!.isEmpty;
+        if (hasNoSender && hasNoType) continue;
+
+        // FILTRO 2: Notificaciones sin publicationType del mismo sender
+        // cuando ese sender ya tiene otra notificación con publicationType real.
+        if (hasNoType &&
+            !hasNoSender &&
+            sendersWithTypedMatch.contains(item.senderUserId)) {
+          continue;
+        }
+
+        // FILTRO 3: match_confirmed cuyo sender soy yo mismo.
+        // No tiene sentido recibir la confirmación de mi propio match.
+        if (item.type == 'match_confirmed' &&
+            item.senderUserId == currentUserId) {
+          continue;
+        }
       }
 
       final key = _notificationKey(item);
@@ -142,6 +155,40 @@ class NotificationsProvider extends ChangeNotifier {
         print('📥 Iniciando carga de notificaciones para usuario: $userId');
       }
 
+      // LIMPIEZA PREVENTIVA: Borrar registros fantasma legacy de la BD.
+      // Se hace ANTES de cargar para que no aparezcan en la lista.
+      try {
+        // Purge 1: type='match' con publication_id=NULL (notif del home_screen antiguo)
+        await SupabaseProvider.client
+            .from('notifications')
+            .delete()
+            .eq('recipient_user_id', userId)
+            .eq('type', 'match')
+            .isFilter('publication_id', null);
+
+        // Purge 2: type='match_confirmed' sin sender NI publicationType
+        // Son los "UU / alguien te devolvió el 💚" del código antiguo.
+        await SupabaseProvider.client
+            .from('notifications')
+            .delete()
+            .eq('recipient_user_id', userId)
+            .eq('type', 'match_confirmed')
+            .isFilter('sender_user_id', null)
+            .isFilter('publication_type', null);
+
+        // Purge 3: match_confirmed con sender_user_id = yo mismo (no debería existir)
+        await SupabaseProvider.client
+            .from('notifications')
+            .delete()
+            .eq('recipient_user_id', userId)
+            .eq('sender_user_id', userId)
+            .or('type.eq.match,type.eq.match_confirmed');
+
+        if (kDebugMode) print('🧹 Notificaciones legacy limpiadas de la BD');
+      } catch (e) {
+        if (kDebugMode) print('⚠️ No se pudo limpiar legacy: $e');
+      }
+
       // Cargar notificaciones de Supabase (tabla: notifications)
       final response = await SupabaseProvider.client
           .from('notifications')
@@ -160,7 +207,7 @@ class NotificationsProvider extends ChangeNotifier {
             .map((data) => Notification.fromJson(data as Map<String, dynamic>))
             .where((notification) => _shouldShowNotification(notification, userId));
 
-        _notifications = _dedupeNotifications(loadedNotifications.toList());
+        _notifications = _dedupeNotifications(loadedNotifications.toList(), userId);
         if (kDebugMode) {
           print('✅ Notificaciones cargadas: ${_notifications.length}');
           for (var notif in _notifications) {
@@ -240,11 +287,20 @@ class NotificationsProvider extends ChangeNotifier {
                 }
                 return;
               }
-              // ✅ DEDUPLICACIÓN ROBUSTA: Verificar por ID y timestamp para evitar duplicados
+              // Aplicar los mismos filtros que _dedupeNotifications
+              final isMatch = newNotification.type == 'match' || newNotification.type == 'match_confirmed';
+              if (isMatch) {
+                final hasNoSender = newNotification.senderUserId == null || newNotification.senderUserId!.isEmpty;
+                final hasNoType   = newNotification.publicationType == null || newNotification.publicationType!.isEmpty;
+                // Filtro 1: completamente vacía
+                if (hasNoSender && hasNoType) return;
+                // Filtro 3: match_confirmed enviado por mí mismo
+                if (newNotification.type == 'match_confirmed' && newNotification.senderUserId == userId) return;
+              }
+              // Deduplicación por clave
               final isDuplicate = _notifications.any((n) => _notificationKey(n) == _notificationKey(newNotification));
               if (!isDuplicate) {
                 _notifications.insert(0, newNotification);
-                // ✅ NUEVO: Usar debounce en lugar de notifyListeners directo
                 _notifyChangesDebounced();
                 if (kDebugMode) {
                   print('✅ 📨 REALTIME: Notificación recibida: ${newNotification.message} (ID: ${newNotification.id})');

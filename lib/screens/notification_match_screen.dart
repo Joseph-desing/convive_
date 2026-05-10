@@ -168,7 +168,7 @@ class _NotificationMatchScreenState extends State<NotificationMatchScreen> {
         recipientUserId: widget.senderUserId,
         type: 'match_confirmed',
         senderUserId: me,
-        senderName: myProfile?.fullName ?? 'Alguien',
+        senderName: (myProfile?.fullName?.trim().isNotEmpty == true) ? myProfile!.fullName!.trim() : 'Alguien',
         senderProfileImageUrl: myProfile?.profileImageUrl,
         publicationId: _contextId,
         publicationTitle: _isDepartamento
