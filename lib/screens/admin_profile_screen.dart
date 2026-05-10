@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../utils/colors.dart';
+import '../widgets/admin/admin_ui.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
 
@@ -162,7 +163,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AdminUi.background,
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.currentUser;
@@ -368,7 +369,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 6,
             crossAxisSpacing: 6,
-            childAspectRatio: 2.2,
+            childAspectRatio: 1.65,
             children: [
               _buildInfoCard(
                 icon: FontAwesomeIcons.envelope,
@@ -555,7 +556,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 6,
           crossAxisSpacing: 6,
-          childAspectRatio: 2.2,
+          childAspectRatio: 1.65,
           children: [
             _buildInfoCard(
               icon: FontAwesomeIcons.envelope,
@@ -602,7 +603,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
@@ -616,30 +617,27 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/admin_provider.dart';
-import '../providers/auth_provider.dart';
 import '../utils/colors.dart';
+import '../widgets/admin/admin_ui.dart';
 import 'admin_users_screen.dart';
 import 'admin_properties_screen.dart';
 import 'admin_feedback_screen.dart';
@@ -40,7 +39,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AdminUi.background,
       appBar: AppBar(
+        toolbarHeight: 56,
         title: const Row(
           children: [
             FaIcon(FontAwesomeIcons.shieldHalved, size: 20, color: Colors.white),
@@ -50,6 +51,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         elevation: 0,
         backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const FaIcon(FontAwesomeIcons.rotate, size: 18),
@@ -68,19 +70,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Stats Cards
-                    _buildStatsSection(context, adminProvider),
-                    const SizedBox(height: 24),
-
-                    // Error Message
-                    if (adminProvider.errorMessage != null)
+                    _buildHeroSection(),
+                    const SizedBox(height: 14),
+                    if (adminProvider.errorMessage != null) ...[
                       _buildErrorCard(adminProvider.errorMessage!),
-                    const SizedBox(height: 100),
+                      const SizedBox(height: 10),
+                    ],
+                    Expanded(child: _buildStatsSection(context, adminProvider)),
                   ],
                 ),
               );
@@ -96,37 +97,98 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const AdminProfileScreen(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentTabIndex,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey[400],
-        onTap: (index) {
-          setState(() {
-            _currentTabIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.house),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: const Border(top: BorderSide(color: AdminUi.border)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          iconSize: 18,
+          currentIndex: _currentTabIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AdminUi.muted,
+          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+          unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          elevation: 0,
+          onTap: (index) {
+            setState(() {
+              _currentTabIndex = index;
+            });
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.house, size: 18),
+              label: 'Inicio',
+            ),
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.users, size: 18),
+              label: 'Usuarios',
+            ),
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.building, size: 18),
+              label: 'Posts',
+            ),
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.comments, size: 18),
+              label: 'Quejas',
+            ),
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.user, size: 18),
+              label: 'Perfil',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: AdminUi.panelDecoration(),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: FaIcon(FontAwesomeIcons.chartLine, color: AppColors.primary, size: 18),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.users),
-            label: 'Usuarios',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.building),
-            label: 'Depart.',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.comments),
-            label: 'Quejas',
-          ),
-          BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.user),
-            label: 'Perfil',
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Centro de control',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: AdminUi.ink,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Monitorea usuarios, publicaciones y reportes desde un solo lugar.',
+                  style: TextStyle(fontSize: 12, color: AdminUi.muted, height: 1.25),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -143,18 +205,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           'Estadísticas Generales',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
+            color: AdminUi.ink,
           ),
         ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.0,
-          children: [
+        const SizedBox(height: 10),
+        Expanded(
+          child: GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.0,
+            children: [
             // Usuarios totales
             _buildStatCard(
               title: 'Usuarios',
@@ -180,30 +244,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               color: Colors.purple,
             ),
             // Quejas/Sugerencias
-            _buildStatCard(
-              title: 'Feedback',
-              value: '${stats['feedback']?['total'] ?? 0}',
-              subtitle: 'Total',
+                  _buildStatCard(
+                    title: 'Quejas',
+                    value: '${stats['feedback']?['total'] ?? 0}',
+                    subtitle: 'Total',
               icon: FontAwesomeIcons.comments,
               color: Colors.red,
             ),
-            // Pendientes
-            _buildStatCard(
-              title: 'Pendientes',
-              value: '${(stats['feedback']?['open'] ?? 0) + (stats['properties']?['inactive'] ?? 0) + (stats['roommateSearches']?['inactive'] ?? 0)}',
-              subtitle: 'Por revisar',
-              icon: FontAwesomeIcons.exclamation,
-              color: Colors.amber,
-            ),
-            // Quejas Solucionadas
-            _buildStatCard(
-              title: 'Quejas',
-              value: '${stats['feedback']?['resolved'] ?? 0}',
-              subtitle: 'Solucionadas',
-              icon: FontAwesomeIcons.checkCircle,
-              color: Colors.green,
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -216,45 +265,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required IconData icon,
     required Color color,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FaIcon(icon, size: 28, color: color),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+    return Container(
+      decoration: AdminUi.panelDecoration(),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+            child: Center(child: FaIcon(icon, size: 17, color: color)),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
             ),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[500],
-              ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
+          ),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AdminUi.muted,
+            ),
+          ),
+        ],
       ),
     );
   }

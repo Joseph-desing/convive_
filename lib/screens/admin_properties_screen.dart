@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/admin_provider.dart';
 import '../utils/colors.dart';
+import '../widgets/admin/admin_ui.dart';
 
 class AdminPropertiesScreen extends StatefulWidget {
   const AdminPropertiesScreen({Key? key}) : super(key: key);
@@ -61,6 +62,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AdminUi.background,
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
           if (adminProvider.isLoading) {
@@ -69,9 +71,15 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
 
           return Column(
             children: [
+              const AdminSectionHeader(
+                title: 'Publicaciones',
+                subtitle: 'Revisa departamentos y busquedas de roomies.',
+                icon: FontAwesomeIcons.building,
+              ),
               // TabBar para Departamentos y Roomies
               Container(
-                color: Colors.white,
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                decoration: AdminUi.panelDecoration(),
                 child: TabBar(
                   controller: _tabController,
                   indicatorColor: AppColors.primary,
@@ -202,20 +210,9 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   Widget _buildRoommieFiltersSection() {
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            )
-          ],
-        ),
+        decoration: AdminUi.panelDecoration(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: DropdownButton<String>(
           value: _selectedRoommateFilter,
@@ -287,8 +284,9 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
     final budget = search['budget_min'] ?? 0;
     final roommateCount = search['roommate_count'] ?? 0;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: AdminUi.panelDecoration(),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -470,22 +468,155 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Búsqueda de Roommate'),
-        content: const Text('¿Estás seguro de que deseas eliminar esta búsqueda? Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 10,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
           ),
-          TextButton(
-            onPressed: () {
-              adminProvider.deleteRoommateSearch(searchId);
-              Navigator.pop(context);
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(50),
+                  color: Colors.red[50],
+                  border: Border.all(
+                    color: Colors.red.shade300,
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  FontAwesomeIcons.trash,
+                  color: Colors.red.shade600,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Eliminar Busqueda de Roommate',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.exclamation,
+                          color: Colors.red.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Accion Irreversible',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Estas seguro de que deseas eliminar esta busqueda? Esta accion no se puede deshacer.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.red.shade700,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey[300]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        adminProvider.deleteRoommateSearch(searchId);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'Busqueda de roommate eliminada correctamente',
+                            ),
+                            backgroundColor: Colors.green.shade600,
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: Colors.red.shade600,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Eliminar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -502,20 +633,9 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   Widget _buildFiltersSection() {
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            )
-          ],
-        ),
+        decoration: AdminUi.panelDecoration(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: DropdownButton<String>(
           value: _selectedFilter,
@@ -587,23 +707,27 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Buscar por título...',
           prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AdminUi.border),
+          ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: Colors.grey[300]!),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: Colors.white,
         ),
         onChanged: (_) => setState(() {}),
       ),
@@ -650,10 +774,9 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
             : null);
     final ownerName = profile?['full_name'] ?? 'Propietario Desconocido';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: AdminUi.panelDecoration(),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -812,7 +935,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 11),
                     label: const Text('Activar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: Colors.green.shade500,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
@@ -820,18 +943,39 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      elevation: 2,
                     ),
                     onPressed: () {
                       adminProvider.updatePropertyStatus(
                           property['id'], 'active');
                     },
                   ),
+                if (status == 'active')
+                  ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
+                    label: const Text('Desactivar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
+                    onPressed: () {
+                      adminProvider.updatePropertyStatus(
+                          property['id'], 'inactive');
+                    },
+                  ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 11),
-                  label: const Text('Desactivar'),
+                  icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
+                  label: const Text('Eliminar'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber.shade600,
+                    backgroundColor: Colors.red.shade500,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
@@ -840,25 +984,6 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     elevation: 2,
-                  ),
-                  onPressed: () {
-                    adminProvider.updatePropertyStatus(
-                        property['id'], 'inactive');
-                  },
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  icon: const FaIcon(FontAwesomeIcons.trash, size: 11),
-                  label: const Text('Eliminar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                   onPressed: () => _showDeleteDialog(
                       context, property['id'], adminProvider),

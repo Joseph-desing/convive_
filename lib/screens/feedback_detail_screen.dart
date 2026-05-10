@@ -20,6 +20,7 @@ class FeedbackDetailScreen extends StatefulWidget {
 
 class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
   late TextEditingController _responseController;
+  late FeedbackStatus _currentStatus;
   Map<String, dynamic>? _reporterData;
   Map<String, dynamic>? _reportedUserData;
   bool _loadingUsers = true;
@@ -28,6 +29,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
   void initState() {
     super.initState();
     _responseController = TextEditingController();
+    _currentStatus = widget.feedback.status;
     _loadUserData();
   }
 
@@ -140,7 +142,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
   String _getStatusLabel(FeedbackStatus status) {
     switch (status) {
       case FeedbackStatus.open:
-        return 'Abierto';
+        return 'Pendiente';
       case FeedbackStatus.in_review:
         return 'En Revisión';
       case FeedbackStatus.resolved:
@@ -153,7 +155,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
   Color _getStatusColor(FeedbackStatus status) {
     switch (status) {
       case FeedbackStatus.open:
-        return Colors.green;
+        return Colors.blue;
       case FeedbackStatus.in_review:
         return Colors.orange;
       case FeedbackStatus.resolved:
@@ -285,16 +287,16 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(widget.feedback.status)
+                              color: _getStatusColor(_currentStatus)
                                   .withOpacity(0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _getStatusLabel(widget.feedback.status),
+                              _getStatusLabel(_currentStatus),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: _getStatusColor(widget.feedback.status),
+                                color: _getStatusColor(_currentStatus),
                               ),
                             ),
                           ),
@@ -703,10 +705,10 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    if (widget.feedback.status != FeedbackStatus.in_review)
+                    if (_currentStatus != FeedbackStatus.open)
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.visibility, size: 16),
-                        label: const Text('En Revisión'),
+                        icon: const Icon(Icons.schedule, size: 16),
+                        label: const Text('Pendiente'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
@@ -714,16 +716,17 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                         onPressed: () {
                           adminProvider.updateFeedbackStatus(
                             widget.feedback.id,
-                            'in_review',
+                            'open',
                           );
+                          setState(() => _currentStatus = FeedbackStatus.open);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('✅ Cambio a En Revisión'),
+                              content: Text('Cambio a Pendiente'),
                             ),
                           );
                         },
                       ),
-                    if (widget.feedback.status != FeedbackStatus.resolved)
+                    if (_currentStatus != FeedbackStatus.resolved)
                       ElevatedButton.icon(
                         icon: const Icon(Icons.check, size: 16),
                         label: const Text('Resuelto'),
@@ -736,9 +739,10 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                             widget.feedback.id,
                             'resolved',
                           );
+                          setState(() => _currentStatus = FeedbackStatus.resolved);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('✅ Cambio a Resuelto'),
+                              content: Text('Cambio a Resuelto'),
                             ),
                           );
                         },

@@ -6,6 +6,7 @@ import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
+import '../widgets/admin/admin_ui.dart';
 import 'feedback_detail_screen.dart';
 
 class AdminFeedbackScreen extends StatefulWidget {
@@ -159,6 +160,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AdminUi.background,
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
           if (adminProvider.isLoading) {
@@ -169,6 +171,11 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
           return Column(
             children: [
+              const AdminSectionHeader(
+                title: 'Quejas y feedback',
+                subtitle: 'Prioriza reportes abiertos y da seguimiento.',
+                icon: FontAwesomeIcons.comments,
+              ),
               // Filtros de Estado
               _buildStatusFiltersSection(),
               // Búsqueda
@@ -196,33 +203,12 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
   Widget _buildStatusFiltersSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Filtrar por Estado',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
           Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )
-              ],
-            ),
+            decoration: AdminUi.panelDecoration(),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: DropdownButton<String>(
               value: _selectedStatusFilter,
@@ -251,22 +237,22 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                   ),
                 ),
                 DropdownMenuItem(
-                  value: 'open',
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.envelopeOpen, size: 14, color: Color(0xFF2E7D32)),
-                      SizedBox(width: 10),
-                      Text('Abiertos'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
                   value: 'in_review',
                   child: Row(
                     children: [
                       FaIcon(FontAwesomeIcons.magnifyingGlass, size: 14, color: Color(0xFFE65100)),
                       SizedBox(width: 10),
                       Text('En Revisión'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'open',
+                  child: Row(
+                    children: [
+                      FaIcon(FontAwesomeIcons.clock, size: 14, color: Color(0xFF1976D2)),
+                      SizedBox(width: 10),
+                      Text('Pendientes'),
                     ],
                   ),
                 ),
@@ -296,40 +282,20 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: TextField(
         controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar por asunto o mensaje...',
-          prefixIcon: const Icon(Icons.search),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
+        decoration: AdminUi.inputDecoration(hintText: 'Buscar por asunto o mensaje...'),
         onChanged: (_) => setState(() {}),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FaIcon(FontAwesomeIcons.comments,
-              size: 48, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            'No hay feedback',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+    return const AdminEmptyState(
+      icon: FontAwesomeIcons.comments,
+      title: 'No hay feedback',
+      subtitle: 'Cambia el filtro o intenta con otro texto.',
     );
   }
 
@@ -340,15 +306,24 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   ) {
     return GestureDetector(
       onTap: () {
+        final detailFeedback = feedback.status == FeedbackStatus.open
+            ? feedback.copyWith(status: FeedbackStatus.in_review)
+            : feedback;
+
+        if (feedback.status == FeedbackStatus.open) {
+          adminProvider.updateFeedbackStatus(feedback.id, 'in_review');
+        }
+
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => FeedbackDetailScreen(feedback: feedback),
+            builder: (context) => FeedbackDetailScreen(feedback: detailFeedback),
           ),
         );
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: AdminUi.panelDecoration(),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -379,23 +354,9 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(feedback.status).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _getStatusLabel(feedback.status),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(feedback.status),
-                  ),
-                ),
+              AdminStatusChip(
+                label: _getStatusLabel(feedback.status),
+                color: _getStatusColor(feedback.status),
               ),
               const SizedBox(width: 12),
               Icon(Icons.arrow_forward_ios, 
@@ -746,7 +707,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   String _getStatusLabel(FeedbackStatus status) {
     switch (status) {
       case FeedbackStatus.open:
-        return 'Abierto';
+        return 'Pendiente';
       case FeedbackStatus.in_review:
         return 'En Revisión';
       case FeedbackStatus.resolved:

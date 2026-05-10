@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/admin_provider.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
+import '../widgets/admin/admin_ui.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({Key? key}) : super(key: key);
@@ -46,6 +47,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AdminUi.background,
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
           if (adminProvider.isLoading) {
@@ -56,6 +58,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
           return Column(
             children: [
+              const AdminSectionHeader(
+                title: 'Usuarios',
+                subtitle: 'Gestiona roles, suspensiones y comunicaciones.',
+                icon: FontAwesomeIcons.users,
+              ),
               // Filtros
               _buildFiltersSection(),
               // Búsqueda
@@ -82,20 +89,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _buildFiltersSection() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            )
-          ],
-        ),
+        decoration: AdminUi.panelDecoration(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: DropdownButton<String>(
           value: _selectedFilter,
@@ -157,39 +153,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: TextField(
         controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar por email...',
-          prefixIcon: const Icon(Icons.search),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
+        decoration: AdminUi.inputDecoration(hintText: 'Buscar por email o nombre...'),
         onChanged: (_) => setState(() {}),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FaIcon(FontAwesomeIcons.users, size: 48, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            'No hay usuarios',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+    return const AdminEmptyState(
+      icon: FontAwesomeIcons.users,
+      title: 'No hay usuarios',
+      subtitle: 'Cambia el filtro o intenta otra busqueda.',
     );
   }
 
@@ -207,8 +184,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         : null;
     final userName = profile?['full_name'] ?? email;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: AdminUi.panelDecoration(),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -243,23 +221,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getRoleColor(role).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _getRoleLabel(role),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: _getRoleColor(role),
-                    ),
-                  ),
+                AdminStatusChip(
+                  label: _getRoleLabel(role),
+                  color: _getRoleColor(role),
                 ),
               ],
             ),
@@ -296,19 +260,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildCompactActionButton(
+                    AdminActionButton(
                       icon: FontAwesomeIcons.wrench,
                       label: 'Editar',
                       color: Colors.blue.shade600,
                       onPressed: () => _showEditUserDialog(context, user),
                     ),
-                    _buildCompactActionButton(
+                    AdminActionButton(
                       icon: FontAwesomeIcons.envelope,
                       label: 'Mensaje',
                       color: Colors.purple.shade600,
                       onPressed: () => _showMessageDialog(context, user),
                     ),
-                    _buildCompactActionButton(
+                    AdminActionButton(
                       icon: isSuspended
                           ? FontAwesomeIcons.checkCircle
                           : FontAwesomeIcons.ban,
@@ -506,7 +470,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       children: [
                         // TAB 1: ROL
                         SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,24 +478,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               // Email Card
                               Container(
                                 padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Colors.blue[50]!, Colors.blue[100]!],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.blue[200]!),
+                                decoration: AdminUi.panelDecoration(
+                                  borderColor: Colors.blue.shade200,
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.shade400,
+                                        color: Colors.blue.withOpacity(0.12),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const FaIcon(
                                         FontAwesomeIcons.envelope,
-                                        color: Colors.white,
+                                        color: Colors.blue,
                                         size: 18,
                                       ),
                                     ),
@@ -580,17 +540,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
                               // Rol Dropdown
                               Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.primary, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ],
+                                decoration: AdminUi.panelDecoration(
+                                  borderColor: AppColors.primary,
                                 ),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                 child: DropdownButton<String>(
@@ -663,7 +614,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
                         // TAB 2: PERFIL
                         SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,12 +645,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                   }
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[50],
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.grey[300]!),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  decoration: _dialogFieldBoxDecoration(),
                                   child: Row(
                                     children: [
                                       const FaIcon(
@@ -734,11 +681,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               _buildFieldLabel('Género'),
                               const SizedBox(height: 8),
                               Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.grey[300]!),
-                                ),
+                                decoration: _dialogFieldBoxDecoration(),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                 child: DropdownButton<String>(
                                   value: selectedGender,
@@ -796,36 +739,34 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               // Biografía
                               _buildFieldLabel('Sobre mí'),
                               const SizedBox(height: 8),
-                              TextField(
-                                controller: bioController,
-                                maxLines: 4,
-                                decoration: InputDecoration(
-                                  hintText: 'Escribe algo sobre ti...',
-                                  prefixIcon: const Padding(
-                                    padding: EdgeInsets.only(top: 10.0),
-                                    child: FaIcon(
-                                      FontAwesomeIcons.penToSquare,
-                                      size: 14,
-                                      color: AppColors.primary,
+                              Container(
+                                decoration: _dialogFieldBoxDecoration(),
+                                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 4),
+                                      child: FaIcon(
+                                        FontAwesomeIcons.penToSquare,
+                                        size: 14,
+                                        color: AppColors.primary,
+                                      ),
                                     ),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide(color: Colors.grey[300]!),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.primary,
-                                      width: 2,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: bioController,
+                                        maxLines: 4,
+                                        decoration: const InputDecoration(
+                                          hintText: 'Escribe algo sobre ti...',
+                                          border: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.zero,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey[50],
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -834,10 +775,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: isVerified ? Colors.green[50] : Colors.grey[50],
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isVerified ? Colors.green[300]! : Colors.grey[300]!,
+                                    color: isVerified ? Colors.green.shade300 : AdminUi.border,
                                   ),
                                 ),
                                 child: Row(
@@ -896,44 +837,42 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[200],
-                              foregroundColor: Colors.grey[700],
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: OutlinedButton.icon(
+                            icon: const FaIcon(FontAwesomeIcons.xmark, size: 14),
+                            label: const Text('Cancelar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AdminUi.ink,
+                              backgroundColor: const Color(0xFFF3F4F6),
+                              side: const BorderSide(color: Color(0xFFD1D5DB)),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              textStyle: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              elevation: 0,
                             ),
                             onPressed: () => Navigator.pop(context),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FaIcon(FontAwesomeIcons.xmark, size: 16),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Cancelar',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
+                            icon: const FaIcon(FontAwesomeIcons.floppyDisk, size: 14),
+                            label: const Text('Guardar'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              textStyle: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              elevation: 3,
+                              elevation: 0,
                             ),
                             onPressed: () async {
                               // Actualizar rol
@@ -973,20 +912,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 context.read<AdminProvider>().loadAllUsers();
                               }
                             },
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FaIcon(FontAwesomeIcons.floppyDisk, size: 16),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Guardar Cambios',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ],
@@ -1013,32 +938,55 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  OutlineInputBorder _dialogInputBorder({
+    Color color = AdminUi.border,
+    double width = 1,
+  }) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  BoxDecoration _dialogFieldBoxDecoration({
+    Color borderColor = AdminUi.border,
+    Color fillColor = Colors.white,
+  }) {
+    return BoxDecoration(
+      color: fillColor,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: borderColor),
+    );
+  }
+
   Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: FaIcon(
-          icon,
-          size: 14,
-          color: AppColors.primary,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
+        prefixIcon: Center(
+          widthFactor: 1,
+          child: FaIcon(
+            icon,
+            size: 14,
             color: AppColors.primary,
-            width: 2,
           ),
         ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 42,
+          minHeight: 42,
+        ),
+        enabledBorder: _dialogInputBorder(),
+        border: _dialogInputBorder(),
+        focusedBorder: _dialogInputBorder(
+          color: AppColors.primary,
+          width: 1.6,
+        ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
-          vertical: 12,
+          vertical: 14,
         ),
       ),
     );
@@ -1061,8 +1009,26 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        titlePadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.primary.withOpacity(0.84)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -1070,11 +1036,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(FontAwesomeIcons.envelope, 
-                    color: Colors.red.shade600, 
+                  child: const Icon(FontAwesomeIcons.envelope,
+                    color: Colors.white,
                     size: 20
                   ),
                 ),
@@ -1085,12 +1051,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     children: [
                       const Text(
                         'Notificar Suspensión',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: Colors.white),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         user['email'] ?? 'Usuario',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: const TextStyle(fontSize: 12, color: Colors.white70),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1100,6 +1066,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
             ),
           ],
+        ),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -1130,17 +1097,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           entry.key == 'other' ? 'Personalizado' : entry.key.toUpperCase(),
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                            color: isSelected ? Colors.white : Colors.grey[700],
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? AppColors.primary : AdminUi.ink,
                           ),
                         ),
-                        backgroundColor: entry.key == 'other'
-                            ? Colors.grey[200]
-                            : entry.key == 'violencia'
-                                ? Colors.red[50]
-                                : entry.key == 'fraude'
-                                    ? Colors.orange[50]
-                                    : Colors.blue[50],
+                        backgroundColor: Colors.white,
+                        selectedColor: AppColors.primary.withOpacity(0.08),
+                        side: BorderSide(
+                          color: isSelected ? AppColors.primary : AdminUi.border,
+                        ),
+                        checkmarkColor: AppColors.primary,
                         selected: isSelected,
                         onSelected: (val) {
                           setState(() {
@@ -1148,11 +1114,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             messageController.text = entry.value;
                           });
                         },
-                        selectedColor: entry.key == 'violencia'
-                            ? Colors.red.shade600
-                            : entry.key == 'fraude'
-                                ? Colors.orange.shade600
-                                : Colors.blue.shade600,
                       );
                     }).toList(),
                   ),
@@ -1177,14 +1138,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   decoration: InputDecoration(
                     hintText: 'Agrega detalles específicos sobre la suspensión...',
                     filled: true,
-                    fillColor: Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!, width: 1.5),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.red.shade300, width: 2),
+                    fillColor: Colors.white,
+                    enabledBorder: _dialogInputBorder(),
+                    border: _dialogInputBorder(),
+                    focusedBorder: _dialogInputBorder(
+                      color: AppColors.primary,
+                      width: 1.6,
                     ),
                     contentPadding: const EdgeInsets.all(12),
                     hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
@@ -1196,10 +1155,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 // Info importante
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue[200]!, width: 1.5),
+                  decoration: AdminUi.panelDecoration(
+                    borderColor: Colors.blue.shade200,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1215,7 +1172,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '📧 Email será enviado',
+                              'Email será enviado',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -1242,30 +1199,53 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
         ),
         actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.close, size: 16),
-            label: const Text('Cancelar'),
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.grey[600],
-            ),
-          ),
-          ElevatedButton.icon(
-            icon: const FaIcon(FontAwesomeIcons.paperPlane, size: 14),
-            label: const Text('Enviar Notificación'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: () async {
+          SizedBox(
+            width: double.infinity,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.xmark, size: 14),
+                    label: const Text('Cancelar'),
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AdminUi.ink,
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const FaIcon(FontAwesomeIcons.paperPlane, size: 14),
+                    label: const Text('Enviar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () async {
               if (messageController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('⚠️ Escribe un mensaje'),
+                    content: Text('Escribe un mensaje'),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -1284,7 +1264,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('✅ Notificación enviada al usuario'),
+                      content: const Text('Notificación enviada al usuario'),
                       backgroundColor: Colors.green.shade600,
                       duration: const Duration(seconds: 2),
                     ),
@@ -1294,13 +1274,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('❌ Error: ${e.toString()}'),
+                      content: Text('Error: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
-            },
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1355,7 +1339,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 10,
+        elevation: 0,
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
@@ -1367,31 +1351,55 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             children: [
               // Icono grande en la parte superior
               Container(
-                width: 70,
-                height: 70,
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(50),
-                  color: isSuspended ? Colors.green[50] : Colors.red[50],
-                  border: Border.all(
-                    color: isSuspended ? Colors.green.shade300 : Colors.red.shade300,
-                    width: 2,
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.primary.withOpacity(0.84)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  isSuspended ? FontAwesomeIcons.checkCircle : FontAwesomeIcons.ban,
-                  color: isSuspended ? Colors.green.shade600 : Colors.red.shade600,
-                  size: 32,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: FaIcon(
+                        isSuspended ? FontAwesomeIcons.checkCircle : FontAwesomeIcons.ban,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        isSuspended ? 'Activar usuario' : 'Suspender usuario',
+                        style: const TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               
               // Título principal
               Text(
-                isSuspended ? '¿Activar usuario?' : '¿Suspender usuario?',
+                isSuspended
+                    ? 'Quieres activar esta cuenta?'
+                    : 'Quieres suspender esta cuenta?',
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AdminUi.ink,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1399,12 +1407,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               
               // Contenedor con el email y descripción
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
+                decoration: AdminUi.panelDecoration(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1434,11 +1439,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               // Descripción
               Text(
                 isSuspended 
-                  ? 'Este usuario podrá acceder nuevamente a la plataforma.'
-                  : 'Este usuario no podrá acceder a su cuenta hasta que sea reactivado.',
-                style: TextStyle(
+                  ? 'Este usuario podra acceder nuevamente a la plataforma.'
+                  : 'Este usuario no podra acceder a su cuenta hasta que sea reactivado.',
+                style: const TextStyle(
                   fontSize: 13,
-                  color: Colors.grey[700],
+                  color: AdminUi.muted,
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,
@@ -1449,21 +1454,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: OutlinedButton.icon(
+                      icon: const FaIcon(FontAwesomeIcons.xmark, size: 14),
+                      label: const Text('Cancelar'),
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: Colors.grey[300]!),
+                        foregroundColor: AdminUi.ink,
+                        backgroundColor: const Color(0xFFF3F4F6),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
                         ),
                       ),
                     ),
@@ -1491,7 +1496,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                         backgroundColor: isSuspended ? Colors.green.shade600 : Colors.red.shade600,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -1502,7 +1507,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         isSuspended ? 'Activar' : 'Suspender',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
                       ),
