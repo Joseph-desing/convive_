@@ -710,7 +710,7 @@ class _FeedbackDetailScreenState extends State<FeedbackDetailScreen> {
                         icon: const Icon(Icons.schedule, size: 16),
                         label: const Text('Pendiente'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                         ),
                         onPressed: () {

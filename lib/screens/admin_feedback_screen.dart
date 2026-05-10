@@ -354,11 +354,13 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                   ],
                 ),
               ),
-              AdminStatusChip(
-                label: _getStatusLabel(feedback.status),
-                color: _getStatusColor(feedback.status),
-              ),
-              const SizedBox(width: 12),
+              if (feedback.status != FeedbackStatus.open) ...[
+                AdminStatusChip(
+                  label: _getStatusLabel(feedback.status),
+                  color: _getStatusColor(feedback.status),
+                ),
+                const SizedBox(width: 12),
+              ],
               Icon(Icons.arrow_forward_ios, 
                 size: 16, 
                 color: Colors.grey[400],
