@@ -331,8 +331,7 @@ class AdminService {
           .order('created_at', ascending: false);
       
       final searches = List<Map<String, dynamic>>.from(response);
-      print('✅ getAllRoommateSearches: ${searches.length} búsquedas cargadas');
-      return searches;
+      return _mergeProfiles(searches);
     } catch (e) {
       print('❌ getAllRoommateSearches error: $e');
       return [];
@@ -342,19 +341,57 @@ class AdminService {
   /// Obtiene búsquedas de roommates por estado
   Future<List<Map<String, dynamic>>> getRoommateSearchesByStatus(String status) async {
     try {
-      // Por ahora, simplemente retorna todas las búsquedas
-      // Ya que la tabla no tiene un campo is_active
+      final isActive = status.toLowerCase() == 'active';
       final response = await _supabase
           .from('roommate_searches')
           .select('*')
+          .eq('is_active', isActive)
           .order('created_at', ascending: false);
       
       final searches = List<Map<String, dynamic>>.from(response);
-      print('✅ getRoommateSearchesByStatus($status): ${searches.length} búsquedas');
-      return searches;
+      return _mergeProfiles(searches);
     } catch (e) {
       print('❌ getRoommateSearchesByStatus error: $e');
       return [];
+    }
+  }
+
+  /// Carga perfiles de usuarios y los fusiona con las búsquedas
+  Future<List<Map<String, dynamic>>> _mergeProfiles(
+    List<Map<String, dynamic>> searches,
+  ) async {
+    if (searches.isEmpty) return searches;
+    // Obtener IDs únicos de usuarios
+    final userIds = searches
+        .map((s) => s['user_id'] as String?)
+        .where((id) => id != null)
+        .toSet()
+        .toList();
+    if (userIds.isEmpty) return searches;
+    // Cargar perfiles en una sola query
+    try {
+      final profilesRes = await _supabase
+          .from('profiles')
+          .select('user_id, full_name, profile_image_url')
+          .inFilter('user_id', userIds);
+      final profileMap = <String, Map<String, dynamic>>{};
+      for (final p in profilesRes as List) {
+        final profile = p as Map<String, dynamic>;
+        final uid = profile['user_id'] as String?;
+        if (uid != null) profileMap[uid] = profile;
+      }
+      // Fusionar
+      return searches.map((s) {
+        final uid = s['user_id'] as String?;
+        final result = Map<String, dynamic>.from(s);
+        if (uid != null && profileMap.containsKey(uid)) {
+          result['profiles'] = profileMap[uid];
+        }
+        return result;
+      }).toList();
+    } catch (e) {
+      print('⚠️ _mergeProfiles error: $e');
+      return searches;
     }
   }
 

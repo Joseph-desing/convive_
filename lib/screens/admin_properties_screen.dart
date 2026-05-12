@@ -280,10 +280,14 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   ) {
     final title = search['title'] ?? 'Sin título';
     final userId = search['user_id'];
+    // Nombre del usuario desde el join con profiles
+    final profileData = search['profiles'] as Map<String, dynamic>?;
+    final userName = profileData?['full_name'] as String? ?? userId?.toString() ?? 'Desconocido';
+    final userAvatar = profileData?['profile_image_url'] as String?;
     final isActive = search['is_active'] ?? false;
     final createdAt = search['created_at'];
-    final budget = search['budget_min'] ?? 0;
-    final roommateCount = search['roommate_count'] ?? 0;
+    final budget = search['budget'] ?? 0;       // columna correcta: 'budget'
+    final address = search['address'] ?? 'Sin dirección';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -312,7 +316,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Usuario: $userId',
+                        userName,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -368,12 +372,16 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                 Expanded(
                   child: Row(
                     children: [
-                      FaIcon(FontAwesomeIcons.users,
+                      FaIcon(FontAwesomeIcons.locationDot,
                           size: 12, color: Colors.purple),
                       const SizedBox(width: 4),
-                      Text(
-                        '$roommateCount personas',
-                        style: const TextStyle(fontSize: 12),
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
