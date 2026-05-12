@@ -803,6 +803,19 @@ class _SearchCard extends StatefulWidget {
 class _SearchCardState extends State<_SearchCard> {
   bool _isHovered = false;
 
+  String _genderLabel(String? value) {
+    switch (value) {
+      case 'male':
+        return 'Hombre';
+      case 'female':
+        return 'Mujer';
+      case 'any':
+        return 'Sin preferencia';
+      default:
+        return 'Sin preferencia';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -1004,7 +1017,7 @@ class _SearchCardState extends State<_SearchCard> {
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  widget.search.genderPreference ?? 'Cualquiera',
+                                  _genderLabel(widget.search.genderPreference),
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
