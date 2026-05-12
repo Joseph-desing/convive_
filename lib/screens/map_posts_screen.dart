@@ -16,8 +16,8 @@ import '../models/property.dart';
 import '../models/roommate_search.dart';
 import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
-import 'property_details_screen.dart';
-import 'roommate_search_details_screen.dart';
+import 'map_property_preview_screen.dart';
+import 'map_roommate_preview_screen.dart';
 
 class MapPostsScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -341,44 +341,66 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   @override
   Widget build(BuildContext context) {
     final initialCenter = _initialMapCenter();
+    final summaryTop = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Mapa de publicaciones'),
-        backgroundColor: Colors.white,
+        titleSpacing: 0,
+        title: const Text(
+          'Mapa de publicaciones',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primary,
+          ),
+        ),
+        backgroundColor: Colors.white.withOpacity(0.94),
         foregroundColor: AppColors.primary,
-        elevation: 1,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () async {
-              final result = await showModalBottomSheet<FilterSheetResult>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => FilterSheet(
-                  initialShowProperties: _showProperties,
-                  initialShowSearches: _showSearches,
-                  initialOnlyMatches: _filterOnlyMatches,
-                  initialRadiusKm: _filterRadiusKm,
-                  initialPriceMin: _filterPriceMin,
-                  initialPriceMax: _filterPriceMax,
-                    initialMinBedrooms: _filterMinBedrooms,
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(Icons.tune_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary.withOpacity(0.08),
+                foregroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-              if (result != null) {
-                setState(() {
-                  _showProperties = result.showProperties;
-                  _showSearches = result.showSearches;
-                  _filterOnlyMatches = result.onlyMatches;
-                  _filterRadiusKm = result.radiusKm;
-                  _filterPriceMin = result.priceMin;
-                  _filterPriceMax = result.priceMax;
-                });
-                await _saveLocalGeocodeCache();
-                await _loadData();
-              }
-            },
-          )
+              ),
+              onPressed: () async {
+                final result = await showModalBottomSheet<FilterSheetResult>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => FilterSheet(
+                    initialShowProperties: _showProperties,
+                    initialShowSearches: _showSearches,
+                    initialOnlyMatches: _filterOnlyMatches,
+                    initialRadiusKm: _filterRadiusKm,
+                    initialPriceMin: _filterPriceMin,
+                    initialPriceMax: _filterPriceMax,
+                    initialMinBedrooms: _filterMinBedrooms,
+                  ),
+                );
+                if (result != null) {
+                  setState(() {
+                    _showProperties = result.showProperties;
+                    _showSearches = result.showSearches;
+                    _filterOnlyMatches = result.onlyMatches;
+                    _filterRadiusKm = result.radiusKm;
+                    _filterPriceMin = result.priceMin;
+                    _filterPriceMax = result.priceMax;
+                  });
+                  await _saveLocalGeocodeCache();
+                  await _loadData();
+                }
+              },
+            ),
+          ),
         ],
       ),
       body: _loading
@@ -410,6 +432,89 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   ],
                 ),
 
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  top: summaryTop,
+                  child: _buildMapSummary(),
+                ),
+              ],
+            ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Icon(Icons.my_location_rounded),
+          onPressed: _centerOnUser,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapSummary() {
+    return Align(
+      alignment: Alignment.topRight,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.94),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.8)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _MapSummaryButton(
+              icon: Icons.home_rounded,
+              label: '${_showProperties ? _properties.length : 0}',
+              caption: 'Propiedades',
+              color: Colors.red,
+              active: _showProperties,
+              onTap: () async {
+                setState(() => _showProperties = !_showProperties);
+                await _saveLocalGeocodeCache();
+              },
+            ),
+            const SizedBox(height: 6),
+            _MapSummaryButton(
+              icon: Icons.person_pin_circle_rounded,
+              label: '${_showSearches ? _searches.length : 0}',
+              caption: 'Busquedas',
+              color: Colors.blue,
+              active: _showSearches,
+              onTap: () async {
+                setState(() => _showSearches = !_showSearches);
+                await _saveLocalGeocodeCache();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /*
                 // Leyenda / conteo y filtros en esquina superior derecha
                 Positioned(
                   top: 12,
@@ -465,13 +570,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.my_location),
-        onPressed: _centerOnUser,
-      ),
-    );
-  }
+  */
 
   @override
   void dispose() {
@@ -573,127 +672,302 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
     return markers;
   }
 
-  void _openPropertyBottomSheet(Property p) {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  Widget _sheetHandle() {
+    return Center(
+      child: Container(
+        width: 44,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE0E3E7),
+          borderRadius: BorderRadius.circular(99),
+        ),
       ),
-      builder: (BuildContext ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
+    );
+  }
+
+  Widget _sheetHeader({
+    required IconData icon,
+    required String label,
+    required String title,
+    required Color color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Línea decorativa superior
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              // Título
+              const SizedBox(height: 8),
               Text(
-                p.title,
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
+                  color: Color(0xFF1F2937),
                   fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  fontWeight: FontWeight.w800,
+                  height: 1.12,
                 ),
-              ),
-              const SizedBox(height: 12),
-              // Dirección con ícono
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: Colors.pink,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      p.address,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Precio si está disponible
-              if (p.price != 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.pink.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '\$${p.price}/mes',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.pink,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              // Botones
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (BuildContext ctx) => PropertyDetailsScreen(property: p),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.visibility),
-                      label: const Text('Ver publicación'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 50,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.grey[800],
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Icon(Icons.close),
-                    ),
-                  ),
-                ],
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sheetLocation({
+    required String address,
+    required String coordinates,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.location_on_rounded, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  address.isNotEmpty ? address : 'Ubicacion seleccionada',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF374151),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  coordinates,
+                  style: const TextStyle(
+                    color: Color(0xFF7B8494),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sheetChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.11),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sheetActions({
+    required BuildContext sheetContext,
+    required Color color,
+    required IconData icon,
+    required String label,
+    required VoidCallback onOpen,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: onOpen,
+              icon: Icon(icon, size: 19),
+              label: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 52,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(sheetContext),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF4B5563),
+              backgroundColor: Colors.white,
+              side: const BorderSide(color: Color(0xFFE0E4EA)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: EdgeInsets.zero,
+            ),
+            child: const Icon(Icons.close_rounded, size: 22),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _genderLabel(String? value) {
+    switch ((value ?? '').toLowerCase().trim()) {
+      case 'male':
+      case 'hombre':
+        return 'Hombre';
+      case 'female':
+      case 'mujer':
+        return 'Mujer';
+      case 'any':
+      case 'sin preferencia':
+        return 'Sin preferencia';
+      default:
+        return 'Sin preferencia';
+    }
+  }
+
+  void _openPropertyBottomSheet(Property p) {
+    const color = Color(0xFFE91E63);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF7FA),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sheetHandle(),
+                const SizedBox(height: 18),
+                _sheetHeader(
+                  icon: Icons.home_rounded,
+                  label: 'Departamento',
+                  title: p.title,
+                  color: color,
+                ),
+                const SizedBox(height: 16),
+                _sheetLocation(
+                  address: p.address,
+                  coordinates:
+                      'Lat: ${p.latitude.toStringAsFixed(5)}, Lng: ${p.longitude.toStringAsFixed(5)}',
+                  color: color,
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _sheetChip(
+                      icon: Icons.attach_money_rounded,
+                      label: '\$${p.price.toStringAsFixed(0)}/mes',
+                      color: color,
+                    ),
+                    _sheetChip(
+                      icon: Icons.bed_rounded,
+                      label: '${p.bedrooms} hab',
+                      color: const Color(0xFF2563EB),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                _sheetActions(
+                  sheetContext: sheetContext,
+                  color: color,
+                  icon: Icons.visibility_rounded,
+                  label: 'Ver publicacion',
+                  onOpen: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (BuildContext ctx) =>
+                            MapPropertyPreviewScreen(property: p),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -701,129 +975,164 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   }
 
   void _openSearchBottomSheet(RoommateSearch s) {
+    const color = Color(0xFFFF9800);
+    final lat = s.latitude;
+    final lng = s.longitude;
+    final coordinates = lat != null && lng != null
+        ? 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)}'
+        : 'Ubicacion aproximada';
+
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Línea decorativa superior
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFFBF3),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sheetHandle(),
+                const SizedBox(height: 18),
+                _sheetHeader(
+                  icon: Icons.person_pin_circle_rounded,
+                  label: 'Busqueda de roomie',
+                  title: s.title,
+                  color: color,
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Título
-              Text(
-                s.title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                const SizedBox(height: 16),
+                _sheetLocation(
+                  address: s.address,
+                  coordinates: coordinates,
+                  color: color,
                 ),
-              ),
-              const SizedBox(height: 12),
-              // Dirección con ícono
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: Colors.orange,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      s.address,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _sheetChip(
+                      icon: Icons.attach_money_rounded,
+                      label: '\$${s.budget.toStringAsFixed(0)}/mes',
+                      color: color,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Presupuesto si está disponible
-              if (s.budget != 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Presupuesto: \$${s.budget}/mes',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.orange,
+                    _sheetChip(
+                      icon: Icons.person_rounded,
+                      label: _genderLabel(s.genderPreference),
+                      color: const Color(0xFFE91E63),
                     ),
-                  ),
+                  ],
                 ),
-              const SizedBox(height: 24),
-              // Botones
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (BuildContext ctx) => RoommateSearchDetailsScreen(search: s),
-                          ),
-                        );
-                      },
-        icon: const Icon(Icons.person),
-                      label: const Text('Ver búsqueda'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                const SizedBox(height: 22),
+                _sheetActions(
+                  sheetContext: sheetContext,
+                  color: color,
+                  icon: Icons.person_search_rounded,
+                  label: 'Ver busqueda',
+                  onOpen: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (BuildContext ctx) =>
+                            MapRoommatePreviewScreen(search: s),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 50,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.grey[800],
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Icon(Icons.close),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _MapSummaryButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String caption;
+  final Color color;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _MapSummaryButton({
+    required this.icon,
+    required this.label,
+    required this.caption,
+    required this.color,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = active ? color : Colors.grey;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 116,
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? effectiveColor.withOpacity(0.08) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active
+                ? effectiveColor.withOpacity(0.20)
+                : const Color(0xFFE5E7EB),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: effectiveColor.withOpacity(active ? 0.14 : 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: effectiveColor, size: 17),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: active ? const Color(0xFF1F2937) : Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: active ? Colors.grey[600] : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
