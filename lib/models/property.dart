@@ -29,7 +29,7 @@ class Property {
     required this.longitude,
     required this.address,
     required this.availableFrom,
-    this.isActive = true,
+    this.isActive = false, // Inactivo hasta aprobación del admin
     DateTime? createdAt,
     this.updatedAt,
     this.bedrooms = 1,
@@ -50,7 +50,7 @@ class Property {
       longitude: (json['longitude'] as num).toDouble(),
       address: json['address'] as String,
       availableFrom: json['available_from'] != null ? DateTime.parse(json['available_from']) : DateTime.now(),
-      isActive: json['is_active'] is bool ? (json['is_active'] as bool) : (json['is_active'] as bool? ?? true),
+      isActive: json['is_active'] is bool ? (json['is_active'] as bool) : (json['is_active'] as bool? ?? false),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       bedrooms: json['bedrooms'] is num ? (json['bedrooms'] as num).toInt() : (int.tryParse(json['bedrooms']?.toString() ?? '') ?? 1),

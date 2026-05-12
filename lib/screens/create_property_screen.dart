@@ -59,7 +59,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   // Detalles
   int _bedrooms = 1;
   int _bathrooms = 1;
-  bool _isActive = true;
+  bool _isActive = false; // Empieza inactivo hasta que el admin lo apruebe
   bool _includeAlicuota = false;
   DateTime _availableFrom = DateTime.now();
   
