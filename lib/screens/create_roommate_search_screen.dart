@@ -62,6 +62,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     'Ordenado',
     'Responsable',
     'Respetuoso',
+    'Seguridad',
     'Madrugador',
     'Noctámbulo',
     'Amante de mascotas',

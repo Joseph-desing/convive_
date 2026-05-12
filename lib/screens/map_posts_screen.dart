@@ -53,6 +53,37 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   String _filterOrderBy = 'recent';
   LatLng? _currentMapCenter;
 
+  bool _isValidLatLng(double? lat, double? lng) {
+    if (lat == null || lng == null) return false;
+    if (lat == 0 && lng == 0) return false;
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  LatLng _fallbackCenter() => LatLng(-0.180653, -78.467834);
+
+  LatLng _initialMapCenter() {
+    if (widget.initialLocation != null) return widget.initialLocation!;
+
+    for (final p in _properties) {
+      if (_isValidLatLng(p.latitude, p.longitude)) {
+        return LatLng(p.latitude, p.longitude);
+      }
+    }
+
+    for (final s in _searches) {
+      if (_isValidLatLng(s.latitude, s.longitude)) {
+        return LatLng(s.latitude!, s.longitude!);
+      }
+      final key = s.id ?? s.address;
+      final cached = _geocodeCache[key];
+      if (cached != null && _isValidLatLng(cached.latitude, cached.longitude)) {
+        return cached;
+      }
+    }
+
+    return _fallbackCenter();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +100,9 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         // Centrar en esa propiedad
         final lat = widget.singleProperty!.latitude;
         final lng = widget.singleProperty!.longitude;
-        _mapController.move(LatLng(lat, lng), 15);
+        if (_isValidLatLng(lat, lng)) {
+          _mapController.move(LatLng(lat, lng), 15);
+        }
       } else if (widget.singleRoommate != null) {
         setState(() {
           _properties = [];
@@ -81,8 +114,8 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         // Centrar en esa búsqueda de compañero
         final lat = widget.singleRoommate!.latitude;
         final lng = widget.singleRoommate!.longitude;
-        if (lat != null && lng != null) {
-          _mapController.move(LatLng(lat, lng), 15);
+        if (_isValidLatLng(lat, lng)) {
+          _mapController.move(LatLng(lat!, lng!), 15);
         }
       } else {
         // Cargar todos los datos normalmente
@@ -199,7 +232,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
       }
 
       // radius filtering: use current map center if available (track via onPositionChanged)
-      LatLng center = _currentMapCenter ?? (_properties.isNotEmpty ? LatLng(_properties.first.latitude, _properties.first.longitude) : LatLng(-0.180653, -78.467834));
+      LatLng center = _currentMapCenter ?? _initialMapCenter();
       final dist = Distance();
 
       if (partnerIds != null) {
@@ -211,11 +244,13 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         searches = searches.where((s) {
           final lat = s.latitude;
           final lng = s.longitude;
-          if (lat == null || lng == null) return false;
-          final dkm = dist.as(LengthUnit.Kilometer, center, LatLng(lat, lng));
+          if (!_isValidLatLng(lat, lng)) return false;
+          final dkm =
+              dist.as(LengthUnit.Kilometer, center, LatLng(lat!, lng!));
           return dkm <= _filterRadiusKm!;
         }).toList();
         props = props.where((p) {
+          if (!_isValidLatLng(p.latitude, p.longitude)) return false;
           final dkm = dist.as(LengthUnit.Kilometer, center, LatLng(p.latitude, p.longitude));
           return dkm <= _filterRadiusKm!;
         }).toList();
@@ -305,9 +340,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final initialCenter = _properties.isNotEmpty
-        ? LatLng(_properties.first.latitude, _properties.first.longitude)
-        : LatLng(-0.180653, -78.467834); // Quito as fallback
+    final initialCenter = _initialMapCenter();
 
     return Scaffold(
       appBar: AppBar(
@@ -483,6 +516,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
     // Propiedades (rojo con icono de casa)
     if (_showProperties) {
       for (final p in _properties) {
+        if (!_isValidLatLng(p.latitude, p.longitude)) continue;
         markers.add(
           Marker(
             width: 48,
@@ -501,7 +535,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
     if (_showSearches) {
       for (final s in _searches) {
         // Preferir coordenadas guardadas en la búsqueda
-        if (s.latitude != null && s.longitude != null) {
+        if (_isValidLatLng(s.latitude, s.longitude)) {
           final pos = LatLng(s.latitude!, s.longitude!);
           markers.add(
             Marker(
@@ -520,6 +554,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
         final key = s.id ?? s.address;
         if (_geocodeCache.containsKey(key)) {
           final pos = _geocodeCache[key]!;
+          if (!_isValidLatLng(pos.latitude, pos.longitude)) continue;
           markers.add(
             Marker(
               width: 44,
