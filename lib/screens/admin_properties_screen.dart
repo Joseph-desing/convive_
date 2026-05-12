@@ -423,34 +423,6 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                       adminProvider: adminProvider,
                     ),
                   ),
-                if (!isActive)
-                  ElevatedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 12),
-                    label: const Text('Activar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade500,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 2,
-                    ),
-                    onPressed: () => adminProvider.updateRoommateSearchStatus(search['id'], 'active'),
-                  ),
-                if (isActive)
-                  ElevatedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
-                    label: const Text('Desactivar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade600,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 2,
-                    ),
-                    onPressed: () => adminProvider.updateRoommateSearchStatus(search['id'], 'inactive'),
-                  ),
                 ElevatedButton.icon(
                   icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
                   label: const Text('Eliminar'),
@@ -958,34 +930,6 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                       pdfUrl: property['verification_pdf_url'],
                       adminProvider: adminProvider,
                     ),
-                  ),
-                if (status != 'active')
-                  ElevatedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.checkCircle, size: 11),
-                    label: const Text('Activar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade500,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 2,
-                    ),
-                    onPressed: () => adminProvider.updatePropertyStatus(property['id'], 'active'),
-                  ),
-                if (status == 'active')
-                  ElevatedButton.icon(
-                    icon: const FaIcon(FontAwesomeIcons.eyeSlash, size: 12),
-                    label: const Text('Desactivar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade600,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 2,
-                    ),
-                    onPressed: () => adminProvider.updatePropertyStatus(property['id'], 'inactive'),
                   ),
                 ElevatedButton.icon(
                   icon: const FaIcon(FontAwesomeIcons.trash, size: 12),
