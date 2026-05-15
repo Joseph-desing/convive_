@@ -361,41 +361,60 @@ class AdminProvider with ChangeNotifier {
   }) async {
     try {
       _setLoading(true);
+      final note = (adminNote != null && adminNote.trim().isNotEmpty)
+          ? adminNote.trim()
+          : 'La publicacion no cumple con los requisitos de verificacion.';
       if (type == 'property') {
         final updated = await _supabase.from('properties').update({
           'status': 'inactive',
           'is_active': false,
-          if (adminNote != null && adminNote.isNotEmpty)
-            'admin_notes': adminNote,
-        }).eq('id', id).select('id');
+          'admin_notes': note,
+        }).eq('id', id).select('id, owner_id, title');
         if ((updated as List).isEmpty) {
           throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
         }
+
+        final updatedProperty =
+            Map<String, dynamic>.from(updated.first as Map<String, dynamic>);
+        await _notifyPublicationRejected(
+          recipientUserId: updatedProperty['owner_id'] as String?,
+          publicationId: id,
+          publicationTitle: updatedProperty['title'] as String?,
+          publicationType: 'departamento',
+          note: note,
+        );
 
         final idx = allProperties.indexWhere((p) => p['id'] == id);
         if (idx != -1) {
           allProperties[idx]['status'] = 'inactive';
           allProperties[idx]['is_active'] = false;
-          if (adminNote != null) allProperties[idx]['admin_notes'] = adminNote;
+          allProperties[idx]['admin_notes'] = note;
         }
       } else {
         final updated = await _supabase.from('roommate_searches').update({
           'status': 'inactive',
           'is_active': false,
-          if (adminNote != null && adminNote.isNotEmpty)
-            'admin_notes': adminNote,
-        }).eq('id', id).select('id');
+          'admin_notes': note,
+        }).eq('id', id).select('id, user_id, title');
         if ((updated as List).isEmpty) {
           throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
         }
+
+        final updatedSearch =
+            Map<String, dynamic>.from(updated.first as Map<String, dynamic>);
+        await _notifyPublicationRejected(
+          recipientUserId: updatedSearch['user_id'] as String?,
+          publicationId: id,
+          publicationTitle: updatedSearch['title'] as String?,
+          publicationType: 'roommate',
+          note: note,
+        );
 
         final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
         if (idx != -1) {
           allRoommateSearches[idx]['status'] = 'inactive';
           allRoommateSearches[idx]['is_active'] = false;
-          if (adminNote != null) {
-            allRoommateSearches[idx]['admin_notes'] = adminNote;
-          }
+          allRoommateSearches[idx]['admin_notes'] = note;
         }
       }
       notifyListeners();
@@ -406,6 +425,34 @@ class AdminProvider with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _notifyPublicationRejected({
+    required String? recipientUserId,
+    required String publicationId,
+    required String? publicationTitle,
+    required String publicationType,
+    required String note,
+  }) async {
+    if (recipientUserId == null || recipientUserId.isEmpty) return;
+
+    final title = publicationTitle?.trim().isNotEmpty == true
+        ? publicationTitle!.trim()
+        : publicationType == 'roommate'
+            ? 'tu busqueda de roommate'
+            : 'tu departamento';
+
+    await _supabase.from('notifications').insert({
+      'recipient_user_id': recipientUserId,
+      'type': 'system',
+      'sender_user_id': _supabase.auth.currentUser?.id,
+      'sender_user_name': 'Administracion',
+      'publication_id': publicationId,
+      'publication_title':
+          'Tu publicacion "$title" fue rechazada. Motivo: $note',
+      'publication_type': publicationType,
+      'read': false,
+    });
   }
 
   // ==================== FEEDBACK MANAGEMENT ====================
