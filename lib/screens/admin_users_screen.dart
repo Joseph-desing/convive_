@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/admin_provider.dart';
 import '../utils/colors.dart';
-import '../config/supabase_provider.dart';
 import '../widgets/admin/admin_ui.dart';
 
 class AdminUsersScreen extends StatefulWidget {
@@ -338,13 +337,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final profile = user['profiles'] is List && (user['profiles'] as List).isNotEmpty
         ? user['profiles'][0]
         : null;
-    
+
     String selectedRole = user['role'] ?? 'student';
     TextEditingController fullNameController = TextEditingController(text: profile?['full_name'] ?? '');
     TextEditingController bioController = TextEditingController(text: profile?['bio'] ?? '');
     String selectedGender = profile?['gender'] ?? 'other';
     DateTime? selectedBirthDate = profile?['birth_date'] != null ? DateTime.parse(profile?['birth_date']) : null;
     bool isVerified = profile?['verified'] ?? false;
+    final showProfileTab = false;
 
     showDialog(
       context: context,
@@ -366,7 +366,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
           child: StatefulBuilder(
             builder: (context, setState) => DefaultTabController(
-              length: 2,
+              length: 1,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -439,24 +439,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       indicatorColor: AppColors.primary,
                       indicatorWeight: 4,
                       labelPadding: const EdgeInsets.symmetric(vertical: 16),
-                      tabs: [
+                      tabs: const [
                         Tab(
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const FaIcon(FontAwesomeIcons.shield, size: 16),
-                              const SizedBox(width: 8),
-                              const Text('Rol', style: TextStyle(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const FaIcon(FontAwesomeIcons.circleUser, size: 16),
-                              const SizedBox(width: 8),
-                              const Text('Perfil', style: TextStyle(fontWeight: FontWeight.w600)),
+                              FaIcon(FontAwesomeIcons.shield, size: 16),
+                              SizedBox(width: 8),
+                              Text('Rol', style: TextStyle(fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -613,7 +603,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
 
                         // TAB 2: PERFIL
-                        SingleChildScrollView(
+                        if (showProfileTab)
+                          SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -877,20 +868,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             onPressed: () async {
                               // Actualizar rol
                               context.read<AdminProvider>().updateUserRole(user['id'], selectedRole);
-
-                              // Actualizar perfil
-                              if (profile != null) {
-                                await SupabaseProvider.databaseService.updateProfile(
-                                  profile['id'],
-                                  {
-                                    'full_name': fullNameController.text,
-                                    'bio': bioController.text,
-                                    'gender': selectedGender,
-                                    'birth_date': selectedBirthDate?.toIso8601String(),
-                                    'verified': isVerified,
-                                  },
-                                );
-                              }
 
                               if (context.mounted) {
                                 Navigator.pop(context);
