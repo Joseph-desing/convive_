@@ -1281,7 +1281,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
           latitude: _latitude ?? 0.0,
           longitude: _longitude ?? 0.0,
           availableFrom: _availableFrom,
-          isActive: _isActive,
+          isActive: false,
           bedrooms: _bedrooms,
           includeAlicuota: _includeAlicuota,
         );

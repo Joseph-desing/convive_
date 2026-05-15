@@ -8,6 +8,69 @@ import '../config/supabase_provider.dart';
 import 'create_property_screen.dart';
 import 'create_roommate_search_screen.dart';
 
+String _publicationStatusLabel(String status) {
+  switch (status.toLowerCase()) {
+    case 'active':
+      return 'Aprobada';
+    case 'inactive':
+      return 'Rechazada';
+    case 'pending':
+    default:
+      return 'Pendiente';
+  }
+}
+
+Color _publicationStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'active':
+      return Colors.green;
+    case 'inactive':
+      return Colors.red;
+    case 'pending':
+    default:
+      return Colors.orange;
+  }
+}
+
+IconData _publicationStatusIcon(String status) {
+  switch (status.toLowerCase()) {
+    case 'active':
+      return Icons.check_circle_outline_rounded;
+    case 'inactive':
+      return Icons.cancel_outlined;
+    case 'pending':
+    default:
+      return Icons.schedule_rounded;
+  }
+}
+
+Widget _buildPublicationStatusBadge(String status) {
+  final color = _publicationStatusColor(status);
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: color.withOpacity(0.28)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(_publicationStatusIcon(status), size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(
+          _publicationStatusLabel(status),
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class MyPublicationsScreen extends StatefulWidget {
   const MyPublicationsScreen({Key? key}) : super(key: key);
 
@@ -424,14 +487,17 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
               gradient: const LinearGradient(
                 colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
               ),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                Navigator.push(
+                final created = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const CreatePropertyScreen(),
                   ),
                 );
+                if (created == true && mounted) {
+                  await _loadPublications();
+                }
               },
             ),
             const SizedBox(height: 12),
@@ -441,14 +507,17 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
               title: 'Buscar Roommate',
               description: 'Necesito un compañero/a',
               gradient: AppColors.primaryGradient,
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                Navigator.push(
+                final created = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const CreateRoommateSearchScreen(),
                   ),
                 );
+                if (created == true && mounted) {
+                  await _loadPublications();
+                }
               },
             ),
             const SizedBox(height: 20),
@@ -622,6 +691,10 @@ class _PropertyCardState extends State<_PropertyCard> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildPublicationStatusBadge(
+                            widget.property.status,
                           ),
                         ],
                       ),
@@ -886,6 +959,8 @@ class _SearchCardState extends State<_SearchCard> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          _buildPublicationStatusBadge(widget.search.status),
                         ],
                       ),
                     ),

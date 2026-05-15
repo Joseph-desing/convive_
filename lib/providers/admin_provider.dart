@@ -19,8 +19,8 @@ class AdminProvider with ChangeNotifier {
 
   // Filtros
   String selectedUserFilter = 'all'; // all, student, non_student, admin
-  String selectedPropertyFilter = 'all'; // all, active, inactive
-  String selectedRoommateFilter = 'all'; // all, active, inactive
+  String selectedPropertyFilter = 'pending'; // pending, active, inactive
+  String selectedRoommateFilter = 'pending'; // pending, active, inactive
   String selectedFeedbackFilter = 'all'; // all, open, resolved, closed
 
   AdminProvider() {
@@ -168,6 +168,8 @@ class AdminProvider with ChangeNotifier {
           allProperties.indexWhere((p) => p['id'] == propertyId);
       if (propIndex != -1) {
         allProperties[propIndex]['status'] = newStatus;
+        allProperties[propIndex]['is_active'] =
+            newStatus.toLowerCase() == 'active';
         notifyListeners();
       }
 
@@ -248,6 +250,7 @@ class AdminProvider with ChangeNotifier {
       final searchIndex =
           allRoommateSearches.indexWhere((s) => s['id'] == searchId);
       if (searchIndex != -1) {
+        allRoommateSearches[searchIndex]['status'] = status.toLowerCase();
         allRoommateSearches[searchIndex]['is_active'] =
             status.toLowerCase() == 'active';
         notifyListeners();
@@ -301,32 +304,42 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       if (type == 'property') {
-        await _supabase.from('properties').update({
+        final note = (adminNote != null && adminNote.isNotEmpty)
+            ? adminNote
+            : 'Aprobado por administrador';
+        final updated = await _supabase.from('properties').update({
           'status': 'active',
           'is_active': true,
-          if (adminNote != null && adminNote.isNotEmpty)
-            'admin_notes': adminNote,
-        }).eq('id', id);
+          'admin_notes': note,
+        }).eq('id', id).select('id');
+        if ((updated as List).isEmpty) {
+          throw Exception('No se pudo aprobar la publicacion. Revisa permisos RLS.');
+        }
 
         final idx = allProperties.indexWhere((p) => p['id'] == id);
         if (idx != -1) {
           allProperties[idx]['status'] = 'active';
           allProperties[idx]['is_active'] = true;
-          if (adminNote != null) allProperties[idx]['admin_notes'] = adminNote;
+          allProperties[idx]['admin_notes'] = note;
         }
       } else {
-        await _supabase.from('roommate_searches').update({
+        final note = (adminNote != null && adminNote.isNotEmpty)
+            ? adminNote
+            : 'Aprobado por administrador';
+        final updated = await _supabase.from('roommate_searches').update({
+          'status': 'active',
           'is_active': true,
-          if (adminNote != null && adminNote.isNotEmpty)
-            'admin_notes': adminNote,
-        }).eq('id', id);
+          'admin_notes': note,
+        }).eq('id', id).select('id');
+        if ((updated as List).isEmpty) {
+          throw Exception('No se pudo aprobar la publicacion. Revisa permisos RLS.');
+        }
 
         final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
         if (idx != -1) {
+          allRoommateSearches[idx]['status'] = 'active';
           allRoommateSearches[idx]['is_active'] = true;
-          if (adminNote != null) {
-            allRoommateSearches[idx]['admin_notes'] = adminNote;
-          }
+          allRoommateSearches[idx]['admin_notes'] = note;
         }
       }
       notifyListeners();
@@ -349,12 +362,15 @@ class AdminProvider with ChangeNotifier {
     try {
       _setLoading(true);
       if (type == 'property') {
-        await _supabase.from('properties').update({
+        final updated = await _supabase.from('properties').update({
           'status': 'inactive',
           'is_active': false,
           if (adminNote != null && adminNote.isNotEmpty)
             'admin_notes': adminNote,
-        }).eq('id', id);
+        }).eq('id', id).select('id');
+        if ((updated as List).isEmpty) {
+          throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
+        }
 
         final idx = allProperties.indexWhere((p) => p['id'] == id);
         if (idx != -1) {
@@ -363,14 +379,19 @@ class AdminProvider with ChangeNotifier {
           if (adminNote != null) allProperties[idx]['admin_notes'] = adminNote;
         }
       } else {
-        await _supabase.from('roommate_searches').update({
+        final updated = await _supabase.from('roommate_searches').update({
+          'status': 'inactive',
           'is_active': false,
           if (adminNote != null && adminNote.isNotEmpty)
             'admin_notes': adminNote,
-        }).eq('id', id);
+        }).eq('id', id).select('id');
+        if ((updated as List).isEmpty) {
+          throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
+        }
 
         final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
         if (idx != -1) {
+          allRoommateSearches[idx]['status'] = 'inactive';
           allRoommateSearches[idx]['is_active'] = false;
           if (adminNote != null) {
             allRoommateSearches[idx]['admin_notes'] = adminNote;
@@ -549,7 +570,8 @@ class AdminProvider with ChangeNotifier {
 
   void resetFilters() {
     selectedUserFilter = 'all';
-    selectedPropertyFilter = 'all';
+    selectedPropertyFilter = 'pending';
+    selectedRoommateFilter = 'pending';
     selectedFeedbackFilter = 'all';
     notifyListeners();
   }

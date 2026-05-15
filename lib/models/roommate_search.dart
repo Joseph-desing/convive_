@@ -30,7 +30,7 @@ class RoommateSearch {
     required this.address,
     required this.habitsPreferences,
     required this.imageUrls,
-    this.status = 'active',
+    this.status = 'pending',
     this.createdAt,
     this.updatedAt,
     bool? includeAlicuota,
@@ -49,9 +49,9 @@ class RoommateSearch {
       'address': address,
       'habits_preferences': habitsPreferences,
       'image_urls': imageUrls,
-      'status': status,
       'include_alicuota': _includeAlicuota ?? false,
       if (verificationPdfUrl != null) 'verification_pdf_url': verificationPdfUrl,
+      'status': status,
     };
   }
 
@@ -68,7 +68,7 @@ class RoommateSearch {
       address: json['address'] as String,
       habitsPreferences: List<String>.from(json['habits_preferences'] as List? ?? []),
       imageUrls: List<String>.from(json['image_urls'] as List? ?? []),
-      status: json['status'] as String? ?? 'active',
+      status: json['status'] as String? ?? 'pending',
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,

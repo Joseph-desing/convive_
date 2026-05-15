@@ -15,10 +15,11 @@ class AdminPropertiesScreen extends StatefulWidget {
 
 class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
     with TickerProviderStateMixin {
-  String _selectedFilter = 'all';
-  String _selectedRoommateFilter = 'all';
+  String _selectedFilter = 'pending';
+  String _selectedRoommateFilter = 'pending';
   TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
+  static const _publicationFilters = {'pending', 'active', 'inactive'};
 
   @override
   void initState() {
@@ -35,22 +36,21 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
 
   void _loadProperties() {
     if (!mounted) return;
+    _selectedFilter = _normalizePublicationFilter(_selectedFilter);
     final adminProvider = context.read<AdminProvider>();
-    if (_selectedFilter == 'all') {
-      adminProvider.loadAllProperties();
-    } else {
-      adminProvider.loadPropertiesByStatus(_selectedFilter);
-    }
+    adminProvider.loadPropertiesByStatus(_selectedFilter);
   }
 
   void _loadRoommateSearches() {
     if (!mounted) return;
+    _selectedRoommateFilter =
+        _normalizePublicationFilter(_selectedRoommateFilter);
     final adminProvider = context.read<AdminProvider>();
-    if (_selectedRoommateFilter == 'all') {
-      adminProvider.loadAllRoommateSearches();
-    } else {
-      adminProvider.loadRoommateSearchesByStatus(_selectedRoommateFilter);
-    }
+    adminProvider.loadRoommateSearchesByStatus(_selectedRoommateFilter);
+  }
+
+  String _normalizePublicationFilter(String value) {
+    return _publicationFilters.contains(value) ? value : 'pending';
   }
 
   @override
@@ -209,6 +209,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   }
 
   Widget _buildRoommieFiltersSection() {
+    final selectedValue = _normalizePublicationFilter(_selectedRoommateFilter);
     return Container(
       color: Colors.transparent,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -216,7 +217,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
         decoration: AdminUi.panelDecoration(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: DropdownButton<String>(
-          value: _selectedRoommateFilter,
+          value: selectedValue,
           isExpanded: true,
           underline: const SizedBox(),
           dropdownColor: Colors.white,
@@ -232,12 +233,12 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
           ),
           items: const [
             DropdownMenuItem(
-              value: 'all',
+              value: 'pending',
               child: Row(
                 children: [
-                  FaIcon(FontAwesomeIcons.users, size: 14, color: AppColors.primary),
+                  FaIcon(FontAwesomeIcons.clock, size: 14, color: Colors.orange),
                   SizedBox(width: 10),
-                  Text('Todos'),
+                  Text('Pendientes'),
                 ],
               ),
             ),
@@ -284,7 +285,8 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
     final profileData = search['profiles'] as Map<String, dynamic>?;
     final userName = profileData?['full_name'] as String? ?? userId?.toString() ?? 'Desconocido';
     final userAvatar = profileData?['profile_image_url'] as String?;
-    final isActive = search['is_active'] ?? false;
+    final status = search['status'] ??
+        ((search['is_active'] ?? false) ? 'active' : 'pending');
     final createdAt = search['created_at'];
     final budget = search['budget'] ?? 0;       // columna correcta: 'budget'
     final address = search['address'] ?? 'Sin dirección';
@@ -333,15 +335,15 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isActive ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    color: _getStatusColor(status).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    isActive ? 'Activo' : 'Inactivo',
+                    _getStatusLabel(status),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isActive ? Colors.green : Colors.red,
+                      color: _getStatusColor(status),
                     ),
                   ),
                 ),
@@ -622,6 +624,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
   }
 
   Widget _buildFiltersSection() {
+    final selectedValue = _normalizePublicationFilter(_selectedFilter);
     return Container(
       color: Colors.transparent,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -629,7 +632,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
         decoration: AdminUi.panelDecoration(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: DropdownButton<String>(
-          value: _selectedFilter,
+          value: selectedValue,
           isExpanded: true,
           underline: const SizedBox(),
           dropdownColor: Colors.white,
@@ -645,12 +648,12 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
           ),
           items: const [
             DropdownMenuItem(
-              value: 'all',
+              value: 'pending',
               child: Row(
                 children: [
-                  FaIcon(FontAwesomeIcons.building, size: 14, color: AppColors.primary),
+                  FaIcon(FontAwesomeIcons.clock, size: 14, color: Colors.orange),
                   SizedBox(width: 10),
-                  Text('Todos'),
+                  Text('Pendientes'),
                 ],
               ),
             ),
@@ -745,7 +748,8 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
     final price = property['price'] ?? 0;
     final bedrooms = property['bedrooms'] ?? 0;
     final bathrooms = property['bathrooms'] ?? 0;
-    final status = property['status'] ?? 'active';
+    final status = property['status'] ??
+        ((property['is_active'] ?? false) ? 'active' : 'pending');
     final createdAt = property['created_at'];
     final profile = property['profiles'] is Map
         ? property['profiles']
@@ -1389,26 +1393,53 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                   ),
                                 ),
                                 onPressed: () async {
-                                  await adminProvider.rejectPublication(
-                                    id: id,
-                                    type: type,
-                                    adminNote: noteController.text.trim(),
-                                  );
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                          'Publicacion rechazada',
-                                        ),
-                                        backgroundColor: Colors.red.shade600,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  final navigator = Navigator.of(ctx);
+                                  final note = noteController.text.trim();
+                                  if (ctx.mounted) navigator.pop();
+                                  try {
+                                    await adminProvider.rejectPublication(
+                                      id: id,
+                                      type: type,
+                                      adminNote: note,
                                     );
+                                    if (type == 'property') {
+                                      _loadProperties();
+                                    } else {
+                                      _loadRoommateSearches();
+                                    }
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: const Text(
+                                            'Publicacion rechazada',
+                                          ),
+                                          backgroundColor: Colors.red.shade600,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'No se pudo rechazar: $e',
+                                          ),
+                                          backgroundColor: Colors.red.shade700,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                               ),
@@ -1437,26 +1468,54 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                   ),
                                 ),
                                 onPressed: () async {
-                                  await adminProvider.approvePublication(
-                                    id: id,
-                                    type: type,
-                                    adminNote: noteController.text.trim(),
-                                  );
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                          'Publicacion aprobada',
-                                        ),
-                                        backgroundColor: Colors.green.shade600,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                      ),
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  final navigator = Navigator.of(ctx);
+                                  final note = noteController.text.trim();
+                                  if (ctx.mounted) navigator.pop();
+                                  try {
+                                    await adminProvider.approvePublication(
+                                      id: id,
+                                      type: type,
+                                      adminNote: note,
                                     );
+                                    if (type == 'property') {
+                                      _loadProperties();
+                                    } else {
+                                      _loadRoommateSearches();
+                                    }
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: const Text(
+                                            'Publicacion aprobada',
+                                          ),
+                                          backgroundColor:
+                                              Colors.green.shade600,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'No se pudo aprobar: $e',
+                                          ),
+                                          backgroundColor: Colors.red.shade700,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                               ),

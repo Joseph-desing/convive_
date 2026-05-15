@@ -117,14 +117,30 @@ class AdminService {
     }
   }
 
-  /// Obtiene propiedades por estado (is_active: true o false)
+  /// Obtiene propiedades por estado: pending, active o inactive.
   Future<List<Map<String, dynamic>>> getPropertiesByStatus(String status) async {
     try {
-      final isActive = status.toLowerCase() == 'active' ? true : false;
+      final normalizedStatus = status.toLowerCase();
+      final queryStatus = normalizedStatus == 'active'
+          ? 'active'
+          : normalizedStatus == 'inactive'
+              ? 'inactive'
+              : null;
+
+      if (queryStatus != null) {
+        final response = await _supabase
+            .from('properties')
+            .select('*')
+            .eq('status', queryStatus)
+            .order('created_at', ascending: false);
+        return List<Map<String, dynamic>>.from(response);
+      }
+
       final response = await _supabase
           .from('properties')
           .select('*')
-          .eq('is_active', isActive);
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Error fetching properties by status: $e');
@@ -138,7 +154,8 @@ class AdminService {
       final isActive = status.toLowerCase() == 'active' ? true : false;
       await _supabase
           .from('properties')
-          .update({'is_active': isActive}).eq('id', propertyId);
+          .update({'status': status.toLowerCase(), 'is_active': isActive})
+          .eq('id', propertyId);
     } catch (e) {
       throw Exception('Error updating property status: $e');
     }
@@ -162,11 +179,11 @@ class AdminService {
     try {
       final allProperties = await _supabase.from('properties').select('id');
       final activeProperties =
-          await _supabase.from('properties').select('id').eq('is_active', true);
+          await _supabase.from('properties').select('id').eq('status', 'active');
       final inactiveProperties = await _supabase
           .from('properties')
           .select('id')
-          .eq('is_active', false);
+          .eq('status', 'inactive');
 
       final totalCount = (allProperties as List).length;
       final activeCount = (activeProperties as List).length;
@@ -341,11 +358,22 @@ class AdminService {
   /// Obtiene búsquedas de roommates por estado
   Future<List<Map<String, dynamic>>> getRoommateSearchesByStatus(String status) async {
     try {
-      final isActive = status.toLowerCase() == 'active';
+      final normalizedStatus = status.toLowerCase();
+      if (normalizedStatus == 'pending') {
+        final response = await _supabase
+            .from('roommate_searches')
+            .select('*')
+            .eq('status', 'pending')
+            .order('created_at', ascending: false);
+
+        final searches = List<Map<String, dynamic>>.from(response);
+        return _mergeProfiles(searches);
+      }
+
       final response = await _supabase
           .from('roommate_searches')
           .select('*')
-          .eq('is_active', isActive)
+          .eq('status', normalizedStatus)
           .order('created_at', ascending: false);
       
       final searches = List<Map<String, dynamic>>.from(response);
@@ -398,9 +426,10 @@ class AdminService {
   /// Actualiza estado de una búsqueda de roommate
   Future<void> updateRoommateSearchStatus(String searchId, String status) async {
     try {
-      // Por ahora, no actualiza nada ya que no existe el campo is_active
-      // En el futuro, esto podría actualizar otro campo
-      print('⏸️ updateRoommateSearchStatus: Método disponible en futuras versiones');
+      await _supabase.from('roommate_searches').update({
+        'status': status.toLowerCase(),
+        'is_active': status.toLowerCase() == 'active',
+      }).eq('id', searchId);
     } catch (e) {
       throw Exception('Error updating roommate search status: $e');
     }

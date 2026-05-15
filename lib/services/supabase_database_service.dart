@@ -209,7 +209,7 @@ class SupabaseDatabaseService {
       var query = _supabase
           .from('properties')
           .select('*')
-          .eq('is_active', true);
+          .eq('status', 'active');
 
       if (excludeUserId != null && excludeUserId.isNotEmpty) {
         query = query.neq('owner_id', excludeUserId);

@@ -16,6 +16,7 @@ class Property {
   final int bedrooms;
   final bool? _includeAlicuota;
   final String? verificationPdfUrl;
+  final String status;
 
   bool get includeAlicuota => _includeAlicuota ?? false;
 
@@ -35,11 +36,18 @@ class Property {
     this.bedrooms = 1,
     bool? includeAlicuota,
     this.verificationPdfUrl,
+    String? status,
   })  : _includeAlicuota = includeAlicuota ?? false,
+        status = status ?? (isActive ? 'active' : 'pending'),
         id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
   factory Property.fromJson(Map<String, dynamic> json) {
+    final storedIsActive = json['is_active'] is bool
+        ? json['is_active'] as bool
+        : (json['is_active'] as bool? ?? false);
+    final status =
+        json['status'] as String? ?? (storedIsActive ? 'active' : 'pending');
     return Property(
       id: json['id'] as String?,
       ownerId: json['owner_id'] as String,
@@ -50,12 +58,13 @@ class Property {
       longitude: (json['longitude'] as num).toDouble(),
       address: json['address'] as String,
       availableFrom: json['available_from'] != null ? DateTime.parse(json['available_from']) : DateTime.now(),
-      isActive: json['is_active'] is bool ? (json['is_active'] as bool) : (json['is_active'] as bool? ?? false),
+      isActive: status == 'active',
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       bedrooms: json['bedrooms'] is num ? (json['bedrooms'] as num).toInt() : (int.tryParse(json['bedrooms']?.toString() ?? '') ?? 1),
       includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
       verificationPdfUrl: json['verification_pdf_url'] as String?,
+      status: status,
     );
   }
 
@@ -70,7 +79,8 @@ class Property {
       'longitude': longitude,
       'address': address,
       'available_from': availableFrom.toIso8601String(),
-      'is_active': isActive,
+      'is_active': status == 'active',
+      'status': status,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'bedrooms': bedrooms,
@@ -95,6 +105,7 @@ class Property {
     int? bedrooms,
     bool? includeAlicuota,
     String? verificationPdfUrl,
+    String? status,
   }) {
     return Property(
       id: id ?? this.id,
@@ -112,6 +123,7 @@ class Property {
       bedrooms: bedrooms ?? this.bedrooms,
       includeAlicuota: includeAlicuota ?? _includeAlicuota,
       verificationPdfUrl: verificationPdfUrl ?? this.verificationPdfUrl,
+      status: status ?? this.status,
     );
   }
 }
