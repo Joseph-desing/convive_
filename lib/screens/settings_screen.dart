@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
+import '../providers/notifications_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/locale_provider.dart';
 import 'change_password_screen.dart';
@@ -14,12 +15,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final localeProvider = Provider.of<LocaleProvider>(context);
+    final notificationsProvider = Provider.of<NotificationsProvider>(context);
     
     return Scaffold(
       appBar: AppBar(
@@ -54,9 +54,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.notifications_outlined,
                   title: 'Notificaciones',
                   subtitle: 'Recibir notificaciones de la app',
-                  value: _notificationsEnabled,
+                  value: notificationsProvider.notificationsEnabled,
                   onChanged: (value) {
-                    setState(() => _notificationsEnabled = value);
+                    notificationsProvider.setNotificationsEnabled(value);
                   },
                 ),
               ],

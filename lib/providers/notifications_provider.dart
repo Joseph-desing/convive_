@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import '../models/notification.dart';
 import '../config/supabase_provider.dart';
 
 class NotificationsProvider extends ChangeNotifier {
+  static const String _enabledPreferenceKey = 'notifications_enabled';
+
   List<Notification> _notifications = [];
   bool _isLoading = false;
   String? _error;
@@ -12,6 +15,12 @@ class NotificationsProvider extends ChangeNotifier {
   bool _isSubscribed = false; // ✅ NUEVO: Flag para evitar múltiples suscripciones
   Timer? _debounceTimer; // ✅ NUEVO: Timer para debounce de notifyListeners
   bool _pendingNotification = false; // ✅ NUEVO: Flag para saber si hay cambios pendientes
+  bool _notificationsEnabled = true;
+  bool _settingsLoaded = false;
+
+  NotificationsProvider() {
+    _loadNotificationPreference();
+  }
 
   String _notificationKey(Notification notification) {
     final normalizedType =
@@ -103,6 +112,41 @@ class NotificationsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  bool get notificationsEnabled => _notificationsEnabled;
+
+  Future<void> _loadNotificationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _notificationsEnabled = prefs.getBool(_enabledPreferenceKey) ?? true;
+    _settingsLoaded = true;
+
+    if (!_notificationsEnabled) {
+      _notifications = [];
+      _unsubscribeFromRealtime();
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    if (_notificationsEnabled == enabled && _settingsLoaded) return;
+
+    _notificationsEnabled = enabled;
+    _settingsLoaded = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_enabledPreferenceKey, enabled);
+
+    if (!enabled) {
+      _notifications = [];
+      _error = null;
+      _isLoading = false;
+      _unsubscribeFromRealtime();
+      notifyListeners();
+      return;
+    }
+
+    notifyListeners();
+    await loadNotifications();
+  }
 
   @override
   void dispose() {
@@ -127,6 +171,19 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   Future<void> loadNotifications() async {
+    if (!_settingsLoaded) {
+      await _loadNotificationPreference();
+    }
+
+    if (!_notificationsEnabled) {
+      _notifications = [];
+      _error = null;
+      _isLoading = false;
+      _unsubscribeFromRealtime();
+      notifyListeners();
+      return;
+    }
+
     // ✅ GUARD: Evitar múltiples cargas simultáneas
     if (_isLoading) {
       if (kDebugMode) {
