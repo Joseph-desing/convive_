@@ -456,6 +456,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (!mounted) return;
+        if (authProvider.isSuspendedAccount) {
+          context.go('/suspended');
+          return;
+        }
+
         if (!authProvider.isAuthenticated) {
           throw Exception("Error de autenticación");
         }

@@ -22,6 +22,7 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),
+      isSuspended: json['is_suspended'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
@@ -33,6 +34,7 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
           _$SubscriptionTypeEnumMap[instance.subscriptionType]!,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
+      'is_suspended': instance.isSuspended,
     };
 
 const _$UserRoleEnumMap = {

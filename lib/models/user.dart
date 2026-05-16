@@ -29,6 +29,8 @@ class User {
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
   final DateTime? updatedAt;
+  @JsonKey(name: 'is_suspended')
+  final bool isSuspended;
 
   User({
     String? id,
@@ -38,6 +40,7 @@ class User {
     this.subscriptionType = SubscriptionType.free,
     DateTime? createdAt,
     this.updatedAt,
+    this.isSuspended = false,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
@@ -53,6 +56,7 @@ class User {
     SubscriptionType? subscriptionType,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isSuspended,
   }) {
     return User(
       id: id ?? this.id,
@@ -62,6 +66,7 @@ class User {
       subscriptionType: subscriptionType ?? this.subscriptionType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isSuspended: isSuspended ?? this.isSuspended,
     );
   }
 }

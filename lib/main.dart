@@ -19,6 +19,7 @@ import 'screens/admin_dashboard.dart';
 import 'screens/admin_users_screen.dart';
 import 'screens/admin_properties_screen.dart';
 import 'screens/admin_feedback_screen.dart';
+import 'screens/suspended_account_screen.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
 import 'config/groq_config.dart';
@@ -64,6 +65,7 @@ class _ConViveAppState extends State<ConViveApp> {
   late final GoRouter _router;
   late final AppLinks _appLinks;
   late final StreamSubscription<Uri> _deepLinkSubscription;
+  bool? _didInitializeAuth = false;
 
   @override
   void initState() {
@@ -159,7 +161,8 @@ class _ConViveAppState extends State<ConViveApp> {
         final location = state.matchedLocation;
         
         // Si es una ruta de recuperación de contraseña, forgot password o email-confirmed, permitir (sin redirigir)
-        if (location == '/auth-callback' || 
+        if (location == '/auth-callback' ||
+            location == '/suspended' ||
             location == '/reset-password' ||
             location.startsWith('/reset-password?') ||
             location.startsWith('/reset-password#') ||
@@ -234,6 +237,10 @@ class _ConViveAppState extends State<ConViveApp> {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/suspended',
+          builder: (context, state) => const SuspendedAccountScreen(),
         ),
         GoRoute(
           path: '/home',
@@ -448,7 +455,14 @@ class _ConViveAppState extends State<ConViveApp> {
         builder: (context, themeProvider, localeProvider, authProvider, child) {
           // Inicializar autenticación al abrir la app
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            authProvider.initializeAuth();
+            if (_didInitializeAuth == true) return;
+            _didInitializeAuth = true;
+
+            authProvider.initializeAuth().then((_) {
+              if (authProvider.isSuspendedAccount) {
+                _router.go('/suspended');
+              }
+            });
           });
           
           return MaterialApp.router(

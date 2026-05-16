@@ -15,6 +15,25 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
   bool get isEmailVerified => _isEmailVerified;
+  bool get isSuspendedAccount => _error == _suspendedAccountMessage;
+
+  static const String _suspendedAccountMessage =
+      'Tu cuenta ha sido suspendida. Contacta con administracion.';
+
+  Future<bool> _blockIfSuspended(convive_user.User user) async {
+    if (!user.isSuspended) return false;
+
+    await SupabaseProvider.authService.signOut();
+    _currentUser = null;
+    _isEmailVerified = false;
+    _error = _suspendedAccountMessage;
+    return true;
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
 
 //Google
   Future<void> signInWithGoogle() async {
@@ -65,6 +84,10 @@ class AuthProvider extends ChangeNotifier {
         try {
           _currentUser = await SupabaseProvider.databaseService
               .getUser(session.user.id);
+          if (await _blockIfSuspended(_currentUser!)) {
+            notifyListeners();
+            return;
+          }
           _isEmailVerified = session.user.emailConfirmedAt != null;
         } catch (e) {
           // Si no está en BD, crear en memoria
@@ -116,6 +139,11 @@ class AuthProvider extends ChangeNotifier {
         try {
           final dbUser = await SupabaseProvider.databaseService
               .getUser(authResponse.user!.id);
+          if (await _blockIfSuspended(dbUser)) {
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
           _currentUser = dbUser;
         } catch (e) {
           // Si el trigger no lo creó, intentar crearlo manualmente
@@ -190,6 +218,11 @@ class AuthProvider extends ChangeNotifier {
         try {
           final dbUser = await SupabaseProvider.databaseService
               .getUser(authResponse.user!.id);
+          if (await _blockIfSuspended(dbUser)) {
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
           _currentUser = dbUser;
         } catch (e) {
           // Si no existe en BD, intentar crearlo (por si el trigger falló)
