@@ -143,6 +143,42 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
     }
   }
 
+  Future<void> _togglePropertyRented(Property property) async {
+    final nextValue = !property.isRented;
+
+    try {
+      await SupabaseProvider.databaseService.updatePropertyRentedStatus(
+        property.id,
+        nextValue,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        final index = _properties.indexWhere((p) => p.id == property.id);
+        if (index != -1) {
+          _properties[index] = _properties[index].copyWith(
+            isRented: nextValue,
+          );
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextValue
+                ? 'Departamento marcado como alquilado'
+                : 'Departamento marcado como no alquilado',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   Future<void> _editProperty(Property property) async {
     final updated = await Navigator.push<bool>(
       context,
@@ -368,6 +404,7 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
             onConfirm: () => _deleteProperty(property.id),
           ),
           onEdit: () => _editProperty(property),
+          onToggleRented: () => _togglePropertyRented(property),
         );
       },
     );
@@ -606,11 +643,13 @@ class _PropertyCard extends StatefulWidget {
   final Property property;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
+  final VoidCallback onToggleRented;
 
   const _PropertyCard({
     required this.property,
     required this.onDelete,
     required this.onEdit,
+    required this.onToggleRented,
   });
 
   @override
@@ -847,6 +886,41 @@ class _PropertyCardState extends State<_PropertyCard> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onToggleRented,
+                    icon: Icon(
+                      widget.property.isRented
+                          ? Icons.home_work_outlined
+                          : Icons.event_available_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      widget.property.isRented
+                          ? 'Marcar como no alquilado'
+                          : 'Marcar como alquilado',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: widget.property.isRented
+                          ? Colors.green.shade700
+                          : Colors.orange.shade800,
+                      side: BorderSide(
+                        color: widget.property.isRented
+                            ? Colors.green.shade300
+                            : Colors.orange.shade300,
+                      ),
+                      backgroundColor: widget.property.isRented
+                          ? Colors.green.withOpacity(0.08)
+                          : Colors.orange.withOpacity(0.08),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

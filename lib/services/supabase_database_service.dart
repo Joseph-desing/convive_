@@ -209,7 +209,8 @@ class SupabaseDatabaseService {
       var query = _supabase
           .from('properties')
           .select('*')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .eq('is_rented', false);
 
       if (excludeUserId != null && excludeUserId.isNotEmpty) {
         query = query.neq('owner_id', excludeUserId);
@@ -336,6 +337,13 @@ class SupabaseDatabaseService {
         .from('properties')
         .update(updates)
         .eq('id', propertyId);
+  }
+
+  Future<void> updatePropertyRentedStatus(
+      String propertyId, bool isRented) async {
+    await _supabase
+        .from('properties')
+        .update({'is_rented': isRented}).eq('id', propertyId);
   }
 
   /// Actualizar una búsqueda de compañero

@@ -107,6 +107,8 @@ class PropertyProvider extends ChangeNotifier {
           title: updates['title'] ?? _userProperties[index].title,
           price: updates['price'] ?? _userProperties[index].price,
           isActive: updates['is_active'] ?? _userProperties[index].isActive,
+          isRented: updates['is_rented'] ?? _userProperties[index].isRented,
+          status: updates['status'] ?? _userProperties[index].status,
         );
       }
     } catch (e) {

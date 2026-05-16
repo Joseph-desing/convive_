@@ -17,8 +17,10 @@ class Property {
   final bool? _includeAlicuota;
   final String? verificationPdfUrl;
   final String status;
+  final bool? _isRented;
 
   bool get includeAlicuota => _includeAlicuota ?? false;
+  bool get isRented => _isRented ?? false;
 
   Property({
     String? id,
@@ -37,7 +39,9 @@ class Property {
     bool? includeAlicuota,
     this.verificationPdfUrl,
     String? status,
+    bool? isRented,
   })  : _includeAlicuota = includeAlicuota ?? false,
+        _isRented = isRented ?? false,
         status = status ?? (isActive ? 'active' : 'pending'),
         id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
@@ -65,6 +69,7 @@ class Property {
       includeAlicuota: json['include_alicuota'] is bool ? (json['include_alicuota'] as bool) : null,
       verificationPdfUrl: json['verification_pdf_url'] as String?,
       status: status,
+      isRented: json['is_rented'] as bool? ?? false,
     );
   }
 
@@ -85,6 +90,7 @@ class Property {
       'updated_at': updatedAt?.toIso8601String(),
       'bedrooms': bedrooms,
       'include_alicuota': _includeAlicuota ?? false,
+      'is_rented': isRented,
       if (verificationPdfUrl != null) 'verification_pdf_url': verificationPdfUrl,
     };
   }
@@ -106,6 +112,7 @@ class Property {
     bool? includeAlicuota,
     String? verificationPdfUrl,
     String? status,
+    bool? isRented,
   }) {
     return Property(
       id: id ?? this.id,
@@ -124,6 +131,7 @@ class Property {
       includeAlicuota: includeAlicuota ?? _includeAlicuota,
       verificationPdfUrl: verificationPdfUrl ?? this.verificationPdfUrl,
       status: status ?? this.status,
+      isRented: isRented ?? this.isRented,
     );
   }
 }
