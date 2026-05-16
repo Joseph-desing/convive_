@@ -108,6 +108,20 @@ class AdminProvider with ChangeNotifier {
         'is_read': false,
       });
 
+      final response = await _supabase.functions.invoke(
+        'send-admin-email',
+        body: {
+          'user_id': userId,
+          'email': email,
+          'subject': 'ConVive - Notificacion de administracion',
+          'message': message,
+        },
+      );
+
+      if (response.status >= 400) {
+        throw Exception('No se pudo enviar el correo: ${response.data}');
+      }
+
       _clearError();
     } catch (e) {
       _setError('Error sending message: $e');
