@@ -334,8 +334,21 @@ class AuthProvider extends ChangeNotifier {
       await SupabaseProvider.authService.updatePassword(newPassword);
       _error = null;
     } catch (e) {
-      _error = e.toString();
-      rethrow;
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('invalid login') ||
+          errorStr.contains('invalid_credentials') ||
+          errorStr.contains('invalid credentials')) {
+        _error = 'La contrasena actual es incorrecta';
+      } else if (errorStr.contains('password') &&
+          (errorStr.contains('weak') || errorStr.contains('short'))) {
+        _error = 'La nueva contrasena debe tener al menos 6 caracteres';
+      } else if (errorStr.contains('network') ||
+          errorStr.contains('connection')) {
+        _error = 'Error de conexion. Verifica tu internet';
+      } else {
+        _error = 'No se pudo actualizar la contrasena. Intenta nuevamente';
+      }
+      throw Exception(_error);
     } finally {
       _isLoading = false;
       notifyListeners();

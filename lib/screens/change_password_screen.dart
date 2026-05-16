@@ -42,6 +42,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
+    if (_currentPasswordController.text == _newPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nueva contrasena debe ser diferente a la actual'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -64,7 +74,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: ${e.toString()}'),
+            content: Text(_friendlyPasswordError(e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -74,6 +84,33 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  String _friendlyPasswordError(Object error) {
+    final errorStr = error.toString();
+    final lower = errorStr.toLowerCase();
+
+    if (lower.contains('contrasena actual es incorrecta') ||
+        lower.contains('contraseña actual es incorrecta') ||
+        lower.contains('invalid login') ||
+        lower.contains('invalid_credentials') ||
+        lower.contains('invalid credentials')) {
+      return 'La contrasena actual es incorrecta';
+    }
+    if (lower.contains('network') || lower.contains('connection')) {
+      return 'Error de conexion. Verifica tu internet';
+    }
+    if (lower.contains('minimo') ||
+        lower.contains('mínimo') ||
+        lower.contains('6 caracteres') ||
+        lower.contains('weak') ||
+        lower.contains('short')) {
+      return 'La nueva contrasena debe tener al menos 6 caracteres';
+    }
+    if (lower.contains('no se pudo actualizar')) {
+      return errorStr.replaceFirst('Exception: ', '');
+    }
+    return 'No se pudo actualizar la contrasena. Intenta nuevamente';
   }
 
   @override
