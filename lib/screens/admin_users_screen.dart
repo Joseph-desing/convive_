@@ -1288,7 +1288,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       case 'student':
         return 'Estudiante';
       case 'non_student':
-        return 'No Estudiante';
+        return 'Propietario';
       default:
         return 'Desconocido';
     }
