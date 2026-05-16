@@ -6,6 +6,8 @@ import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 import '../screens/chat_screen.dart';
 import '../screens/match_profile_screen.dart';
+import '../screens/property_details_screen.dart';
+import '../screens/roommate_search_details_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -795,7 +797,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                             backgroundColor: Colors.blue.shade50,
                             iconColor: Colors.blue.shade700,
                             borderColor: Colors.blue.shade200,
-                            onTap: () => _openProfile(otherUserId),
+                            onTap: () => _openProfile(match, otherUserId),
                           ),
                           const SizedBox(width: 14),
                           _buildMatchActionButton(
@@ -868,7 +870,43 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     });
   }
 
-  void _openProfile(String userId) {
+  Future<void> _openProfile(Match match, String userId) async {
+    final contextType = match.contextType;
+    final contextId = match.contextId;
+
+    if (contextId != null && contextId.isNotEmpty) {
+      try {
+        if (contextType == 'property') {
+          final property =
+              await SupabaseProvider.databaseService.getProperty(contextId);
+          if (!mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PropertyDetailsScreen(property: property),
+            ),
+          );
+          return;
+        }
+
+        if (contextType == 'search' || contextType == 'roommate_search') {
+          final search =
+              await SupabaseProvider.databaseService.getRoommateSearch(contextId);
+          if (!mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RoommateSearchDetailsScreen(search: search),
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        print('No se pudo abrir el detalle del match: $e');
+      }
+    }
+
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
