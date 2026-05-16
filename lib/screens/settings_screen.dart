@@ -15,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _emailNotifications = true;
 
   @override
   Widget build(BuildContext context) {
@@ -59,17 +58,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (value) {
                     setState(() => _notificationsEnabled = value);
                   },
-                ),
-                const Divider(height: 1),
-                _buildSwitchTile(
-                  icon: Icons.email_outlined,
-                  title: 'Notificaciones por email',
-                  subtitle: 'Recibir actualizaciones por correo',
-                  value: _emailNotifications,
-                  onChanged: (value) {
-                    setState(() => _emailNotifications = value);
-                  },
-                  enabled: _notificationsEnabled,
                 ),
               ],
             ),
