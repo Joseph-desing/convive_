@@ -110,7 +110,8 @@ class AdminService {
           .limit(limit)
           .range(offset, offset + limit - 1)
           .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final properties = List<Map<String, dynamic>>.from(response);
+      return _mergePropertyProfiles(properties);
     } catch (e) {
       print('Error fetching properties: $e');
       return [];
@@ -133,7 +134,8 @@ class AdminService {
             .select('*')
             .eq('status', queryStatus)
             .order('created_at', ascending: false);
-        return List<Map<String, dynamic>>.from(response);
+        final properties = List<Map<String, dynamic>>.from(response);
+        return _mergePropertyProfiles(properties);
       }
 
       final response = await _supabase
@@ -141,10 +143,69 @@ class AdminService {
           .select('*')
           .eq('status', 'pending')
           .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
+      final properties = List<Map<String, dynamic>>.from(response);
+      return _mergePropertyProfiles(properties);
     } catch (e) {
       print('Error fetching properties by status: $e');
       return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _mergePropertyProfiles(
+    List<Map<String, dynamic>> properties,
+  ) async {
+    if (properties.isEmpty) return properties;
+
+    final ownerIds = properties
+        .map((p) => p['owner_id'] as String?)
+        .where((id) => id != null)
+        .toSet()
+        .toList();
+    if (ownerIds.isEmpty) return properties;
+
+    try {
+      final profilesRes = await _supabase
+          .from('profiles')
+          .select('user_id, full_name, profile_image_url')
+          .inFilter('user_id', ownerIds);
+
+      final profileMap = <String, Map<String, dynamic>>{};
+      for (final p in profilesRes as List) {
+        final profile = p as Map<String, dynamic>;
+        final uid = profile['user_id'] as String?;
+        if (uid != null) profileMap[uid] = profile;
+      }
+
+      final usersRes = await _supabase
+          .from('users')
+          .select('id, full_name, email')
+          .inFilter('id', ownerIds);
+
+      final userMap = <String, Map<String, dynamic>>{};
+      for (final u in usersRes as List) {
+        final user = u as Map<String, dynamic>;
+        final uid = user['id'] as String?;
+        if (uid != null) userMap[uid] = user;
+      }
+
+      return properties.map((property) {
+        final ownerId = property['owner_id'] as String?;
+        final result = Map<String, dynamic>.from(property);
+        if (ownerId != null && profileMap.containsKey(ownerId)) {
+          result['profiles'] = profileMap[ownerId];
+        } else if (ownerId != null && userMap.containsKey(ownerId)) {
+          final user = userMap[ownerId]!;
+          result['profiles'] = {
+            'user_id': ownerId,
+            'full_name': user['full_name'] ?? user['email'],
+            'profile_image_url': '',
+          };
+        }
+        return result;
+      }).toList();
+    } catch (e) {
+      print('⚠️ _mergePropertyProfiles error: $e');
+      return properties;
     }
   }
 

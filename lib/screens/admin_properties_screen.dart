@@ -757,7 +757,10 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                 (property['profiles'] as List).isNotEmpty
             ? property['profiles'][0]
             : null);
-    final ownerName = profile?['full_name'] ?? 'Propietario Desconocido';
+    final ownerName = (profile?['full_name'] as String?)?.trim().isNotEmpty ==
+            true
+        ? (profile?['full_name'] as String).trim()
+        : 'Propietario Desconocido';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
