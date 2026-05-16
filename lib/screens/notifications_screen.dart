@@ -301,14 +301,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: isUnread 
-              ? _getNotificationColor(notification).withOpacity(0.08)
-              : Colors.white,
+            color: _isComplaintReport(notification)
+                ? Colors.red.shade50.withOpacity(0.72)
+                : isUnread
+                    ? _getNotificationColor(notification).withOpacity(0.08)
+                    : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isUnread 
-                ? _getNotificationColor(notification).withOpacity(0.4)
-                : Colors.grey.withOpacity(0.15),
+              color: _isComplaintReport(notification)
+                  ? Colors.red.shade200
+                  : isUnread
+                      ? _getNotificationColor(notification).withOpacity(0.4)
+                      : Colors.grey.withOpacity(0.15),
               width: isUnread ? 2 : 1,
             ),
             boxShadow: [
@@ -361,7 +365,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          notification.title,
+                          _notificationTitle(notification),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -373,21 +377,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: notification.publicationType == 'roommate'
-                                  ? Colors.blue.withOpacity(0.15)
-                                  : Colors.orange.withOpacity(0.15),
+                              color: _publicationBadgeColor(notification)
+                                  .withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
+                              _isComplaintReport(notification)
+                                  ? 'Reporte de queja'
+                                  :
                               notification.publicationType == 'roommate'
                                   ? '👤 Buscando Roommate'
                                   : '🏠 Departamento',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: notification.publicationType == 'roommate'
-                                    ? Colors.blue.shade700
-                                    : Colors.orange.shade700,
+                                color: _publicationBadgeColor(notification),
                               ),
                             ),
                           ),
@@ -448,18 +452,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             // Mensaje principal
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                notification.message,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                  height: 1.5,
-                ),
-              ),
-            ),
+            _buildNotificationMessage(notification),
             // Tiempo
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -532,6 +525,107 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  bool _isComplaintReport(notification_model.Notification notification) {
+    final normalizedTitle =
+        (notification.publicationTitle ?? '').trim().toLowerCase();
+    return notification.type == 'system' &&
+        (notification.publicationType == 'complaint_report' ||
+            normalizedTitle.contains('reporte de queja'));
+  }
+
+  String _notificationTitle(notification_model.Notification notification) {
+    if (_isComplaintReport(notification)) {
+      return 'Reporte de queja';
+    }
+    return notification.title;
+  }
+
+  String _publicationBadgeLabel(notification_model.Notification notification) {
+    if (_isComplaintReport(notification)) {
+      return 'Reporte de queja';
+    }
+    return notification.publicationType == 'roommate'
+        ? 'Buscando Roommate'
+        : 'Departamento';
+  }
+
+  Color _publicationBadgeColor(notification_model.Notification notification) {
+    if (_isComplaintReport(notification)) {
+      return Colors.red.shade700;
+    }
+    return notification.publicationType == 'roommate'
+        ? Colors.blue.shade700
+        : Colors.orange.shade700;
+  }
+
+  String _complaintReason(notification_model.Notification notification) {
+    final message = notification.message;
+    const marker = 'Motivo:';
+    final index = message.indexOf(marker);
+    if (index == -1) return message;
+    return message.substring(index + marker.length).trim();
+  }
+
+  Widget _buildNotificationMessage(notification_model.Notification notification) {
+    if (!_isComplaintReport(notification)) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Text(
+          notification.message,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    final color = Colors.red.shade700;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.report_gmailerrorred, color: color, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Motivo del reporte',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _complaintReason(notification),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
       bool _isProfileMatch(notification_model.Notification notification) {
         final normalizedTitle = (notification.publicationTitle ?? '').trim().toLowerCase();
         return notification.type == 'match' &&
@@ -544,6 +638,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
 
       IconData _getNotificationIcon(notification_model.Notification notification) {
+        if (_isComplaintReport(notification)) {
+          return Icons.report_gmailerrorred;
+        }
+
         if (_isProfileMatch(notification)) {
           return Icons.favorite_rounded;
         }
@@ -565,6 +663,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Color _getNotificationColor(notification_model.Notification notification) {
+    if (_isComplaintReport(notification)) {
+      return Colors.red.shade700;
+    }
+
     if (_isProfileMatch(notification)) {
       return Colors.green;
     }

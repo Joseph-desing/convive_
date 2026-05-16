@@ -531,11 +531,30 @@ class AdminProvider with ChangeNotifier {
   ) async {
     try {
       _setLoading(true);
+      final feedbackIndex = allFeedback.indexWhere((f) => f.id == feedbackId);
+      final feedback = feedbackIndex != -1 ? allFeedback[feedbackIndex] : null;
       await _adminService.respondToFeedback(feedbackId, response, adminId);
 
-      final fbIndex = allFeedback.indexWhere((f) => f.id == feedbackId);
-      if (fbIndex != -1) {
-        allFeedback[fbIndex] = allFeedback[fbIndex].copyWith(
+      var reportedUserId = feedback?.reportedUserId;
+      if (reportedUserId == null || reportedUserId.isEmpty) {
+        final feedbackRow = await _supabase
+            .from('feedback')
+            .select('reported_user_id')
+            .eq('id', feedbackId)
+            .maybeSingle();
+        reportedUserId = feedbackRow?['reported_user_id'] as String?;
+      }
+
+      if (reportedUserId != null && reportedUserId.isNotEmpty) {
+        await _notifyComplaintReportedUser(
+          recipientUserId: reportedUserId,
+          feedbackId: feedbackId,
+          response: response,
+        );
+      }
+
+      if (feedbackIndex != -1) {
+        allFeedback[feedbackIndex] = allFeedback[feedbackIndex].copyWith(
           adminResponse: response,
           adminResponseAt: DateTime.now(),
         );
@@ -548,6 +567,27 @@ class AdminProvider with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _notifyComplaintReportedUser({
+    required String recipientUserId,
+    required String feedbackId,
+    required String response,
+  }) async {
+    final note = response.trim().isNotEmpty
+        ? response.trim()
+        : 'El administrador registro un reporte de queja sobre tu cuenta.';
+
+    await _supabase.from('notifications').insert({
+      'recipient_user_id': recipientUserId,
+      'type': 'system',
+      'sender_user_id': _supabase.auth.currentUser?.id,
+      'sender_user_name': 'Administracion',
+      'publication_id': feedbackId,
+      'publication_title': 'Tienes un reporte de queja. Motivo: $note',
+      'publication_type': 'complaint_report',
+      'read': false,
+    });
   }
 
   Future<void> closeFeedback(String feedbackId) async {

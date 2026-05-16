@@ -17,7 +17,8 @@ class AdminFeedbackScreen extends StatefulWidget {
 }
 
 class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
-  String _selectedStatusFilter = 'all';
+  String _selectedStatusFilter = 'in_review';
+  static const _statusFilters = {'in_review', 'open', 'resolved'};
   TextEditingController _searchController = TextEditingController();
   Map<String, Map<String, String>> _userProfiles = {}; // user_id -> {name, image_url}
 
@@ -44,12 +45,13 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
 
   void _loadFeedback() {
     if (!mounted) return;
+    _selectedStatusFilter = _normalizeStatusFilter(_selectedStatusFilter);
     final adminProvider = context.read<AdminProvider>();
-    if (_selectedStatusFilter == 'all') {
-      adminProvider.loadAllFeedback();
-    } else {
-      adminProvider.loadFeedbackByStatus(_selectedStatusFilter);
-    }
+    adminProvider.loadFeedbackByStatus(_selectedStatusFilter);
+  }
+
+  String _normalizeStatusFilter(String value) {
+    return _statusFilters.contains(value) ? value : 'in_review';
   }
 
   Future<void> _loadUserProfiles(List<UserFeedback> feedbacks) async {
@@ -202,6 +204,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   }
 
   Widget _buildStatusFiltersSection() {
+    final selectedValue = _normalizeStatusFilter(_selectedStatusFilter);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
@@ -211,7 +214,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
             decoration: AdminUi.panelDecoration(),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: DropdownButton<String>(
-              value: _selectedStatusFilter,
+              value: selectedValue,
               isExpanded: true,
               underline: const SizedBox(),
               dropdownColor: Colors.white,
@@ -226,16 +229,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                 fontWeight: FontWeight.w600,
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'all',
-                  child: Row(
-                    children: [
-                      FaIcon(FontAwesomeIcons.inbox, size: 14, color: AppColors.primary),
-                      SizedBox(width: 10),
-                      Text('Todos'),
-                    ],
-                  ),
-                ),
                 DropdownMenuItem(
                   value: 'in_review',
                   child: Row(
@@ -757,20 +750,18 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   List<UserFeedback> _filterFeedback(List<UserFeedback> feedbacks) {
     var filtered = feedbacks;
 
-    if (_selectedStatusFilter != 'all') {
-      filtered = filtered.where((fb) {
-        switch (_selectedStatusFilter) {
-          case 'open':
-            return fb.status == FeedbackStatus.open;
-          case 'in_review':
-            return fb.status == FeedbackStatus.in_review;
-          case 'resolved':
-            return fb.status == FeedbackStatus.resolved;
-          default:
-            return true;
-        }
-      }).toList();
-    }
+    filtered = filtered.where((fb) {
+      switch (_selectedStatusFilter) {
+        case 'open':
+          return fb.status == FeedbackStatus.open;
+        case 'in_review':
+          return fb.status == FeedbackStatus.in_review;
+        case 'resolved':
+          return fb.status == FeedbackStatus.resolved;
+        default:
+          return true;
+      }
+    }).toList();
 
     if (_searchController.text.isEmpty) {
       return filtered;
