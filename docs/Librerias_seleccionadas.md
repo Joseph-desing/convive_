@@ -1,41 +1,54 @@
-# Principales librerías seleccionadas para la construcción de la aplicación móvil
+# Librerias Seleccionadas
 
-La siguiente tabla lista las librerías incluidas en el proyecto (`pubspec.yaml`) y una breve justificación de su uso.
+Este documento justifica las librerias principales usadas en ConVive. La lista
+se basa en `pubspec.yaml` y sirve como soporte academico para explicar las
+decisiones tecnicas del proyecto.
 
-| LIBRERÍA | DESCRIPCIÓN / JUSTIFICACIÓN |
-|---|---|
-| `flutter_localizations` | Soporte para internacionalización (traducciones y formatos locales) en Flutter. |
-| `cupertino_icons` | Iconos estilo iOS para widgets Cupertino. |
-| `font_awesome_flutter` | Colección de iconos Font Awesome para enriquecer la interfaz. |
-| `provider` | Gestión de estado ligera y recomendada para patrones MVVM/Provider en Flutter. |
-| `go_router` | Gestión de rutas y navegación declarativa, con soporte para deep linking. |
-| `supabase_flutter` | Cliente para Supabase: autenticación, bases de datos y storage como BaaS. |
-| `http` | Cliente HTTP básico para llamadas REST/API. |
-| `shared_preferences` | Almacenamiento local ligero para preferencias y tokens simples. |
-| `json_annotation` | Anotaciones necesarias para la serialización de modelos (usado con `json_serializable`). |
-| `uuid` | Generación de identificadores únicos (IDs temporales, keys). |
-| `intl` | Formateo de fechas, números y mensajes localizados. |
-| `geolocator` | Acceso a geolocalización (latitud/longitud, permisos, servicios de ubicación). |
-| `onesignal_flutter` | Integración con OneSignal para notificaciones push. |
-| `image_picker` | Selección de imágenes desde cámara o galería. |
-| `cached_network_image` | Cache y carga eficiente de imágenes remotas. |
-| `url_launcher` | Abrir URLs externas (navegador, llamadas, email) desde la app. |
-| `flutter_map` | Visualización de mapas (basado en Leaflet). |
-| `latlong2` | Tipos y utilidades para coordenadas geográficas, usado con `flutter_map`. |
-| `flutter_map_marker_cluster` | Agrupado (clustering) de marcadores en `flutter_map` (ver compatibilidades con versión 7). |
-| `google_sign_in` | Inicio de sesión con cuenta Google (OAuth). |
+## Dependencias de Produccion
 
-**Dev dependencies**
+| Libreria | Uso en ConVive | Justificacion |
+| --- | --- | --- |
+| `flutter` | Framework principal | Permite construir una aplicacion multiplataforma para Android, iOS, web y escritorio desde una sola base de codigo. |
+| `flutter_localizations` | Localizacion | Habilita soporte de idiomas y formatos regionales. |
+| `cupertino_icons` | Iconografia iOS | Aporta iconos compatibles con componentes estilo Cupertino. |
+| `font_awesome_flutter` | Iconografia adicional | Amplia el catalogo visual para botones, estados y pantallas. |
+| `provider` | Gestion de estado | Mantiene estado de autenticacion, usuarios, publicaciones, notificaciones, admin y chatbot de forma simple y mantenible. |
+| `go_router` | Navegacion | Gestiona rutas declarativas, redirecciones, deep links y rutas protegidas. |
+| `supabase_flutter` | Backend principal | Integra autenticacion, base de datos, storage y realtime con Supabase. |
+| `http` | Cliente REST | Permite consumir el backend FastAPI y otros endpoints HTTP. |
+| `shared_preferences` | Preferencias locales | Guarda configuraciones simples como preferencia de notificaciones o tema. |
+| `json_annotation` | Serializacion | Define anotaciones para modelos convertibles a JSON. |
+| `uuid` | Identificadores | Genera identificadores cuando se necesitan IDs temporales o locales. |
+| `intl` | Formatos | Maneja fechas, numeros y textos localizados. |
+| `geolocator` | Ubicacion | Obtiene permisos y coordenadas del dispositivo. |
+| `geocoding` | Direcciones | Convierte coordenadas y direcciones cuando se seleccionan ubicaciones. |
+| `onesignal_flutter` | Push notifications | Base para integrar notificaciones push en dispositivos moviles. |
+| `image_picker` | Imagenes | Permite seleccionar imagenes de perfil y publicaciones. |
+| `file_picker` | Archivos PDF | Permite seleccionar documentos de verificacion para publicaciones. |
+| `cached_network_image` | Imagenes remotas | Optimiza carga y cache de imagenes desde Supabase Storage. |
+| `web` | Compatibilidad web | Facilita integraciones especificas para Flutter Web. |
+| `url_launcher` | URLs externas | Abre enlaces, correos o navegadores desde la app. |
+| `flutter_map` | Mapas | Renderiza mapas interactivos para publicaciones y ubicacion. |
+| `flutter_map_cancellable_tile_provider` | Map tiles | Mejora la carga/cancelacion de tiles en mapas. |
+| `latlong2` | Coordenadas | Representa latitud y longitud en `flutter_map`. |
+| `google_sign_in` | OAuth Google | Permite autenticacion con cuentas de Google. |
+| `app_links` | Deep links | Procesa enlaces de recuperacion, confirmacion y callbacks moviles. |
 
-| LIBRERÍA | DESCRIPCIÓN / JUSTIFICACIÓN |
-|---|---|
-| `build_runner` | Motor de generación de código para Dart (ejecuta generadores como json_serializable). |
-| `json_serializable` | Generador para convertir modelos Dart a JSON y viceversa (reduce boilerplate). |
-| `flutter_lints` | Conjunto de reglas de lint recomendadas para proyectos Flutter. |
-| `flutter_test` | Framework de testing proporcionado por Flutter para pruebas unitarias y widget tests. |
+## Dependencias de Desarrollo
 
-**Referencia:** ver la lista completa en [pubspec.yaml](pubspec.yaml)
+| Libreria | Uso | Justificacion |
+| --- | --- | --- |
+| `flutter_test` | Pruebas | Framework oficial para tests unitarios y de widgets. |
+| `flutter_lints` | Calidad | Reglas recomendadas para mantener estilo y buenas practicas. |
+| `build_runner` | Generacion | Ejecuta generadores de codigo Dart. |
+| `json_serializable` | Modelos JSON | Genera `fromJson` y `toJson`, reduciendo errores manuales. |
 
----
+## Relacion con los Modulos
 
-¿Quieres que inserte esta sección en el `README.md` o que exporte el documento a PDF/Word? 
+- Autenticacion: `supabase_flutter`, `go_router`, `app_links`, `google_sign_in`.
+- Perfil y publicaciones: `image_picker`, `file_picker`, `cached_network_image`.
+- Mapas: `flutter_map`, `latlong2`, `geolocator`, `geocoding`.
+- Estado: `provider`, `shared_preferences`.
+- IA/backend: `http`.
+- Calidad: `flutter_lints`, `flutter_test`, `build_runner`.
+

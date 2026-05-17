@@ -1,152 +1,133 @@
-# ⚡ Quick Start (5 minutos)
+# Quick Start
 
-**Objetivo**: Que el chatbot funcione en Flutter Web en 5 minutos.
+Guia corta para levantar ConVive en desarrollo local.
 
----
+## Requisitos
 
-## Paso 1: Backend Setup (2 minutos)
+- Flutter SDK instalado.
+- Dart incluido con Flutter.
+- Python 3.10 o superior.
+- Cuenta/proyecto de Supabase configurado.
+- Opcional: API key de Groq para chatbot IA.
 
-Abre PowerShell en la carpeta del proyecto:
+## 1. Instalar dependencias Flutter
 
-```powershell
-# Ir a la carpeta backend
+Desde la raiz del proyecto:
+
+```bash
+flutter pub get
+```
+
+## 2. Ejecutar backend IA
+
+```bash
 cd backend
-
-# Crear ambiente virtual
 python -m venv venv
-
-# Activar
 venv\Scripts\activate
-
-# Instalar dependencias
 pip install -r requirements.txt
 ```
 
----
+Crear archivo `.env` dentro de `backend/`:
 
-## Paso 2: Configurar API Key (1 minuto)
-
-```powershell
-# Crear .env
-copy .env.example .env
-
-# Editar .env (usa el editor que prefieras)
-# Reemplaza: GROQ_API_KEY=gsk_tu_api_key_aqui
-code .env  # Si tienes VS Code
+```env
+GROQ_API_KEY=tu_api_key_de_groq
+GROQ_MODEL=llama-3.1-70b-versatile
 ```
 
-Pega tu API Key de Groq (que comienza con `gsk_`)
+Iniciar servidor:
 
----
-
-## Paso 3: Iniciar Backend (30 segundos)
-
-```powershell
-# Con venv activado
+```bash
 python main.py
 ```
 
-Deberías ver:
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000
-```
+Verificar:
 
-✅ Backend está corriendo
-
----
-
-## Paso 4: Verificar Backend (30 segundos)
-
-Abre **otra terminal** y ejecuta:
-
-```powershell
+```bash
 curl http://localhost:8000/health
 ```
 
-Si ves:
+Respuesta esperada:
+
 ```json
-{"status": "ok", "service": "ConVive Backend", "groq_configured": true}
+{
+  "status": "ok",
+  "service": "ConVive Backend",
+  "groq_configured": true
+}
 ```
 
-✅ Everything OK
+## 3. Ejecutar backend mock del chatbot
 
----
-
-## Paso 5: Iniciar Flutter Web (1 minuto)
-
-Abre **otra terminal** en la carpeta del proyecto:
+Algunos flujos del chatbot intentan usar primero el mock local en puerto `8001`.
+Si necesitas probar ese flujo:
 
 ```bash
-flutter run -d web
+python chatbot_backend_mock.py
 ```
 
-Espera a que compile y se abra el navegador.
+## 4. Ejecutar Flutter
 
----
+Web:
 
-## Paso 6: Probar Chatbot
-
-En el navegador que apareció (probablemente `localhost:5173`):
-
-1. Busca el chatbot
-2. Escribe un mensaje
-3. ✅ Debería responder
-
-Si funciona: **¡Listo en 5 minutos!** 🎉
-
----
-
-## ❌ Si no funciona
-
-**Problema ①: "groq_configured: false"**
-```
-❌ Solución: API Key no está en .env
-✅ Editar backend/.env con tu API Key
-✅ Reiniciar backend
+```bash
+flutter run -d chrome
 ```
 
-**Problema ②: "Connection refused" desde Flutter**
-```
-❌ Solución: Backend no está corriendo
-✅ Verificar que `python main.py` está en otra terminal
-✅ Verificar que dice "Uvicorn running on http://127.0.0.1:8000"
-```
+Android:
 
-**Problema ③: CORS Error en navegador**
-```
-❌ Solución: Flutter en puerto diferente
-✅ Verificar en cuál puerto corre (ej: 5174)
-✅ Agregar ese puerto a backend/main.py línea ~30
-✅ Reiniciar backend
+```bash
+flutter run -d android
 ```
 
----
+Build web:
 
-## ✅ Checklist
+```bash
+flutter build web --release
+```
 
-- [ ] Backend activo en terminal 1
-- [ ] health check retorna status OK
-- [ ] Flutter corriendo en terminal 2
-- [ ] Navegador abierto (localhost:5173 o similar)
-- [ ] Chatbot responde sin errores
+## 5. Flujos basicos para probar
 
-Si todo ✅ → **Terminado**
+1. Registro con correo.
+2. Confirmacion de email.
+3. Login.
+4. Completar perfil y habitos.
+5. Crear publicacion con imagenes y PDF.
+6. Revisar publicacion como admin.
+7. Dar like desde home.
+8. Revisar notificaciones.
+9. Abrir chat.
+10. Probar chatbot.
 
-Si hay ❌ → Ver sección "Si no funciona" arriba
+## 6. Problemas comunes
 
----
+### El chatbot no responde
 
-## Siguiente Paso
+- Verifica `http://localhost:8000/health`.
+- Verifica que `GROQ_API_KEY` exista en `backend/.env`.
+- Si usa mock, verifica que `chatbot_backend_mock.py` este en puerto `8001`.
 
-**Para producción:**
-- Ver `DEPLOYMENT_PRODUCCION.md`
+### En celular no conecta a localhost
 
-**Para troubleshooting:**
-- Ver `BACKEND_TROUBLESHOOTING.md`
+En un telefono real, `localhost` apunta al telefono, no a tu PC. Usa la IP local
+de tu maquina o un backend desplegado.
 
-**Para info técnica:**
-- Ver `CAMBIOS_RESUMEN.md`
+### Error de permisos en Supabase
 
----
+Revisa politicas RLS. El cliente Flutter usa la anon key, por lo que cada tabla
+debe tener policies correctas para select/insert/update/delete.
 
-**¡Es tan simple como ejecutar 3 terminales! ⚡**
+### Admin no ve datos
+
+Confirma que el usuario tenga `role = 'admin'` en la tabla `users` y que RLS le
+permita leer/actualizar las tablas administrativas.
+
+## 7. Comandos utiles
+
+```bash
+flutter analyze
+flutter test
+flutter pub run build_runner build --delete-conflicting-outputs
+flutter clean
+flutter pub get
+```
+

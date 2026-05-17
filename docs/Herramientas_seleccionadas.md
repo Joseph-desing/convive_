@@ -1,24 +1,53 @@
-# Herramientas seleccionadas para la construcción de la aplicación móvil
+# Herramientas Seleccionadas
 
-Esta tabla resume las principales herramientas y servicios usados en el proyecto, con una breve justificación para cada una.
+Este documento resume las herramientas usadas para construir, ejecutar,
+probar y desplegar ConVive.
 
-| HERRAMIENTA | JUSTIFICACIÓN |
-|---|---|
-| Windows PowerShell | Facilita la ejecución de scripts, instalación de dependencias y configuración de variables de entorno en sistemas Windows; útil para automatizar el flujo de trabajo de desarrollo. |
-| Flutter CLI (flutter) | Herramienta principal para compilar, ejecutar, depurar y generar builds (Android, iOS, web, desktop). Permite hot reload y gestión de paquetes. |
-| Dart SDK (dart) | Proporciona el lenguaje, el gestor de paquetes (`dart pub`) y utilidades de análisis/formatting necesarias para el desarrollo. |
-| Android SDK / Gradle | Compila y empaqueta la app para Android; el repositorio usa `build.gradle.kts` (Kotlin DSL) para la configuración de Gradle. |
-| Xcode | Requerido para compilar, firmar y publicar builds para iOS y macOS. |
-| Visual Studio / CMake (Windows) | Necesarios para construir la variante de escritorio en Windows (soporte nativo). |
-| Git / GitHub (incluye GitHub Copilot) | Control de versiones y colaboración; GitHub Copilot ofrece sugerencias de código asistidas por IA que aceleran la implementación. |
-| OneSignal (onesignal_flutter) | Servicio de notificaciones push utilizado por la app para enviar mensajes en tiempo real y gestionar suscripciones. |
-| Supabase (supabase_flutter) | Backend-as-a-Service para autenticación, base de datos y storage; simplifica la integración backend sin gestionar infraestructura propia. |
-| build_runner / json_serializable | Herramientas de generación de código (Dart) usadas para crear modelos y serializadores automáticamente. |
-| Android Studio / Visual Studio Code | IDEs recomendados con plugins Flutter/Dart para desarrollo, debugging y profiling. |
-| Node.js (opcional) | Útil para herramientas auxiliares, scripts, integraciones de CI/CD o web tooling en proyectos que lo requieran. |
+## Herramientas de Desarrollo
 
-**Referencia:** configuración y dependencias en [pubspec.yaml](pubspec.yaml)
+| Herramienta | Uso | Justificacion |
+| --- | --- | --- |
+| Flutter CLI | Compilar y ejecutar la app | Permite correr la app en web, Android, iOS y desktop. |
+| Dart SDK | Lenguaje y tooling | Incluye analisis, formateo y gestion de paquetes. |
+| Visual Studio Code / Android Studio | IDE | Facilitan edicion, debugging, hot reload y manejo de emuladores. |
+| PowerShell | Terminal local | Usado en Windows para ejecutar scripts, comandos Flutter y backend Python. |
+| Git | Control de versiones | Permite registrar cambios, comparar versiones y colaborar. |
+| Android SDK / Gradle | Build Android | Compila APK/AAB y configura permisos, manifest y dependencias nativas. |
+| Xcode | Build iOS | Necesario para compilar, firmar y publicar en ecosistema Apple. |
+| CMake / Visual Studio Build Tools | Desktop Windows | Requerido si se compila la variante Windows. |
 
----
+## Servicios Externos
 
-¿Quieres que exporte esta tabla a PDF/Word o que la incluya en el README del repositorio? 
+| Servicio | Uso | Justificacion |
+| --- | --- | --- |
+| Supabase | Auth, PostgreSQL, Storage, Realtime | Reduce complejidad de backend y ofrece servicios integrados. |
+| Groq | Modelo de lenguaje | Procesa respuestas del chatbot mediante el backend FastAPI. |
+| OneSignal | Notificaciones push | Base para notificaciones push moviles. |
+| Firebase Hosting | Hosting web | El proyecto tiene configuracion de hosting para `build/web`. |
+
+## Herramientas del Backend
+
+| Herramienta | Uso | Justificacion |
+| --- | --- | --- |
+| Python | Lenguaje backend | Sencillo para APIs y servicios de IA. |
+| FastAPI | API REST | Framework rapido, tipado y adecuado para servicios JSON. |
+| Uvicorn | Servidor ASGI | Ejecuta FastAPI en desarrollo y produccion. |
+| httpx | Cliente HTTP | Llama a Groq desde el servidor. |
+| python-dotenv | Variables de entorno | Carga configuracion sensible desde `.env`. |
+
+## Herramientas de Calidad
+
+| Herramienta | Uso |
+| --- | --- |
+| `flutter analyze` | Analisis estatico del codigo Dart. |
+| `flutter test` | Ejecucion de pruebas. |
+| `build_runner` | Generacion de archivos `.g.dart`. |
+| `json_serializable` | Serializacion segura de modelos. |
+
+## Justificacion General
+
+La seleccion prioriza rapidez de desarrollo, soporte multiplataforma y bajo
+costo operativo. Supabase concentra gran parte del backend funcional, Flutter
+reduce duplicacion entre plataformas y FastAPI permite aislar la IA para no
+exponer claves privadas en el cliente.
+

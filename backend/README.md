@@ -1,64 +1,75 @@
-# ConVive Backend - Proxy Groq API
+# ConVive Backend
 
-Servidor FastAPI que actúa como intermediario entre Flutter Web y Groq API.
+Backend FastAPI usado como intermediario entre Flutter y proveedores de IA.
 
-## ¿Por qué?
+## Proposito
 
-Groq API bloquea CORS desde navegadores. Este backend evita ese problema:
+El backend evita que la aplicacion Flutter llame directamente a Groq desde el
+cliente. Esto permite:
 
+- Evitar CORS en Flutter Web.
+- Proteger la API key en variables de entorno.
+- Centralizar prompts y formato de respuesta.
+- Agregar logging, rate limiting y reglas de seguridad en el servidor.
+
+Flujo:
+
+```text
+Flutter -> FastAPI -> Groq API
 ```
-Flutter Web → Este Backend (FastAPI) → Groq API
+
+## Archivos
+
+```text
+backend/
+  main.py             API FastAPI
+  requirements.txt    Dependencias Python
+  README.md           Esta documentacion
 ```
 
-## Instalación
+## Dependencias
 
-### 1. Crear ambiente virtual
+- `fastapi`: framework web.
+- `uvicorn`: servidor ASGI.
+- `httpx`: cliente HTTP async.
+- `python-dotenv`: carga de `.env`.
+- `pydantic`: validacion de modelos.
+
+## Variables de Entorno
+
+Crear `backend/.env`:
+
+```env
+GROQ_API_KEY=tu_api_key
+GROQ_MODEL=llama-3.1-70b-versatile
+```
+
+Nunca subir `.env` al repositorio.
+
+## Ejecucion Local
 
 ```bash
-# Windows
+cd backend
 python -m venv venv
 venv\Scripts\activate
-
-# macOS/Linux
-python -m venv venv
-source venv/bin/activate
-```
-
-### 2. Instalar dependencias
-
-```bash
 pip install -r requirements.txt
-```
-
-### 3. Configurar variables de entorno
-
-```bash
-# Copiar .env.example a .env
-cp .env.example .env
-
-# Editar .env y añadir tu API Key de Groq
-# GROQ_API_KEY=gsk_...
-```
-
-## Uso Local
-
-```bash
-# Iniciar servidor
 python main.py
-
-# O directamente con uvicorn
-uvicorn main:app --reload --port 8000
 ```
 
-El servidor estará en: `http://localhost:8000`
+Servidor local:
 
-### Verificar que funciona
-
-```bash
-curl http://localhost:8000/health
+```text
+http://localhost:8000
 ```
 
-Respuesta esperada:
+## Endpoints
+
+### GET /health
+
+Verifica que el backend este vivo y que Groq este configurado.
+
+Respuesta:
+
 ```json
 {
   "status": "ok",
@@ -67,150 +78,78 @@ Respuesta esperada:
 }
 ```
 
-## Endpoints
-
 ### POST /api/chat
 
-**Request:**
+Procesa un mensaje del chatbot.
+
+Request:
+
 ```json
 {
-  "user_message": "Hola, soy extrovertido y me encantan las fiestas",
+  "user_message": "Busco un companero tranquilo",
   "chat_history": [
     {
       "role": "assistant",
-      "content": "¿Cómo eres en cuanto a socialización?"
+      "content": "Hola, en que puedo ayudarte?"
     }
   ],
-  "user_id": "user_123",
+  "system_prompt": "Responde como asistente de ConVive",
+  "user_id": "uuid",
   "user_profile": {
-    "email": "user@example.com",
+    "email": "usuario@correo.com",
     "subscription_type": "free"
   },
   "user_habits": {
     "cleanliness": 8,
-    "noise_level": 6,
-    "party_frequency": 8,
-    "guests_frequency": 7
+    "noise_level": 4,
+    "party_frequency": 1,
+    "guests_frequency": 3
   }
 }
 ```
 
-**Response:**
+Response:
+
 ```json
 {
-  "content": "Perfecto, entonces buscamos compañeros con hábitos similares...",
+  "content": "Te conviene buscar perfiles con baja frecuencia de fiestas y alta limpieza.",
   "usage": {
-    "completion_tokens": 45,
     "prompt_tokens": 120,
-    "total_tokens": 165
+    "completion_tokens": 40,
+    "total_tokens": 160
   }
 }
 ```
 
 ### POST /api/recommendations
 
-Obtener recomendaciones basadas en hábitos del usuario.
+Genera recomendaciones a partir de habitos o respuestas del usuario.
 
-### GET /health
+## CORS
 
-Verificar estado del servidor.
+El backend permite localhost para desarrollo. En produccion debe restringirse a
+los dominios reales de la aplicacion web.
 
-## Deployment (Producción)
+## Seguridad Pendiente
 
-### Opción 1: Heroku
+Antes de produccion:
 
-```bash
-# 1. Instalar Heroku CLI
-# https://devcenter.heroku.com/articles/heroku-cli
+- Usar solo variables de entorno para claves.
+- Restringir CORS.
+- Agregar autenticacion de requests con JWT Supabase.
+- Agregar rate limiting.
+- Agregar logs estructurados.
+- Evitar devolver errores internos crudos al cliente.
 
-# 2. Login
-heroku login
+## Despliegue
 
-# 3. Crear app
-heroku create convive-backend
+Opciones recomendadas:
 
-# 4. Configurar variables
-heroku config:set GROQ_API_KEY=tu_api_key
+- Railway.
+- Render.
+- Google Cloud Run.
+- Heroku.
+- VPS con Docker.
 
-# 5. Deploy
-git push heroku main
-```
+Ver `../DEPLOYMENT_PRODUCCION.md`.
 
-### Opción 2: Railway
-
-```bash
-# Simplemente conecta tu GitHub repo a Railway
-# Railway detecta requirements.txt y configura todo
-```
-
-### Opción 3: Docker
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-Deploy:
-```bash
-docker build -t convive-backend .
-docker run -e GROQ_API_KEY=tu_api_key -p 8000:8000 convive-backend
-```
-
-## Actualizar Flutter para usar este Backend
-
-En `groq_service.dart`, cambiar:
-
-```dart
-// ❌ Antes (directo a Groq, no funciona en Web)
-baseUrl = 'https://api.groq.com/openai/v1'
-
-// ✅ Después (a tu backend)
-baseUrl = 'http://localhost:8000'  // Desarrollo
-// baseUrl = 'https://tu-backend.com'  // Producción
-```
-
-Y cambiar el endpoint:
-```dart
-// ❌ Antes
-Uri.parse('$baseUrl/chat/completions')
-
-// ✅ Después
-Uri.parse('$baseUrl/api/chat')
-```
-
-## Seguridad
-
-- ✅ API Key de Groq se protege en el servidor (nunca se expone en el navegador)
-- ✅ CORS configurado solo para dominios autorizados
-- ⚠️ En producción, añade autenticación (ej: JWT tokens)
-- ⚠️ Rate limiting para evitar abuso
-
-## Troubleshooting
-
-### "GROQ_API_KEY not configured"
-- Verificar que .env existe y tiene la API Key
-- Verificar que la API Key es válida en Groq
-
-### "Error 401 from Groq"
-- API Key expirada o inválida
-- Generar nueva API Key en https://console.groq.com
-
-### CORS Error desde Flutter
-- Verificar que el origen está en `allow_origins` en `main.py`
-- Añadir `http://localhost:5173` (o tu puerto Flutter)
-
-## Soporte
-
-Para más info:
-- Documentación Groq: https://console.groq.com/docs
-- Documentación FastAPI: https://fastapi.tiangolo.com/
