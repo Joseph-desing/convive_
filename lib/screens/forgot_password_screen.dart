@@ -25,7 +25,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _openWhatsApp() async {
     final whatsappUrl = Uri.parse(
-      'https://wa.me/5491234567890?text=Hola%20ConVive,%20no%20recuerdo%20mi%20email%20and%20necesito%20ayuda%20para%20acceder%20a%20mi%20cuenta',
+      'https://wa.me/593983406747?text=Hola%20ConVive,%20no%20recuerdo%20mi%20email%20y%20necesito%20ayuda%20para%20acceder%20a%20mi%20cuenta',
     );
 
     if (await canLaunchUrl(whatsappUrl)) {
@@ -42,7 +42,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _openEmail() async {
     final emailUrl = Uri(
       scheme: 'mailto',
-      path: 'soporte@convive.com',
+      path: 'changoluizajoseph@gmail.com',
       queryParameters: {
         'subject': 'No recuerdo mi email de ConVive',
         'body':
@@ -103,7 +103,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               _buildSupportOption(
                 icon: Icons.mail_outline,
                 title: 'Enviar Email',
-                subtitle: 'soporte@convive.com',
+                subtitle: 'changoluizajoseph@gmail.com',
                 onTap: _openEmail,
               ),
               const SizedBox(height: 12),
@@ -112,7 +112,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               _buildSupportOption(
                 icon: Icons.chat_bubble_outline,
                 title: 'Contactar por WhatsApp',
-                subtitle: '+54 9 1234 567890',
+                subtitle: '+593 983 406 747',
                 onTap: _openWhatsApp,
               ),
               const SizedBox(height: 20),
