@@ -9,7 +9,7 @@ Este documento funciona como memoria tecnica del proyecto. Describe que se ha
 implementado, como se organiza la aplicacion, que hace el backend, cuales son
 los flujos principales y que puntos deben revisarse antes de produccion.
 
-## 1. Resumen Ejecutivo
+## 1. Resumen 
 
 ConVive resuelve el problema de encontrar vivienda compartida de forma mas
 segura, organizada y compatible. La app permite que un usuario:
