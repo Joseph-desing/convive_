@@ -17,6 +17,8 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+  bool _verificationTimedOut = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,11 +26,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   void _startCheckingVerification() {
+    var attempts = 0;
+
     // Verificar cada 3 segundos si el email ha sido confirmado
     Future.doWhile(() async {
       await Future.delayed(const Duration(seconds: 3));
       
       if (!mounted) return false;
+      attempts += 1;
       
       final authProvider = context.read<AuthProvider>();
 
@@ -47,6 +52,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           
           // ✅ Usar GoRouter en vez de Navigator tradicional
           context.go('/home');
+        }
+        return false;
+      }
+
+      if (attempts >= 10) {
+        if (mounted) {
+          setState(() => _verificationTimedOut = true);
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              context.go('/login');
+            }
+          });
         }
         return false;
       }
@@ -249,28 +266,41 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Esperando verificación...',
+                      Text(
+                        _verificationTimedOut
+                            ? 'Email verificado'
+                            : 'Esperando verificación...',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: _verificationTimedOut
+                              ? const Color(0xFF16A34A)
+                              : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary.withOpacity(0.7),
+                      if (_verificationTimedOut)
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          size: 44,
+                          color: Color(0xFF16A34A),
+                        )
+                      else
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary.withOpacity(0.7),
+                            ),
+                            strokeWidth: 3,
                           ),
-                          strokeWidth: 3,
                         ),
-                      ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Esto puede tomar algunos minutos',
+                      Text(
+                        _verificationTimedOut
+                            ? 'Vuelve a iniciar sesión para continuar'
+                            : 'Esto puede tomar algunos minutos',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -300,8 +330,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       ),
                       backgroundColor: Colors.white,
                     ),
-                    child: const Text(
-                      'Volver a Iniciar Sesión',
+                    child: Text(
+                      _verificationTimedOut
+                          ? 'Ir a Iniciar Sesión'
+                          : 'Volver a Iniciar Sesión',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

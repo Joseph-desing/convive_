@@ -74,6 +74,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _birthDate = profile.birthDate;
       _gender = profile.gender;
       _currentImageUrl = profile.profileImageUrl;
+    } else {
+      // Usuario nuevo: cargar nombre desde public.users
+      _loadFullNameFromUser();
     }
     if (habits != null) {
       _cleanlinessLevel = habits.cleanlinessLevel;
@@ -92,6 +95,22 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     // ✅ NUEVO: Cargar el rol actual del usuario
     if (_isEdit) {
       _loadUserRole();
+    }
+  }
+
+  /// Pre-rellena el nombre desde public.users (para usuarios nuevos)
+  Future<void> _loadFullNameFromUser() async {
+    try {
+      final user = await SupabaseProvider.databaseService.getUser(widget.userId);
+      if (user != null && (user.fullName?.isNotEmpty ?? false)) {
+        if (mounted) setState(() => _fullNameController.text = user.fullName!);
+      }
+    } catch (e) {
+      final authUser = SupabaseProvider.authService.getCurrentUser();
+      final fullName = authUser?.userMetadata?['full_name'] as String? ?? '';
+      if (fullName.isNotEmpty && mounted) {
+        setState(() => _fullNameController.text = fullName);
+      }
     }
   }
 

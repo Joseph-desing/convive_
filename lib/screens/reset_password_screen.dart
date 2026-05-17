@@ -28,6 +28,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isPreparingSession = false;
 
   @override
   void initState() {
@@ -35,11 +36,26 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     
     // Si tiene un token (code de Supabase), verificarlo automáticamente
     if (widget.resetToken.isNotEmpty) {
-      _verifyCode();
+      _prepareRecoverySession();
     }
   }
 
-  Future<void> _verifyCode() async {
+  Future<void> _prepareRecoverySession() async {
+    if (widget.resetToken.isEmpty) return;
+    if (SupabaseProvider.client.auth.currentSession != null) return;
+
+    setState(() => _isPreparingSession = true);
+
+    try {
+      await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
+      print('Sesion de recuperacion preparada correctamente');
+    } catch (e) {
+      print('No se pudo preparar la sesion con code, se intentara fallback: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isPreparingSession = false);
+      }
+    }
     print('🔍 Verificando código: ${widget.resetToken}');
     
     try {
@@ -87,14 +103,30 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       print('📝 Token/Code: ${widget.resetToken}');
       print('📧 Email: ${widget.email}');
 
+      final currentSession = SupabaseProvider.client.auth.currentSession;
+      final email = widget.email?.trim() ?? '';
       final authProvider = context.read<AuthProvider>();
+
+      if (currentSession != null) {
+        await SupabaseProvider.client.auth.updateUser(
+          UserAttributes(password: _passwordController.text.trim()),
+        );
+        await SupabaseProvider.client.auth.signOut();
+      } else if (email.isNotEmpty) {
+        await authProvider.resetPasswordWithToken(
+          email: email,
+          resetToken: widget.resetToken,
+          newPassword: _passwordController.text.trim(),
+        );
+      } else {
+        await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
+        await SupabaseProvider.client.auth.updateUser(
+          UserAttributes(password: _passwordController.text.trim()),
+        );
+        await SupabaseProvider.client.auth.signOut();
+      }
       
       // Usar el método normal del provider para cambiar la contraseña
-      await authProvider.resetPasswordWithToken(
-        email: widget.email ?? 'unknown@example.com',
-        resetToken: widget.resetToken,
-        newPassword: _passwordController.text.trim(),
-      );
       
       print('✅ Contraseña actualizada exitosamente');
 
@@ -143,7 +175,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isTokenValid = widget.resetToken.isNotEmpty && widget.email != null && widget.email!.isNotEmpty;
+    final isTokenValid = widget.resetToken.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -377,7 +409,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: (isTokenValid && !_isLoading)
+                          onPressed: (isTokenValid && !_isLoading && !_isPreparingSession)
                               ? _resetPassword
                               : null,
                           style: ElevatedButton.styleFrom(
@@ -391,7 +423,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           ),
                           child: Ink(
                             decoration: BoxDecoration(
-                              gradient: isTokenValid
+                              gradient: isTokenValid && !_isPreparingSession
                                   ? AppColors.primaryGradient
                                   : LinearGradient(
                                       colors: [
@@ -403,7 +435,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ),
                             child: Container(
                               alignment: Alignment.center,
-                              child: _isLoading
+                              child: _isLoading || _isPreparingSession
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,

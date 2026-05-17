@@ -10,11 +10,13 @@ class SupabaseAuthService {
     required String email,
     required String password,
     String? emailRedirectTo,
+    Map<String, dynamic>? data,
   }) async {
     return await _supabase.auth.signUp(
       email: email,
       password: password,
       emailRedirectTo: emailRedirectTo,
+      data: data,
     );
   }
 

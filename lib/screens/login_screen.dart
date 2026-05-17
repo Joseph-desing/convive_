@@ -470,6 +470,14 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
         
+        // Si es usuario nuevo (sin perfil), redirigir a completar perfil
+        if (authProvider.isNewUser) {
+          final userId = authProvider.currentUser?.id ?? '';
+          final userEmail = authProvider.currentUser?.email ?? _emailController.text.trim();
+          context.go('/complete-profile?userId=$userId&email=${Uri.encodeComponent(userEmail)}');
+          return;
+        }
+
         // Redirigir según el rol del usuario (cargado desde BD)
         final userRole = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
         if (userRole == 'admin') {
@@ -492,6 +500,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (!mounted) return;
+        if (authProvider.error != null) {
+          throw Exception(authProvider.error);
+        }
 
         context.go('/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
       }

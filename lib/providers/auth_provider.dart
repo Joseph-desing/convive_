@@ -9,12 +9,14 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isEmailVerified = false;
+  bool _isNewUser = false;
 
   convive_user.User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
   bool get isEmailVerified => _isEmailVerified;
+  bool get isNewUser => _isNewUser;
   bool get isSuspendedAccount => _error == _suspendedAccountMessage;
 
   static const String _suspendedAccountMessage =
@@ -91,11 +93,32 @@ class AuthProvider extends ChangeNotifier {
           _isEmailVerified = session.user.emailConfirmedAt != null;
         } catch (e) {
           // Si no está en BD, crear en memoria
-          _currentUser = convive_user.User(
+          if (session.user.emailConfirmedAt == null) {
+            _currentUser = null;
+            _isEmailVerified = false;
+            notifyListeners();
+            return;
+          }
+
+          final metadata = session.user.userMetadata ?? {};
+          final roleName = metadata['role'] as String?;
+          final role = convive_user.UserRole.values.firstWhere(
+            (value) => value.name == roleName,
+            orElse: () => convive_user.UserRole.student,
+          );
+          final user = convive_user.User(
             id: session.user.id,
             email: session.user.email ?? '',
-            role: convive_user.UserRole.student,
+            fullName: metadata['full_name'] as String?,
+            role: role,
           );
+
+          _currentUser = await SupabaseProvider.databaseService.createUser(user);
+          if (await _blockIfSuspended(_currentUser!)) {
+            notifyListeners();
+            return;
+          }
+          _isEmailVerified = true;
         }
       } else {
         // No hay sesión, usuario es nulo
@@ -129,53 +152,15 @@ class AuthProvider extends ChangeNotifier {
         emailRedirectTo: kIsWeb
             ? 'https://convive-app-6debf.web.app/#/email-confirmed' // Flutter Web
             : 'com.example.convive://login-callback', // Mobile deep link
+        data: {
+          'full_name': fullName,
+          'role': role.name,
+        },
       );
 
-      // Esperar a que el trigger cree el usuario en BD
-      await Future.delayed(const Duration(milliseconds: 1000));
-
-      // Cargar usuario de la BD (ya creado por el trigger)
       if (authResponse.user != null) {
-        try {
-          final dbUser = await SupabaseProvider.databaseService
-              .getUser(authResponse.user!.id);
-          if (await _blockIfSuspended(dbUser)) {
-            _isLoading = false;
-            notifyListeners();
-            return;
-          }
-          _currentUser = dbUser;
-        } catch (e) {
-          // Si el trigger no lo creó, intentar crearlo manualmente
-          try {
-            final user = convive_user.User(
-              id: authResponse.user!.id,
-              email: email,
-              role: role,
-              fullName: fullName, // ✅ AGREGAR AQUÍ
-            );
-            await SupabaseProvider.databaseService.createUser(user);
-            _currentUser = user;
-          } catch (createError) {
-            // Si falla, usar datos en memoria
-            _currentUser = convive_user.User(
-              id: authResponse.user!.id,
-              email: email,
-              role: role,
-              fullName: fullName, // ✅ AGREGAR AQUÍ
-            );
-          }
-        }
-        
-        // ✅ ACTUALIZAR FULL_NAME EN BD SI NO ESTABA
-        try {
-          await SupabaseProvider.client
-              .from('users')
-              .update({'full_name': fullName})
-              .eq('id', authResponse.user!.id);
-        } catch (e) {
-          debugPrint('Error actualizando full_name: $e');
-        }
+        _currentUser = null;
+        _isEmailVerified = authResponse.user!.emailConfirmedAt != null;
       }
     } catch (e) {
       // Capturar el error de forma legible
@@ -213,7 +198,15 @@ class AuthProvider extends ChangeNotifier {
       // Verificar si el email está confirmado
       _isEmailVerified = SupabaseProvider.authService.isEmailVerified();
 
+      if (!_isEmailVerified) {
+        _currentUser = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       // Cargar usuario de la BD
+      _isNewUser = false;
       if (authResponse.user != null) {
         try {
           final dbUser = await SupabaseProvider.databaseService
@@ -224,23 +217,54 @@ class AuthProvider extends ChangeNotifier {
             return;
           }
           _currentUser = dbUser;
+          print('✅ Usuario encontrado en public.users: ${dbUser.fullName}');
         } catch (e) {
-          // Si no existe en BD, intentar crearlo (por si el trigger falló)
+          // Si no existe en BD, intentar crearlo
+          print('⚠️ Usuario no encontrado en public.users, creando...');
+          _isNewUser = true;
           try {
+            final metadata = authResponse.user!.userMetadata ?? {};
+            final fullName = metadata['full_name'] as String? ?? '';
+            final roleStr = metadata['role'] as String? ?? 'student';
+            final role = roleStr == 'non_student'
+                ? convive_user.UserRole.non_student
+                : convive_user.UserRole.student;
+            print('📝 Metadata: full_name=$fullName, role=$roleStr');
             final user = convive_user.User(
               id: authResponse.user!.id,
               email: authResponse.user!.email ?? '',
-              role: convive_user.UserRole.student,
+              fullName: fullName,
+              role: role,
             );
             await SupabaseProvider.databaseService.createUser(user);
             _currentUser = user;
+            print('✅ Usuario creado en public.users: $fullName');
           } catch (createError) {
+            print('❌ Error creando usuario: $createError');
             // Si falla la creación, usar datos en memoria
             _currentUser = convive_user.User(
               id: authResponse.user!.id,
               email: authResponse.user!.email ?? '',
+              fullName: authResponse.user!.userMetadata?['full_name'] as String?,
               role: convive_user.UserRole.student,
             );
+          }
+        }
+
+        // Verificar si tiene perfil completo en public.profiles
+        if (!_isNewUser) {
+          try {
+            final profile = await SupabaseProvider.databaseService
+                .getProfile(authResponse.user!.id);
+            if (profile == null) {
+              _isNewUser = true;
+              print('⚠️ Usuario sin perfil en public.profiles → es nuevo');
+            } else {
+              print('✅ Perfil encontrado en public.profiles');
+            }
+          } catch (e) {
+            _isNewUser = true;
+            print('⚠️ Error buscando perfil: $e → tratando como nuevo');
           }
         }
       } else {
