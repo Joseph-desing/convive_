@@ -13,10 +13,12 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
+    return SafeArea(
+      left: true,
+      right: true,
+      bottom: true,
+      top: false,
       child: Container(
-        height: 90,
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
@@ -27,40 +29,37 @@ class CustomBottomNavBar extends StatelessWidget {
             ),
           ],
         ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home_rounded,
-                  label: 'Inicio',
-                  index: 0,
-                ),
-                _buildNavItem(
-                  icon: Icons.favorite_rounded,
-                  label: 'Matches',
-                  index: 1,
-                ),
-                _buildNavItem(
-                  icon: Icons.error_outline,
-                  label: 'Quejas',
-                  index: 2,
-                ),
-                _buildNavItem(
-                  icon: Icons.smart_toy_rounded,
-                  label: 'Chatbot',
-                  index: 3,
-                ),
-                _buildNavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Perfil',
-                  index: 4,
-                ),
-              ],
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_rounded,
+                label: 'Inicio',
+                index: 0,
+              ),
+              _buildNavItem(
+                icon: Icons.favorite_rounded,
+                label: 'Matches',
+                index: 1,
+              ),
+              _buildNavItem(
+                icon: Icons.error_outline,
+                label: 'Quejas',
+                index: 2,
+              ),
+              _buildNavItem(
+                icon: Icons.smart_toy_rounded,
+                label: 'Chatbot',
+                index: 3,
+              ),
+              _buildNavItem(
+                icon: Icons.person_rounded,
+                label: 'Perfil',
+                index: 4,
+              ),
+            ],
           ),
         ),
       ),

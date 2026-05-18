@@ -344,6 +344,9 @@ ${_complaintController.text}
 
   @override
   Widget build(BuildContext context) {
+    // Padding dinámico que se adapta a cualquier pantalla
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom + 110;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportar Quejas'),
@@ -353,7 +356,7 @@ ${_complaintController.text}
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

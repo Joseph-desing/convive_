@@ -599,7 +599,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     // Input de texto normal
     Widget textInputWidget = Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        12 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade100)),
@@ -656,28 +661,33 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     // Siempre mostrar solo el input de texto (sin botones de opciones)
     // Mostrar botones de opciones si el último mensaje del asistente los tiene
     if (lastMessage != null && !_optionsUsed) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Chips de opciones
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade100)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: lastMessage.options!.map((option) {
+      return SafeArea(
+        left: true,
+        right: true,
+        bottom: true,
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Chips de opciones
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: lastMessage.options!.map((option) {
                 return GestureDetector(
                   onTap: chatbotProvider.isLoading
                       ? null
@@ -721,10 +731,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ),
           textInputWidget,
         ],
+      ),
       );
     }
 
-    return textInputWidget;
+    return SafeArea(
+      left: true,
+      right: true,
+      bottom: true,
+      top: false,
+      child: textInputWidget,
+    );
   }
 
   // ─── Renderizador de Markdown ───────────────────────────────────────────

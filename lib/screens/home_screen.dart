@@ -277,42 +277,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
+      body: Column(
         children: [
           // Contenido principal
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: _currentIndex == 0 
-                    ? _buildSwipeSection() 
-                    : _buildPlaceholder(),
-                ),
-              ],
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: _currentIndex == 0 
+                      ? _buildSwipeSection() 
+                      : _buildPlaceholder(),
+                  ),
+                ],
+              ),
             ),
           ),
           
-          // Bottom Navigation
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: CustomBottomNavBar(
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                  if (index == 3) {
-                    context.push('/chatbot');
-                    return;
-                  }
-
-                  setState(() => _currentIndex = index);
-              },
-            ),
+          // Bottom Navigation - respeta SafeArea automáticamente
+          CustomBottomNavBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              if (index == 3) {
+                context.push('/chatbot');
+                return;
+              }
+              setState(() => _currentIndex = index);
+            },
           ),
         ],
       ),
-
     );
   }
 
