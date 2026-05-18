@@ -3,16 +3,16 @@ import 'dart:convert';
 import '../models/chatbot_message.dart';
 
 class GroqService {
-  final String apiKey;
+  final String? apiKey;
   final String model;
   final String baseUrl;
   late final http.Client _client;
 
   GroqService({
-    required this.apiKey,
+    this.apiKey,
     this.model = 'llama-3.1-8b-instant', // Modelo disponible en Groq
     // 🔄 DESARROLLO: Apunta al backend local (FastAPI en puerto 8000)
-    this.baseUrl = 'http://localhost:8000',
+    required this.baseUrl,
   }) {
     _client = http.Client();
   }
@@ -27,12 +27,15 @@ class GroqService {
       // 🔄 ACTUALIZADO: Ahora enviamos al backend propio
       // El backend se encarga de comunicarse con Groq
       
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (apiKey != null && apiKey!.isNotEmpty)
+          'Authorization': 'Bearer $apiKey',
+      };
+
       final response = await _client.post(
         Uri.parse('$baseUrl/api/chat'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
+        headers: headers,
         body: jsonEncode({
           'user_message': userMessage,
           'chat_history': chatHistory,

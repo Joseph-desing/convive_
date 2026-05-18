@@ -1,27 +1,34 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../config/app_config.dart';
 import '../models/chatbot_message.dart';
 import 'groq_service.dart';
 
 class ChatbotService {
   final String baseUrl;
-  // URL del backend mock (flujo guiado por etapas, sin Groq)
-  static const String _mockUrl = 'http://localhost:8001';
+  final String mockBaseUrl;
   late final http.Client _client;
   final GroqService? _groqService;
 
   ChatbotService({
-    this.baseUrl = 'http://localhost:8000',
+    String? baseUrl,
+    String? mockBaseUrl,
     String? groqApiKey,
-  }) : _groqService = (groqApiKey != null && groqApiKey.isNotEmpty)
-          ? GroqService(apiKey: groqApiKey)
-          : null {
+  })  : baseUrl = baseUrl ?? AppConfig.aiServiceUrl,
+        mockBaseUrl = (mockBaseUrl ?? AppConfig.chatbotMockUrl).trim(),
+        _groqService = (baseUrl ?? AppConfig.aiServiceUrl).isNotEmpty
+            ? GroqService(
+                apiKey: groqApiKey,
+                baseUrl: baseUrl ?? AppConfig.aiServiceUrl,
+              )
+            : null {
     _client = http.Client();
   }
 
-  bool get useGroq => _groqService != null;
+  bool get useGroq => _groqService != null && baseUrl.isNotEmpty;
+  bool get useMock => mockBaseUrl.isNotEmpty;
 
-  /// Procesar mensaje del usuario y obtener respuesta del chatbot con IA
+  /// Procesar mensaje del usuario y obtener respuesta del chatbot con IA.
   Future<ChatbotMessage> processUserMessage({
     required String userId,
     required String userMessage,
@@ -30,163 +37,183 @@ class ChatbotService {
     required List<ChatbotMessage> chatHistory,
     int conversationCount = 0,
   }) async {
-    // PRIMARIO: mock backend (flujo guiado con opciones/botones)
-    // Groq se usa solo como fallback si el mock no está disponible
-    try {
-      final history = chatHistory
-          .where((m) => m.type == MessageType.user || m.type == MessageType.assistant)
-          .map((m) => {'type': m.type.name, 'content': m.content})
-          .toList();
+    // Primario cuando esta configurado: backend guiado con opciones/botones.
+    if (useMock) {
+      try {
+        final history = chatHistory
+            .where((m) =>
+                m.type == MessageType.user || m.type == MessageType.assistant)
+            .map((m) => {'type': m.type.name, 'content': m.content})
+            .toList();
 
-      final response = await _client.post(
-        Uri.parse('$_mockUrl/chatbot/process'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'message': userMessage,
-          'user_profile': userProfile,
-          'user_habits': userHabits,
-          'conversation_count': conversationCount,
-          'chat_history': history,
-        }),
-      ).timeout(const Duration(seconds: 10));
+        final response = await _client.post(
+          Uri.parse('$mockBaseUrl/chatbot/process'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'message': userMessage,
+            'user_profile': userProfile,
+            'user_habits': userHabits,
+            'conversation_count': conversationCount,
+            'chat_history': history,
+          }),
+        ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return ChatbotMessage(
-          type: MessageType.assistant,
-          content: data['content'] as String,
-          options: (data['options'] as List?)?.cast<String>(),
-        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          return ChatbotMessage(
+            type: MessageType.assistant,
+            content: data['content'] as String,
+            options: (data['options'] as List?)?.cast<String>(),
+          );
+        }
+      } catch (_) {
+        // Mock no disponible: fallback a Groq si esta configurado.
       }
-    } catch (_) {
-      // Mock no disponible → fallback a Groq si está configurado
     }
 
-    // FALLBACK: Groq para respuestas libres cuando el mock no responde
     if (useGroq) {
-      return await _groqService!.processMessageWithContext(
-        userId: userId,
-        userMessage: userMessage,
-        userProfile: userProfile,
-        userHabits: userHabits,
-        chatHistory: chatHistory,
-      );
+      try {
+        return await _groqService!.processMessageWithContext(
+          userId: userId,
+          userMessage: userMessage,
+          userProfile: userProfile,
+          userHabits: userHabits,
+          chatHistory: chatHistory,
+        );
+      } catch (_) {
+        return _serviceUnavailableMessage();
+      }
     }
 
-    return ChatbotMessage(
-      type: MessageType.assistant,
-      content: 'El servicio de chatbot no está disponible. Asegúrate de que el backend esté corriendo (puerto 8001).',
-    );
+    return _serviceUnavailableMessage();
   }
 
-  /// Obtener múltiples recomendaciones de compatibilidad
+  /// Obtener multiples recomendaciones de compatibilidad.
   Future<List<ChatbotMessage>> getCompatibilityRecommendation({
     required String userId,
     required List<String> userResponses,
     required Map<String, dynamic> userHabits,
   }) async {
-    // PRIMARIO: mock backend
-    try {
-      final response = await _client.post(
-        Uri.parse('$_mockUrl/chatbot/recommend'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'responses': userResponses,
-          'habits': userHabits,
-        }),
-      ).timeout(const Duration(seconds: 10));
+    if (useMock) {
+      try {
+        final response = await _client.post(
+          Uri.parse('$mockBaseUrl/chatbot/recommend'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'responses': userResponses,
+            'habits': userHabits,
+          }),
+        ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-        // Respuesta con lote de sugerencias
-        if (data['type'] == 'suggestions_batch') {
-          final recs = data['recommendations'] as List;
+          if (data['type'] == 'suggestions_batch') {
+            final recs = data['recommendations'] as List;
 
-          // Sin resultados → mensaje amigable
-          if (recs.isEmpty) {
-            final searchType = (userResponses.any((r) => r.toLowerCase().contains('departamento')))
-                ? 'departamento'
-                : 'compañero';
-            return [ChatbotMessage(
-              type: MessageType.assistant,
-              content: 'Lo siento 😔, no encontramos ningún $searchType compatible para ti en este momento.\n\nPuedes ajustar tus preferencias o intentarlo más tarde cuando haya más usuarios en tu zona.',
-              options: ['Intentar de nuevo', 'Cambiar preferencias'],
-            )];
+            if (recs.isEmpty) {
+              final searchType = userResponses.any(
+                (r) => r.toLowerCase().contains('departamento'),
+              )
+                  ? 'departamento'
+                  : 'companero';
+              return [
+                ChatbotMessage(
+                  type: MessageType.assistant,
+                  content:
+                      'Lo siento, no encontramos ningun $searchType compatible para ti en este momento.\n\nPuedes ajustar tus preferencias o intentarlo mas tarde cuando haya mas usuarios en tu zona.',
+                  options: ['Intentar de nuevo', 'Cambiar preferencias'],
+                ),
+              ];
+            }
+
+            return recs.map((r) {
+              final rec = r as Map<String, dynamic>;
+              return ChatbotMessage(
+                type: MessageType.suggestion,
+                content: rec['content'] as String,
+                matchedUserId: rec['matched_user_id'] as String?,
+                matchedUserName: rec['matched_user_name'] as String?,
+                matchedUserAvatar: rec['matched_user_avatar'] as String?,
+                compatibilityScore:
+                    (rec['compatibility_score'] as num?)?.toDouble(),
+                propertyLocation:
+                    rec['property_location'] as Map<String, dynamic>?,
+              );
+            }).toList();
           }
 
-          return recs.map((r) {
-            final rec = r as Map<String, dynamic>;
-            return ChatbotMessage(
-              type: MessageType.suggestion,
-              content: rec['content'] as String,
-              matchedUserId: rec['matched_user_id'] as String?,
-              matchedUserName: rec['matched_user_name'] as String?,
-              matchedUserAvatar: rec['matched_user_avatar'] as String?,
-              compatibilityScore: (rec['compatibility_score'] as num?)?.toDouble(),
-              propertyLocation: rec['property_location'] as Map<String, dynamic>?,
-            );
-          }).toList();
+          return [
+            ChatbotMessage(
+              type: MessageType.assistant,
+              content: data['content'] as String,
+              options: (data['options'] as List?)?.cast<String>(),
+            ),
+          ];
         }
-
-        // Respuesta simple (sin resultados)
-        return [ChatbotMessage(
-          type: MessageType.assistant,
-          content: data['content'] as String,
-          options: (data['options'] as List?)?.cast<String>(),
-        )];
+      } catch (_) {
+        // Mock no disponible: intentar Groq.
       }
-    } catch (_) {
-      // Mock no disponible → intentar Groq
     }
 
-    // FALLBACK: Groq
     if (useGroq) {
-      return await _groqService!.getCompatibilityRecommendations(
-        userId: userId,
-        userResponses: userResponses,
-        userHabits: userHabits,
-      );
+      try {
+        return await _groqService!.getCompatibilityRecommendations(
+          userId: userId,
+          userResponses: userResponses,
+          userHabits: userHabits,
+        );
+      } catch (_) {
+        return [_serviceUnavailableMessage()];
+      }
     }
 
-    return [ChatbotMessage(
-      type: MessageType.assistant,
-      content: 'Lo siento 😔, no pudimos conectar con el servidor. Asegúrate de que el backend esté corriendo (puerto 8001).',
-    )];
+    return [_serviceUnavailableMessage()];
   }
 
-  /// Obtener mensaje de bienvenida personalizado con opciones
+  /// Obtener mensaje de bienvenida personalizado con opciones.
   Future<ChatbotMessage> getWelcomeMessage(String userName) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$_mockUrl/chatbot/welcome'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_name': userName}),
-      ).timeout(const Duration(seconds: 5));
+    if (useMock) {
+      try {
+        final response = await _client.post(
+          Uri.parse('$mockBaseUrl/chatbot/welcome'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_name': userName}),
+        ).timeout(const Duration(seconds: 5));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return ChatbotMessage(
-          type: MessageType.assistant,
-          content: data['content'] as String,
-          options: (data['options'] as List?)?.cast<String>(),
-        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          return ChatbotMessage(
+            type: MessageType.assistant,
+            content: data['content'] as String,
+            options: (data['options'] as List?)?.cast<String>(),
+          );
+        }
+      } catch (_) {
+        // Mock no disponible, usar bienvenida local.
       }
-    } catch (_) {
-      // Mock no disponible, usar bienvenida local
     }
 
     return ChatbotMessage(
       type: MessageType.assistant,
-      content: '¡Hola $userName! 👋 Soy tu asistente de ConVive. ¿Qué estás buscando?',
-      options: ['Compañero de cuarto', 'Departamento'],
+      content:
+          'Hola $userName! Soy tu asistente de ConVive. Que estas buscando?',
+      options: ['Companero de cuarto', 'Departamento'],
     );
   }
 
   void dispose() {
     _client.close();
     _groqService?.dispose();
+  }
+
+  ChatbotMessage _serviceUnavailableMessage() {
+    return ChatbotMessage(
+      type: MessageType.assistant,
+      content:
+          'Aun no tengo conexion con el asistente en linea. Para que funcione en el APK, configura la URL publica del backend al compilar.',
+    );
   }
 }

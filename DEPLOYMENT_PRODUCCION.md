@@ -35,6 +35,28 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 4. Definir comando de start.
 5. Verificar `/health`.
 
+### Render Blueprint
+
+Tambien puedes usar `render.yaml` desde la raiz del repo. Render creara dos
+servicios:
+
+- `convive-ai-backend`: proxy de Groq (`backend/main.py`).
+- `convive-chatbot-guided`: flujo guiado del chatbot (`chatbot_backend_mock.py`).
+
+Variables requeridas:
+
+```env
+GROQ_API_KEY=tu_api_key_de_groq
+SUPABASE_URL=https://xdpknfhbieejnqpjqpll.supabase.co
+SUPABASE_ANON_KEY=tu_anon_key_de_supabase
+```
+
+Cuando ambos servicios esten publicados, usa sus URLs en el build del APK:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://convive-ai-backend.onrender.com --dart-define=CHATBOT_MOCK_URL=https://convive-chatbot-guided.onrender.com
+```
+
 ### Docker
 
 Ejemplo de Dockerfile:
@@ -49,6 +71,24 @@ COPY . .
 
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## APK conectado a produccion
+
+El celular no puede usar `localhost` de tu PC. Compila el APK indicando la URL
+publica del backend:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-backend.com
+```
+
+No uses `localhost` en `AI_SERVICE_URL` para el APK. Debe ser una URL accesible
+desde internet o desde la red del telefono.
+
+Si publicas tambien el flujo guiado del chatbot, agrega su URL:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-backend.com --dart-define=CHATBOT_MOCK_URL=https://tu-chatbot-guiado.com
 ```
 
 ## Flutter Web
@@ -164,4 +204,3 @@ Evitar URLs hardcodeadas como `localhost` en builds productivos.
 - Chatbot responde.
 - Usuario suspendido no entra.
 - No hay claves privadas en el build.
-

@@ -70,13 +70,27 @@ python chatbot_backend_mock.py
 Web:
 
 ```bash
-flutter run -d chrome
+flutter run -d chrome --dart-define=USE_LOCAL_BACKEND=true
 ```
 
 Android:
 
 ```bash
-flutter run -d android
+flutter run -d android --dart-define=USE_LOCAL_BACKEND=true
+```
+
+Sin `USE_LOCAL_BACKEND=true`, la app no intenta conectarse a `localhost`.
+
+APK conectado a backend publicado:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-backend.com
+```
+
+Si tambien publicas el backend guiado `chatbot_backend_mock.py`, agrega:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-backend.com --dart-define=CHATBOT_MOCK_URL=https://tu-chatbot-guiado.com
 ```
 
 Build web:
@@ -130,4 +144,3 @@ flutter pub run build_runner build --delete-conflicting-outputs
 flutter clean
 flutter pub get
 ```
-

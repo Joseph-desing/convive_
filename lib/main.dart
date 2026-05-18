@@ -24,7 +24,6 @@ import 'screens/admin_feedback_screen.dart';
 import 'screens/suspended_account_screen.dart';
 import 'config/supabase_provider.dart';
 import 'config/ai_service_provider.dart';
-import 'config/groq_config.dart';
 import 'providers/index.dart';
 import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
@@ -516,9 +515,7 @@ class _ConViveAppState extends State<ConViveApp> {
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(
           create: (_) => ChatbotProvider(
-            chatbotService: ChatbotService(
-              groqApiKey: GroqConfig.enableGroq ? GroqConfig.apiKey : null,
-            ),
+            chatbotService: ChatbotService(),
             databaseService: SupabaseDatabaseService(supabase: SupabaseProvider.client),
           ),
         ),
