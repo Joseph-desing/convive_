@@ -141,11 +141,16 @@ async def chat(request: ChatRequest) -> ChatResponse:
     Retorna: respuesta de Groq
     """
     
+    global client
+
     if not GROQ_API_KEY:
         raise HTTPException(
             status_code=500,
             detail="Groq API Key no configurada en el servidor"
         )
+
+    if client is None:
+        client = httpx.AsyncClient(timeout=30.0)
     
     try:
         # Construir mensajes para Groq

@@ -91,6 +91,43 @@ Si publicas tambien el flujo guiado del chatbot, agrega su URL:
 flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-backend.com --dart-define=CHATBOT_MOCK_URL=https://tu-chatbot-guiado.com
 ```
 
+## Alternativa sin tarjeta: Hugging Face Spaces
+
+Si no quieres registrar tarjeta en Render, usa Hugging Face Spaces con Docker.
+Esta alternativa publica un backend combinado con `/api/chat` y `/chatbot/...`
+en una sola URL.
+
+1. Crear cuenta en <https://huggingface.co>.
+2. Crear un Space nuevo.
+3. Elegir SDK: `Docker`.
+4. Crear variables/secrets:
+
+```env
+GROQ_API_KEY=tu_api_key_de_groq
+GROQ_MODEL=llama-3.1-70b-versatile
+SUPABASE_URL=https://xdpknfhbieejnqpjqpll.supabase.co
+SUPABASE_ANON_KEY=tu_anon_key_de_supabase
+```
+
+5. Subir estos archivos al Space:
+
+```text
+Dockerfile.hf
+requirements-hf.txt
+hf_app.py
+chatbot_backend_mock.py
+backend/
+```
+
+En Hugging Face, el Dockerfile debe llamarse `Dockerfile`. Si copias archivos
+manualmente, renombra `Dockerfile.hf` a `Dockerfile`.
+
+Cuando el Space este listo, usa la URL `.hf.space` para ambos defines:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://tu-space.hf.space --dart-define=CHATBOT_MOCK_URL=https://tu-space.hf.space
+```
+
 ## Flutter Web
 
 Build:
