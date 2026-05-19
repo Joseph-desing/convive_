@@ -144,7 +144,6 @@ class _PropertyCardState extends State<PropertyCard> {
                   bottomPadding: compact ? 10 : (medium ? 12 : 16),
                   titleSize: compact ? 17 : 19,
                   priceSize: compact ? 20 : 23,
-                  habitVerticalPadding: compact ? 8 : 12,
                 ),
               ),
             ],
@@ -325,7 +324,6 @@ class _PropertyCardState extends State<PropertyCard> {
     required double bottomPadding,
     required double titleSize,
     required double priceSize,
-    required double habitVerticalPadding,
   }) {
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -421,14 +419,9 @@ class _PropertyCardState extends State<PropertyCard> {
               ],
             ),
             SizedBox(height: compact ? 8 : 12),
-            Container(
+            Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 6 : 8,
-                vertical: compact ? 6 : habitVerticalPadding,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
+                vertical: compact ? 2 : 4,
               ),
               child: Row(
                 children: [
