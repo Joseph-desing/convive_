@@ -28,8 +28,9 @@ import '../providers/notifications_provider.dart';
 class HomeScreen extends StatefulWidget {
   final String userName;
   final int initialIndex;
-  
-  const HomeScreen({Key? key, this.userName = 'Usuario', this.initialIndex = 0}) : super(key: key);
+
+  const HomeScreen({Key? key, this.userName = 'Usuario', this.initialIndex = 0})
+      : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -82,14 +83,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       final authProvider = context.read<AuthProvider>();
       final userId = authProvider.currentUser?.id;
-      
+
       if (userId != null && userId.isNotEmpty) {
         final response = await SupabaseProvider.client
             .from('profiles')
             .select('full_name')
             .eq('user_id', userId)
             .maybeSingle();
-        
+
         if (response != null) {
           final fullName = response['full_name']?.toString() ?? '';
           if (fullName.isNotEmpty) {
@@ -101,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (e) {
       debugPrint('Error getting user name: $e');
     }
-    
+
     return 'Usuario'; // Fallback
   }
 
@@ -111,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final nameParts = _userFullName!.split(' ');
       return nameParts.first; // Retornar solo el primer nombre
     }
-    
+
     // Fallback al email
     try {
       final authProvider = context.read<AuthProvider>();
@@ -125,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (e) {
       //
     }
-    
+
     return 'Usuario';
   }
 
@@ -136,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadUserProfile().then((_) {
       _loadData();
     });
-    
+
     // Inicializar notificaciones en tiempo real
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notificationsProvider = context.read<NotificationsProvider>();
@@ -149,18 +150,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       // Obtener userId directamente de Supabase (más confiable que AuthProvider que podría estar inicializando)
       final userId = SupabaseProvider.client.auth.currentUser?.id;
-      
+
       debugPrint('🔍 Buscando perfil para userId: $userId');
-      
+
       if (userId != null && userId.isNotEmpty) {
         final response = await SupabaseProvider.client
             .from('profiles')
             .select('full_name')
             .eq('user_id', userId)
             .maybeSingle();
-        
+
         debugPrint('📡 Response: $response');
-        
+
         if (response != null && mounted) {
           final fullName = response['full_name']?.toString() ?? '';
           debugPrint('✅ Nombre del perfil cargado: "$fullName"');
@@ -171,7 +172,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           debugPrint('⚠️ No se encontró perfil o está vacío');
         }
       } else {
-        debugPrint('⚠️ UserId es null - Probablemente la sesión aún se está inicializando');
+        debugPrint(
+            '⚠️ UserId es null - Probablemente la sesión aún se está inicializando');
       }
     } catch (e) {
       debugPrint('❌ Error loading user profile: $e');
@@ -181,10 +183,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
-      final roommateProvider = Provider.of<RoommateSearchProvider>(context, listen: false);
+      final propertyProvider =
+          Provider.of<PropertyProvider>(context, listen: false);
+      final roommateProvider =
+          Provider.of<RoommateSearchProvider>(context, listen: false);
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
-      
+
       await Future.wait([
         propertyProvider.loadProperties(excludeUserId: currentUserId),
         roommateProvider.fetchRoommateSearches(excludeUserId: currentUserId),
@@ -204,12 +208,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await _preloadHabits(ownerIds);
       await _preloadPropertyImages(propertyProvider.properties);
       await _preloadRoommateImages(roommateProvider.searches);
-      
+
       setState(() {
         _properties = propertyProvider.properties;
         _roommateSearches = roommateProvider.searches;
         _isLoading = false;
-        print('📊 Datos cargados: ${_properties.length} propiedades, ${_roommateSearches.length} búsquedas roommate');
+        print(
+            '📊 Datos cargados: ${_properties.length} propiedades, ${_roommateSearches.length} búsquedas roommate');
       });
     } catch (e) {
       print('Error cargando datos: $e');
@@ -221,7 +226,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     for (final userId in userIds) {
       if (_profileCache.containsKey(userId)) continue;
       try {
-        final profile = await SupabaseProvider.databaseService.getProfile(userId);
+        final profile =
+            await SupabaseProvider.databaseService.getProfile(userId);
         if (profile != null) {
           _profileCache[userId] = profile;
         }
@@ -266,13 +272,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Cargar desde tabla separada (como property_images)
         final urls = await SupabaseProvider.databaseService
             .getRoommateSearchImages(search.id!);
-        print('🖼️ Imágenes cargadas para búsqueda ${search.id}: ${urls.length} imágenes');
+        print(
+            '🖼️ Imágenes cargadas para búsqueda ${search.id}: ${urls.length} imágenes');
         _roommateImagesCache[search.id!] = List<String>.from(urls);
       } catch (e) {
         print('❌ Error cargando imágenes para búsqueda ${search.id}: $e');
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -287,15 +295,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   _buildHeader(),
                   Expanded(
-                    child: _currentIndex == 0 
-                      ? _buildSwipeSection() 
-                      : _buildPlaceholder(),
+                    child: _currentIndex == 0
+                        ? _buildSwipeSection()
+                        : _buildPlaceholder(),
                   ),
                 ],
               ),
             ),
           ),
-          
+
           // Bottom Navigation - respeta SafeArea automáticamente
           CustomBottomNavBar(
             currentIndex: _currentIndex,
@@ -332,7 +340,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ShaderMask(
-                shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
+                shaderCallback: (bounds) =>
+                    AppColors.primaryGradient.createShader(bounds),
                 child: const Text(
                   'ConVive',
                   style: TextStyle(
@@ -363,7 +372,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 message: 'Filtros',
                 child: IconButton(
                   onPressed: () async {
-                    final result = await showModalBottomSheet<FilterSheetResult>(
+                    final result =
+                        await showModalBottomSheet<FilterSheetResult>(
                       context: context,
                       isScrollControlled: true,
                       builder: (_) => FilterSheet(
@@ -377,7 +387,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       // Navigate to map to show filtered results
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const MapPostsScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const MapPostsScreen()),
                       );
                     }
                   },
@@ -395,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     final unreadCount = notificationsProvider.notifications
                         .where((n) => !n.isRead)
                         .length;
-                    
+
                     return Stack(
                       children: [
                         IconButton(
@@ -403,13 +414,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const NotificationsScreen(),
+                                builder: (context) =>
+                                    const NotificationsScreen(),
                               ),
                             );
                           },
                           icon: const Icon(Icons.notifications_outlined),
                           style: IconButton.styleFrom(
-                            backgroundColor: ThemeHelper.secondaryBackground(context),
+                            backgroundColor:
+                                ThemeHelper.secondaryBackground(context),
                           ),
                         ),
                         if (unreadCount > 0)
@@ -417,7 +430,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             right: 6,
                             top: 6,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(10),
@@ -427,7 +441,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 minHeight: 20,
                               ),
                               child: Text(
-                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                unreadCount > 99
+                                    ? '99+'
+                                    : unreadCount.toString(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
@@ -459,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     _initializeTabController();
-    
+
     return Column(
       children: [
         TabBar(
@@ -508,7 +524,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return _buildNoMoreCards();
     }
 
-    final displayProperties = _properties.map((prop) => _convertToPropertyData(prop)).toList();
+    final displayProperties =
+        _properties.map((prop) => _convertToPropertyData(prop)).toList();
 
     if (_currentCardIndex >= displayProperties.length) {
       return _buildNoMoreCards();
@@ -516,62 +533,75 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final currentProperty = _properties[_currentCardIndex];
 
-    return Stack(
-      children: [
-        // Cards stack
-        for (int i = displayProperties.length - 1; i >= _currentCardIndex; i--)
-          Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: (i - _currentCardIndex) * 10.0,
-                bottom: 100,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final metrics = _cardLayoutMetrics(constraints.maxHeight);
+
+        return Stack(
+          children: [
+            // Cards stack
+            for (int i = displayProperties.length - 1;
+                i >= _currentCardIndex;
+                i--)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: (i - _currentCardIndex) * metrics.stackOffset,
+                    bottom: metrics.cardBottomInset,
+                  ),
+                  child: PropertyCard(
+                    property: displayProperties[i],
+                    onSwipeLeft: () => _handleSwipeProperties(false),
+                    onSwipeRight: () => _handleSwipeProperties(true),
+                  ),
+                ),
               ),
-              child: PropertyCard(
-                property: displayProperties[i],
-                onSwipeLeft: () => _handleSwipeProperties(false),
-                onSwipeRight: () => _handleSwipeProperties(true),
-              ),
-            ),
-          ),
-        
-        // Overlay de acción
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Center(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _overlayVisible ? 1.0 : 0.0,
-                child: AnimatedScale(
-                  scale: _overlayVisible ? 1.0 : 0.6,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 12,
+
+            // Overlay de acción
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _overlayVisible ? 1.0 : 0.0,
+                    child: AnimatedScale(
+                      scale: _overlayVisible ? 1.0 : 0.6,
+                      duration: const Duration(milliseconds: 200),
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.95),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Icon(_overlayIcon ?? Icons.star,
+                            color: _overlayColor, size: 48),
+                      ),
                     ),
-                    child: Icon(_overlayIcon ?? Icons.star, color: _overlayColor, size: 48),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
 
-        // Action buttons con referencia a propiedad actual
-        Positioned(
-          bottom: 120,
-          left: 0,
-          right: 0,
-          child: _buildActionButtonsForProperty(currentProperty),
-        ),
-      ],
+            // Action buttons con referencia a propiedad actual
+            Positioned(
+              bottom: metrics.buttonBottomInset,
+              left: 0,
+              right: 0,
+              child: _buildActionButtonsForProperty(
+                currentProperty,
+                sideSize: metrics.sideButtonSize,
+                centerSize: metrics.centerButtonSize,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -580,7 +610,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return _buildNoMoreCards();
     }
 
-    final displayRoommates = _roommateSearches.map((search) => _convertRoommateToPropertyData(search)).toList();
+    final displayRoommates = _roommateSearches
+        .map((search) => _convertRoommateToPropertyData(search))
+        .toList();
 
     if (_currentRoommateCardIndex >= displayRoommates.length) {
       return _buildNoMoreCards();
@@ -588,66 +620,113 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final currentRoommate = _roommateSearches[_currentRoommateCardIndex];
 
-    return Stack(
-      children: [
-        // Cards stack
-        for (int i = displayRoommates.length - 1; i >= _currentRoommateCardIndex; i--)
-          Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: (i - _currentRoommateCardIndex) * 10.0,
-                bottom: 100,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final metrics = _cardLayoutMetrics(constraints.maxHeight);
+
+        return Stack(
+          children: [
+            // Cards stack
+            for (int i = displayRoommates.length - 1;
+                i >= _currentRoommateCardIndex;
+                i--)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: (i - _currentRoommateCardIndex) * metrics.stackOffset,
+                    bottom: metrics.cardBottomInset,
+                  ),
+                  child: PropertyCard(
+                    property: displayRoommates[i],
+                    onSwipeLeft: () => _handleSwipeRoommates(false),
+                    onSwipeRight: () => _handleSwipeRoommates(true),
+                  ),
+                ),
               ),
-              child: PropertyCard(
-                property: displayRoommates[i],
-                onSwipeLeft: () => _handleSwipeRoommates(false),
-                onSwipeRight: () => _handleSwipeRoommates(true),
-              ),
-            ),
-          ),
-        
-        // Overlay de acción
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Center(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _overlayVisible ? 1.0 : 0.0,
-                child: AnimatedScale(
-                  scale: _overlayVisible ? 1.0 : 0.6,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 12,
+
+            // Overlay de acción
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _overlayVisible ? 1.0 : 0.0,
+                    child: AnimatedScale(
+                      scale: _overlayVisible ? 1.0 : 0.6,
+                      duration: const Duration(milliseconds: 200),
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.95),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Icon(_overlayIcon ?? Icons.star,
+                            color: _overlayColor, size: 48),
+                      ),
                     ),
-                    child: Icon(_overlayIcon ?? Icons.star, color: _overlayColor, size: 48),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
 
-        // Action buttons con referencia a roommate actual
-        Positioned(
-          bottom: 120,
-          left: 0,
-          right: 0,
-          child: _buildActionButtonsForRoommate(currentRoommate),
-        ),
-      ],
+            // Action buttons con referencia a roommate actual
+            Positioned(
+              bottom: metrics.buttonBottomInset,
+              left: 0,
+              right: 0,
+              child: _buildActionButtonsForRoommate(
+                currentRoommate,
+                sideSize: metrics.sideButtonSize,
+                centerSize: metrics.centerButtonSize,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildActionButtonsForProperty(Property property) {
+  _SwipeCardLayoutMetrics _cardLayoutMetrics(double availableHeight) {
+    if (availableHeight < 470) {
+      return const _SwipeCardLayoutMetrics(
+        cardBottomInset: 52,
+        buttonBottomInset: 10,
+        sideButtonSize: 52,
+        centerButtonSize: 58,
+        stackOffset: 6,
+      );
+    }
+
+    if (availableHeight < 570) {
+      return const _SwipeCardLayoutMetrics(
+        cardBottomInset: 62,
+        buttonBottomInset: 16,
+        sideButtonSize: 58,
+        centerButtonSize: 66,
+        stackOffset: 8,
+      );
+    }
+
+    return const _SwipeCardLayoutMetrics(
+      cardBottomInset: 74,
+      buttonBottomInset: 24,
+      sideButtonSize: 62,
+      centerButtonSize: 72,
+      stackOffset: 10,
+    );
+  }
+
+  Widget _buildActionButtonsForProperty(
+    Property property, {
+    double sideSize = 60,
+    double centerSize = 70,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -655,6 +734,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           icon: Icons.close_rounded,
           color: Colors.red,
           onPressed: () => _handleSwipeProperties(false),
+          size: sideSize,
         ),
         _buildActionButton(
           icon: Icons.location_on,
@@ -673,18 +753,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             );
           },
-          size: 70,
+          size: centerSize,
         ),
         _buildActionButton(
           icon: Icons.favorite_rounded,
           color: Colors.green,
           onPressed: () => _handleSwipeProperties(true),
+          size: sideSize,
         ),
       ],
     );
   }
 
-  Widget _buildActionButtonsForRoommate(RoommateSearch roommate) {
+  Widget _buildActionButtonsForRoommate(
+    RoommateSearch roommate, {
+    double sideSize = 60,
+    double centerSize = 70,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -692,6 +777,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           icon: Icons.close_rounded,
           color: Colors.red,
           onPressed: () => _handleSwipeRoommates(false),
+          size: sideSize,
         ),
         _buildActionButton(
           icon: Icons.location_on,
@@ -710,12 +796,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             );
           },
-          size: 70,
+          size: centerSize,
         ),
         _buildActionButton(
           icon: Icons.favorite_rounded,
           color: Colors.green,
           onPressed: () => _handleSwipeRoommates(true),
+          size: sideSize,
         ),
       ],
     );
@@ -822,17 +909,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_currentIndex == 4) {
       return const ProfileScreen();
     }
-    
+
     // Mostrar la pantalla de quejas cuando se selecciona
     if (_currentIndex == 2) {
       return const ComplaintsScreen();
     }
-    
+
     // Mostrar la pantalla de matches
     if (_currentIndex == 1) {
       return const MatchesScreen();
     }
-    
+
     return const Center(
       child: Text(
         'Inicio',
@@ -843,15 +930,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _handleSwipeProperties(bool isLike) async {
     if (_currentCardIndex >= _properties.length) return;
-    
+
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) return;
-    
+
     final property = _properties[_currentCardIndex];
     final targetUserId = property.ownerId;
     final contextType = 'property';
     final contextId = property.id;
-    
+
     setState(() {
       _currentCardIndex++;
     });
@@ -897,7 +984,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         publicationTitle: property.title,
         publicationType: 'departamento',
       );
-      print('⏳ Like enviado - el match solo se crea cuando el otro usuario lo devuelve');
+      print(
+          '⏳ Like enviado - el match solo se crea cuando el otro usuario lo devuelve');
     } catch (e) {
       print('❌ Error en el proceso de like: $e');
     }
@@ -905,15 +993,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _handleSwipeRoommates(bool isLike) async {
     if (_currentRoommateCardIndex >= _roommateSearches.length) return;
-    
+
     final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
     if (currentUserId == null) return;
-    
+
     final search = _roommateSearches[_currentRoommateCardIndex];
     final targetUserId = search.userId;
     final contextType = 'search';
     final contextId = search.id;
-    
+
     // Validar que contextId no sea null
     if (contextId == null || contextId.isEmpty) {
       print('⚠️ ID de búsqueda inválido, no se puede procesar el swipe');
@@ -922,7 +1010,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
       return;
     }
-    
+
     setState(() {
       _currentRoommateCardIndex++;
     });
@@ -968,7 +1056,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         publicationTitle: search.title,
         publicationType: 'roommate',
       );
-      print('⏳ Like enviado - el match solo se crea cuando el otro usuario lo devuelve');
+      print(
+          '⏳ Like enviado - el match solo se crea cuando el otro usuario lo devuelve');
     } catch (e) {
       print('❌ Error en el proceso de like: $e');
     }
@@ -1045,7 +1134,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Usar imágenes cacheadas de forma segura
       final searchId = search.id ?? '';
-      final cachedImages = searchId.isNotEmpty ? _roommateImagesCache[searchId] : null;
+      final cachedImages =
+          searchId.isNotEmpty ? _roommateImagesCache[searchId] : null;
       final imageList = (cachedImages != null && cachedImages.isNotEmpty)
           ? List<String>.from(cachedImages)
           : <String>['https://via.placeholder.com/800x600?text=Compañero'];
@@ -1109,7 +1199,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       // Obtener hábitos del usuario actual
       final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
-      if (currentUserId == null) return 50; // Sin usuario, compatibilidad neutra
+      if (currentUserId == null)
+        return 50; // Sin usuario, compatibilidad neutra
 
       final userHabits = _habitsCache[currentUserId];
       final otherHabits = _habitsCache[otherUserId];
@@ -1120,7 +1211,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
 
       // Calcular compatibilidad usando el servicio
-      return CompatibilityService.calculateCompatibility(userHabits, otherHabits);
+      return CompatibilityService.calculateCompatibility(
+          userHabits, otherHabits);
     } catch (e) {
       print('❌ Error calculando compatibilidad: $e');
       return 50; // Compatibilidad neutra en caso de error
@@ -1141,7 +1233,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final cleanliness = habits.cleanlinessLevel;
     final noiseTolerance = habits.noiseTolerance;
     final partyFrequency = habits.partyFrequency;
-    
+
     return HabitData(
       cleanliness: cleanliness,
       noiseLevel: 10 - noiseTolerance,
@@ -1194,5 +1286,21 @@ class HabitData {
     required this.cleanliness,
     required this.noiseLevel,
     required this.socialLevel,
+  });
+}
+
+class _SwipeCardLayoutMetrics {
+  final double cardBottomInset;
+  final double buttonBottomInset;
+  final double sideButtonSize;
+  final double centerButtonSize;
+  final double stackOffset;
+
+  const _SwipeCardLayoutMetrics({
+    required this.cardBottomInset,
+    required this.buttonBottomInset,
+    required this.sideButtonSize,
+    required this.centerButtonSize,
+    required this.stackOffset,
   });
 }
