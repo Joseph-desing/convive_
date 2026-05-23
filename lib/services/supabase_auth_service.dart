@@ -48,7 +48,10 @@ class SupabaseAuthService {
 
   /// Enviar email de recuperación de contraseña
   Future<void> resetPassword(String email) async {
-    await _supabase.auth.resetPasswordForEmail(email);
+    await _supabase.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://convive-app-6debf.web.app/reset-password',
+    );
   }
 
   /// Actualizar contraseña del usuario actual

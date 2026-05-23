@@ -48,27 +48,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
-      print('Sesión de recuperación preparada correctamente');
+      print('✅ Sesión de recuperación preparada correctamente');
     } catch (e) {
-      print('No se pudo preparar la sesión con code, se intentará fallback: $e');
+      print('⚠️ No se pudo intercambiar el code: $e');
     } finally {
       if (mounted) {
         setState(() => _isPreparingSession = false);
       }
-    }
-    print('🔍 Verificando código: ${widget.resetToken}');
-    
-    try {
-      // Verificar el OTP con Supabase
-      await SupabaseProvider.client.auth.verifyOTP(
-        email: widget.email ?? '',
-        token: widget.resetToken,
-        type: OtpType.recovery,
-      );
-      
-      print('✅ Código verificado correctamente');
-    } catch (e) {
-      print('❌ Error verificando código: $e');
     }
   }
 

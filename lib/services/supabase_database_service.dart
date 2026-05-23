@@ -19,16 +19,20 @@ class SupabaseDatabaseService {
   }
 
   Future<convive_user.User> createUser(convive_user.User user) async {
-    // No enviar createdAt ni updatedAt, Supabase los genera automáticamente
+    // toJson() genera snake_case: created_at, updated_at, is_suspended
     final userData = user.toJson();
-    userData.remove('createdAt');
-    userData.remove('updatedAt');
+    userData.remove('created_at');   // Supabase lo genera automáticamente
+    userData.remove('updated_at');   // Supabase lo genera automáticamente
+    userData.remove('is_suspended'); // Supabase usa el default (false)
+    
+    print('📝 createUser → insertando: $userData');
     
     final response = await _supabase
         .from('users')
         .insert(userData)
         .select('*')
         .single();
+    print('✅ createUser → usuario insertado correctamente');
     return convive_user.User.fromJson(response);
   }
 
