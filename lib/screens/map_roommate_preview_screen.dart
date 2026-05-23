@@ -118,7 +118,7 @@ class _MapRoommatePreviewScreenState extends State<MapRoommatePreviewScreen> {
             ),
             const SizedBox(height: 24),
             _Section(
-              title: 'Descripcion',
+              title: 'Descripción',
               child: Text(
                 s.description,
                 style: TextStyle(
@@ -147,7 +147,7 @@ class _MapRoommatePreviewScreenState extends State<MapRoommatePreviewScreen> {
             ],
             const SizedBox(height: 22),
             _Section(
-              title: 'Ubicacion',
+              title: 'Ubicación',
               child: _LocationBox(
                 address: s.address,
                 coordinates:

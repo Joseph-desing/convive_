@@ -572,7 +572,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     final hasExistingPdf = _existingVerificationPdfUrl != null &&
         _existingVerificationPdfUrl!.isNotEmpty;
     final fileName = _verificationPdfFile?.name ??
-        (hasExistingPdf ? 'PDF de verificacion cargado' : null);
+        (hasExistingPdf ? 'PDF de verificación cargado' : null);
     final buttonText = fileName == null ? 'Subir PDF' : 'Cambiar PDF';
 
     return Container(
@@ -605,7 +605,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Documento de verificacion',
+                      'Documento de verificación',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -940,7 +940,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('El PDF debe ayudar a validar que la publicacion es real.'),
+              Text('El PDF debe ayudar a validar que la publicación es real.'),
               SizedBox(height: 14),
               Text('- Copia de cedula del usuario o responsable.'),
               Text('- Planilla de luz, agua o internet si aplica.'),
@@ -1012,7 +1012,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     if (_verificationPdfFile == null &&
         (_existingVerificationPdfUrl == null ||
             _existingVerificationPdfUrl!.isEmpty)) {
-      _showSnackBar('Sube el PDF de verificacion');
+      _showSnackBar('Sube el PDF de verificación');
       return;
     }
 

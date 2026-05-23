@@ -302,18 +302,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: _isRedAdminNotice(notification)
-                ? Colors.red.shade50.withOpacity(0.72)
+                ? const Color(0xFFFFFBFB)
                 : isUnread
                     ? _getNotificationColor(notification).withOpacity(0.08)
                     : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _isRedAdminNotice(notification)
-                  ? Colors.red.shade200
+                  ? const Color(0xFFF1D6D6)
                   : isUnread
                       ? _getNotificationColor(notification).withOpacity(0.4)
                       : Colors.grey.withOpacity(0.15),
-              width: isUnread ? 2 : 1,
+              width: _isRedAdminNotice(notification)
+                  ? 1
+                  : isUnread
+                      ? 2
+                      : 1,
             ),
             boxShadow: [
               BoxShadow(
@@ -384,7 +388,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                             child: Text(
                               _isPublicationRejected(notification)
-                                  ? 'Publicacion rechazada'
+                                  ? 'Publicación rechazada'
                                   : _isComplaintReport(notification)
                                   ? 'Reporte de queja'
                                   :
@@ -538,7 +542,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         (notification.publicationType ?? '').trim().toLowerCase();
     return normalizedType == 'complaint_report' ||
         normalizedType == 'queja' ||
-        (normalizedSender == 'administracion' &&
+        ((normalizedSender == 'administracion' ||
+                normalizedSender == 'administración') &&
             normalizedTitle.contains('reporte') &&
             normalizedTitle.contains('queja')) ||
         normalizedTitle.contains('reporte de queja') ||
@@ -566,7 +571,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return 'Reporte de queja';
     }
     if (_isPublicationRejected(notification)) {
-      return 'Publicacion rechazada';
+      return 'Publicación rechazada';
     }
     return notification.title;
   }
@@ -576,7 +581,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return 'Reporte de queja';
     }
     if (_isPublicationRejected(notification)) {
-      return 'Publicacion rechazada';
+      return 'Publicación rechazada';
     }
     return notification.publicationType == 'roommate'
         ? 'Buscando Roommate'
@@ -585,7 +590,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Color _publicationBadgeColor(notification_model.Notification notification) {
     if (_isRedAdminNotice(notification)) {
-      return Colors.red.shade700;
+      return const Color(0xFFB42318);
     }
     return notification.publicationType == 'roommate'
         ? Colors.blue.shade700
@@ -616,16 +621,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    final color = Colors.red.shade700;
+    const accentColor = Color(0xFFB42318);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: const Color(0xFFFFF7F5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: const Color(0xFFF4D1CB)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -636,7 +641,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   _isPublicationRejected(notification)
                       ? Icons.cancel_rounded
                       : Icons.report_gmailerrorred,
-                  color: color,
+                  color: accentColor,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -645,7 +650,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ? 'Motivo del rechazo'
                       : 'Motivo del reporte',
                   style: TextStyle(
-                    color: color,
+                    color: accentColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -710,7 +715,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Color _getNotificationColor(notification_model.Notification notification) {
     if (_isRedAdminNotice(notification)) {
-      return Colors.red.shade700;
+      return const Color(0xFFB42318);
     }
 
     if (_isProfileMatch(notification)) {

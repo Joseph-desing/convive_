@@ -48,9 +48,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
-      print('Sesion de recuperacion preparada correctamente');
+      print('Sesión de recuperación preparada correctamente');
     } catch (e) {
-      print('No se pudo preparar la sesion con code, se intentara fallback: $e');
+      print('No se pudo preparar la sesión con code, se intentará fallback: $e');
     } finally {
       if (mounted) {
         setState(() => _isPreparingSession = false);

@@ -74,7 +74,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
             children: [
               const AdminSectionHeader(
                 title: 'Publicaciones',
-                subtitle: 'Revisa departamentos y busquedas de roomies.',
+                subtitle: 'Revisa departamentos y búsquedas de roomies.',
                 icon: FontAwesomeIcons.building,
               ),
               // TabBar para Departamentos y Roomies
@@ -534,7 +534,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Estas seguro de que deseas eliminar esta busqueda? Esta accion no se puede deshacer.',
+                      '¿Estás seguro de que deseas eliminar esta búsqueda? Esta acción no se puede deshacer.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.red.shade700,
@@ -1159,7 +1159,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
               ),
               const SizedBox(width: 5),
               Text(
-                hasPdf ? 'PDF de verificacion adjunto' : 'Sin PDF de verificacion',
+                hasPdf ? 'PDF de verificación adjunto' : 'Sin PDF de verificación',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1290,7 +1290,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Documento de verificacion',
+                                          'Documento de verificación',
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w800,
@@ -1416,7 +1416,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                       messenger.showSnackBar(
                                         SnackBar(
                                           content: const Text(
-                                            'Publicacion rechazada',
+                                            'Publicación rechazada',
                                           ),
                                           backgroundColor: Colors.red.shade600,
                                           behavior: SnackBarBehavior.floating,
@@ -1491,7 +1491,7 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                       messenger.showSnackBar(
                                         SnackBar(
                                           content: const Text(
-                                            'Publicacion aprobada',
+                                            'Publicación aprobada',
                                           ),
                                           backgroundColor:
                                               Colors.green.shade600,

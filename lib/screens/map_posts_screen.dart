@@ -772,7 +772,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  address.isNotEmpty ? address : 'Ubicacion seleccionada',
+                  address.isNotEmpty ? address : 'Ubicación seleccionada',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -954,7 +954,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   sheetContext: sheetContext,
                   color: color,
                   icon: Icons.visibility_rounded,
-                  label: 'Ver publicacion',
+                  label: 'Ver publicación',
                   onOpen: () {
                     Navigator.pop(sheetContext);
                     Navigator.push(
@@ -980,7 +980,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
     final lng = s.longitude;
     final coordinates = lat != null && lng != null
         ? 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)}'
-        : 'Ubicacion aproximada';
+        : 'Ubicación aproximada';
 
     showModalBottomSheet<void>(
       context: context,
@@ -1035,7 +1035,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                   sheetContext: sheetContext,
                   color: color,
                   icon: Icons.person_search_rounded,
-                  label: 'Ver busqueda',
+                  label: 'Ver búsqueda',
                   onOpen: () {
                     Navigator.pop(sheetContext);
                     Navigator.push(

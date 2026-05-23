@@ -969,7 +969,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Cerrar Sesion',
+                      'Cerrar Sesión',
                       style: TextStyle(
                         color: AdminUi.ink,
                         fontWeight: FontWeight.w800,
@@ -1042,7 +1042,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Cerrar Sesion',
+                        'Cerrar Sesión',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -1055,7 +1055,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Seguro que quieres cerrar sesion?',
+                '¿Seguro que quieres cerrar sesión?',
                 style: TextStyle(
                   fontSize: 14,
                   color: AdminUi.muted,

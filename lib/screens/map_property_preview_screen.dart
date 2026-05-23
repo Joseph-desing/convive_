@@ -105,7 +105,7 @@ class _MapPropertyPreviewScreenState extends State<MapPropertyPreviewScreen> {
             ),
             const SizedBox(height: 24),
             _Section(
-              title: 'Descripcion',
+              title: 'Descripción',
               child: Text(
                 p.description,
                 style: TextStyle(
@@ -117,7 +117,7 @@ class _MapPropertyPreviewScreenState extends State<MapPropertyPreviewScreen> {
             ),
             const SizedBox(height: 22),
             _Section(
-              title: 'Ubicacion',
+              title: 'Ubicación',
               child: _LocationBox(
                 address: p.address,
                 coordinates:

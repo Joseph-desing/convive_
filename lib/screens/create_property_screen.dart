@@ -736,7 +736,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     final hasExistingPdf = _existingVerificationPdfUrl != null &&
         _existingVerificationPdfUrl!.isNotEmpty;
     final fileName = _verificationPdfFile?.name ??
-        (hasExistingPdf ? 'PDF de verificacion cargado' : null);
+        (hasExistingPdf ? 'PDF de verificación cargado' : null);
     final buttonText = fileName == null ? 'Subir PDF' : 'Cambiar PDF';
 
     return Container(
@@ -769,7 +769,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Documento de verificacion',
+                      'Documento de verificación',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -1124,7 +1124,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('El PDF debe ayudar a validar que la publicacion es real.'),
+              Text('El PDF debe ayudar a validar que la publicación es real.'),
               SizedBox(height: 14),
               Text('- Copia de cedula del propietario o responsable.'),
               Text('- Planilla de luz, agua o internet del inmueble.'),
@@ -1210,7 +1210,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
         (_existingVerificationPdfUrl == null ||
             _existingVerificationPdfUrl!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sube el PDF de verificacion')),
+        const SnackBar(content: Text('Sube el PDF de verificación')),
       );
       return;
     }

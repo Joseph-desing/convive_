@@ -46,7 +46,7 @@ class SuspendedAccountScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Tu cuenta ha sido suspendida por administracion. No puedes acceder a las secciones de ConVive hasta que un administrador reactive tu cuenta.',
+                    'Tu cuenta ha sido suspendida por administración. No puedes acceder a las secciones de ConVive hasta que un administrador reactive tu cuenta.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
@@ -63,7 +63,7 @@ class SuspendedAccountScreen extends StatelessWidget {
                         context.go('/login');
                       },
                       icon: const Icon(Icons.login_rounded),
-                      label: const Text('Volver al inicio de sesion'),
+                      label: const Text('Volver al inicio de sesión'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,

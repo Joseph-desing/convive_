@@ -7,7 +7,7 @@ class AdminProvider with ChangeNotifier {
   late AdminService _adminService;
   final SupabaseClient _supabase = Supabase.instance.client;
   static const String _resendTestingModeMessage =
-      'Resend esta en modo prueba: solo puedes enviar correos al email dueño de la cuenta. Para enviar a cualquier usuario, verifica un dominio en Resend y usa ese dominio como remitente.';
+      'Resend está en modo prueba: solo puedes enviar correos al email dueño de la cuenta. Para enviar a cualquier usuario, verifica un dominio en Resend y usa ese dominio como remitente.';
 
   // Estado
   List<Map<String, dynamic>> allUsers = [];
@@ -115,7 +115,7 @@ class AdminProvider with ChangeNotifier {
         body: {
           'user_id': userId,
           'email': email,
-          'subject': 'ConVive - Notificacion de administracion',
+          'subject': 'ConVive - Notificación de administración',
           'message': message,
         },
       );
@@ -348,7 +348,7 @@ class AdminProvider with ChangeNotifier {
           'admin_notes': note,
         }).eq('id', id).select('id');
         if ((updated as List).isEmpty) {
-          throw Exception('No se pudo aprobar la publicacion. Revisa permisos RLS.');
+          throw Exception('No se pudo aprobar la publicación. Revisa permisos RLS.');
         }
 
         final idx = allProperties.indexWhere((p) => p['id'] == id);
@@ -367,7 +367,7 @@ class AdminProvider with ChangeNotifier {
           'admin_notes': note,
         }).eq('id', id).select('id');
         if ((updated as List).isEmpty) {
-          throw Exception('No se pudo aprobar la publicacion. Revisa permisos RLS.');
+          throw Exception('No se pudo aprobar la publicación. Revisa permisos RLS.');
         }
 
         final idx = allRoommateSearches.indexWhere((s) => s['id'] == id);
@@ -380,7 +380,7 @@ class AdminProvider with ChangeNotifier {
       notifyListeners();
       _clearError();
     } catch (e) {
-      _setError('Error aprobando publicacion: $e');
+      _setError('Error aprobando publicación: $e');
       rethrow;
     } finally {
       _setLoading(false);
@@ -398,7 +398,7 @@ class AdminProvider with ChangeNotifier {
       _setLoading(true);
       final note = (adminNote != null && adminNote.trim().isNotEmpty)
           ? adminNote.trim()
-          : 'La publicacion no cumple con los requisitos de verificacion.';
+          : 'La publicación no cumple con los requisitos de verificación.';
       if (type == 'property') {
         final updated = await _supabase.from('properties').update({
           'status': 'inactive',
@@ -406,7 +406,7 @@ class AdminProvider with ChangeNotifier {
           'admin_notes': note,
         }).eq('id', id).select('id, owner_id, title');
         if ((updated as List).isEmpty) {
-          throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
+          throw Exception('No se pudo rechazar la publicación. Revisa permisos RLS.');
         }
 
         final updatedProperty =
@@ -432,7 +432,7 @@ class AdminProvider with ChangeNotifier {
           'admin_notes': note,
         }).eq('id', id).select('id, user_id, title');
         if ((updated as List).isEmpty) {
-          throw Exception('No se pudo rechazar la publicacion. Revisa permisos RLS.');
+          throw Exception('No se pudo rechazar la publicación. Revisa permisos RLS.');
         }
 
         final updatedSearch =
@@ -455,7 +455,7 @@ class AdminProvider with ChangeNotifier {
       notifyListeners();
       _clearError();
     } catch (e) {
-      _setError('Error rechazando publicacion: $e');
+      _setError('Error rechazando publicación: $e');
       rethrow;
     } finally {
       _setLoading(false);
@@ -474,17 +474,17 @@ class AdminProvider with ChangeNotifier {
     final title = publicationTitle?.trim().isNotEmpty == true
         ? publicationTitle!.trim()
         : publicationType == 'roommate'
-            ? 'tu busqueda de roommate'
+            ? 'tu búsqueda de roommate'
             : 'tu departamento';
 
     await _supabase.from('notifications').insert({
       'recipient_user_id': recipientUserId,
       'type': 'system',
       'sender_user_id': _supabase.auth.currentUser?.id,
-      'sender_user_name': 'Administracion',
+      'sender_user_name': 'Administración',
       'publication_id': publicationId,
       'publication_title':
-          'Tu publicacion "$title" fue rechazada. Motivo: $note',
+          'Tu publicación "$title" fue rechazada. Motivo: $note',
       'publication_type': publicationType,
       'read': false,
     });

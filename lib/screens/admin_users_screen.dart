@@ -165,7 +165,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return const AdminEmptyState(
       icon: FontAwesomeIcons.users,
       title: 'No hay usuarios',
-      subtitle: 'Cambia el filtro o intenta otra busqueda.',
+      subtitle: 'Cambia el filtro o intenta otra búsqueda.',
     );
   }
 
@@ -978,6 +978,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       'fraude': '⚠️ Se detectó comportamiento fraudulento o engañoso en tu cuenta.',
       'inapropiado': '📛 Contenido inapropiado o ofensivo en tu perfil.',
       'spam': '🔔 Comportamiento de spam o abuso reiterado.',
+      'verificación': '🔍 Tu cuenta ha sido suspendida pendiente de verificación.',
       'verificacion': '🔍 Tu cuenta ha sido suspendida pendiente de verificación.',
       'other': '',
     };

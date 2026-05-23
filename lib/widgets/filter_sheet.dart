@@ -298,7 +298,7 @@ class _FilterSheetState extends State<FilterSheet> {
                       ),
                       _filterTile(
                         icon: Icons.people_alt_rounded,
-                        title: 'Mostrar busquedas',
+                        title: 'Mostrar búsquedas',
                         value: _showSearches,
                         onChanged: (v) => setState(() => _showSearches = v),
                       ),

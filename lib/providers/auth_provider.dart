@@ -20,7 +20,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isSuspendedAccount => _error == _suspendedAccountMessage;
 
   static const String _suspendedAccountMessage =
-      'Tu cuenta ha sido suspendida. Contacta con administracion.';
+      'Tu cuenta ha sido suspendida. Contacta con administración.';
 
   Future<bool> _blockIfSuspended(convive_user.User user) async {
     if (!user.isSuspended) return false;
@@ -362,15 +362,15 @@ class AuthProvider extends ChangeNotifier {
       if (errorStr.contains('invalid login') ||
           errorStr.contains('invalid_credentials') ||
           errorStr.contains('invalid credentials')) {
-        _error = 'La contrasena actual es incorrecta';
+        _error = 'La contraseña actual es incorrecta';
       } else if (errorStr.contains('password') &&
           (errorStr.contains('weak') || errorStr.contains('short'))) {
-        _error = 'La nueva contrasena debe tener al menos 6 caracteres';
+        _error = 'La nueva contraseña debe tener al menos 6 caracteres';
       } else if (errorStr.contains('network') ||
           errorStr.contains('connection')) {
         _error = 'Error de conexion. Verifica tu internet';
       } else {
-        _error = 'No se pudo actualizar la contrasena. Intenta nuevamente';
+        _error = 'No se pudo actualizar la contraseña. Intenta nuevamente';
       }
       throw Exception(_error);
     } finally {

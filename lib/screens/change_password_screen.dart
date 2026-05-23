@@ -45,7 +45,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (_currentPasswordController.text == _newPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('La nueva contrasena debe ser diferente a la actual'),
+          content: Text('La nueva contraseña debe ser diferente a la actual'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -90,12 +90,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final errorStr = error.toString();
     final lower = errorStr.toLowerCase();
 
-    if (lower.contains('contrasena actual es incorrecta') ||
+    if (lower.contains('contraseña actual es incorrecta') ||
+        lower.contains('contrasena actual es incorrecta') ||
         lower.contains('contraseña actual es incorrecta') ||
         lower.contains('invalid login') ||
         lower.contains('invalid_credentials') ||
         lower.contains('invalid credentials')) {
-      return 'La contrasena actual es incorrecta';
+      return 'La contraseña actual es incorrecta';
     }
     if (lower.contains('network') || lower.contains('connection')) {
       return 'Error de conexion. Verifica tu internet';
@@ -105,12 +106,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         lower.contains('6 caracteres') ||
         lower.contains('weak') ||
         lower.contains('short')) {
-      return 'La nueva contrasena debe tener al menos 6 caracteres';
+      return 'La nueva contraseña debe tener al menos 6 caracteres';
     }
     if (lower.contains('no se pudo actualizar')) {
       return errorStr.replaceFirst('Exception: ', '');
     }
-    return 'No se pudo actualizar la contrasena. Intenta nuevamente';
+    return 'No se pudo actualizar la contraseña. Intenta nuevamente';
   }
 
   @override

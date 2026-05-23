@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     });
 
     if (!authUserResponse.ok) {
-      return json({ error: "Sesion invalida" }, 401);
+      return json({ error: "Sesión inválida" }, 401);
     }
 
     const authUser = await authUserResponse.json();
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const email = body.email?.trim();
     const message = body.message?.trim();
     const subject =
-      body.subject?.trim() || "ConVive - Notificacion de administracion";
+      body.subject?.trim() || "ConVive - Notificación de administración";
 
     if (!email || !message) {
       return json({ error: "Falta email o mensaje" }, 400);
@@ -94,18 +94,18 @@ Deno.serve(async (req) => {
               <div style="background: linear-gradient(135deg, #db2777, #ec4899); border-radius: 18px 18px 0 0; padding: 26px 28px;">
                 <h1 style="margin: 0; color: #ffffff; font-size: 28px; line-height: 1.2;">ConVive</h1>
                 <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
-                  Notificacion importante de administracion
+                  Notificación importante de administración
                 </p>
               </div>
 
               <div style="background: #ffffff; border: 1px solid #eef0f4; border-top: 0; border-radius: 0 0 18px 18px; padding: 28px; box-shadow: 0 10px 28px rgba(15,23,42,0.08);">
                 <p style="margin: 0 0 18px; font-size: 16px; line-height: 1.55;">
-                  Hola, administracion de ConVive te informa que tu cuenta sera suspendida por el siguiente motivo:
+                  Hola, administración de ConVive te informa que tu cuenta será suspendida por el siguiente motivo:
                 </p>
 
                 <div style="border: 1px solid #fecaca; background: #fef2f2; border-radius: 14px; padding: 18px; margin: 20px 0;">
                   <div style="color: #b91c1c; font-weight: 800; font-size: 14px; margin-bottom: 10px;">
-                    Motivo de la suspension
+                    Motivo de la suspensión
                   </div>
                   <p style="white-space: pre-line; margin: 0; color: #1f2937; font-size: 15px; line-height: 1.55;">
                     ${escapeHtml(message)}
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
                 </div>
 
                 <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; margin-top: 22px;">
-                  <div style="font-weight: 800; color: #111827; margin-bottom: 10px;">Contacto de administracion</div>
+                  <div style="font-weight: 800; color: #111827; margin-bottom: 10px;">Contacto de administración</div>
                   <p style="margin: 6px 0; color: #4b5563; font-size: 14px;">
                     Correo: <a href="mailto:changoluizajoseph@gmail.com" style="color: #db2777; font-weight: 700; text-decoration: none;">changoluizajoseph@gmail.com</a>
                   </p>
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
                 </div>
 
                 <p style="margin: 22px 0 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
-                  Este correo fue enviado automaticamente por ConVive. Si consideras que la suspension se trata de un error, comunicate con administracion usando los datos anteriores.
+                  Este correo fue enviado automáticamente por ConVive. Si consideras que la suspensión se trata de un error, comunícate con administración usando los datos anteriores.
                 </p>
               </div>
             </div>
