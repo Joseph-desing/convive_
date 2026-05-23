@@ -301,14 +301,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: _isRedAdminNotice(notification)
+            color: _isComplaintReport(notification)
+                ? const Color(0xFFFFFDF5)
+                : _isPublicationRejected(notification)
                 ? const Color(0xFFFFFBFB)
                 : isUnread
                     ? _getNotificationColor(notification).withOpacity(0.08)
                     : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _isRedAdminNotice(notification)
+              color: _isComplaintReport(notification)
+                  ? const Color(0xFFF5E6B8)
+                  : _isPublicationRejected(notification)
                   ? const Color(0xFFF1D6D6)
                   : isUnread
                       ? _getNotificationColor(notification).withOpacity(0.4)
@@ -496,6 +500,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildAvatarInitials(notification_model.Notification notification) {
+    if (_isComplaintReport(notification)) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3CD),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFB7791F),
+            size: 34,
+          ),
+        ),
+      );
+    }
+
+    if (_isPublicationRejected(notification)) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFE4E1),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFB42318),
+            size: 34,
+          ),
+        ),
+      );
+    }
+
     final name = notification.senderName ?? 'Usuario';
     final words = name.split(' ').where((w) => w.isNotEmpty).toList();
     
@@ -589,7 +625,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Color _publicationBadgeColor(notification_model.Notification notification) {
-    if (_isRedAdminNotice(notification)) {
+    if (_isComplaintReport(notification)) {
+      return const Color(0xFFB7791F);
+    }
+    if (_isPublicationRejected(notification)) {
       return const Color(0xFFB42318);
     }
     return notification.publicationType == 'roommate'
@@ -621,16 +660,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    const accentColor = Color(0xFFB42318);
+    final accentColor = _isComplaintReport(notification)
+        ? const Color(0xFFB7791F)
+        : const Color(0xFFB42318);
+    final backgroundColor = _isComplaintReport(notification)
+        ? const Color(0xFFFFFAEB)
+        : const Color(0xFFFFF7F5);
+    final borderColor = _isComplaintReport(notification)
+        ? const Color(0xFFF5E6B8)
+        : const Color(0xFFF4D1CB);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7F5),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFF4D1CB)),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,7 +761,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Color _getNotificationColor(notification_model.Notification notification) {
-    if (_isRedAdminNotice(notification)) {
+    if (_isComplaintReport(notification)) {
+      return const Color(0xFFB7791F);
+    }
+    if (_isPublicationRejected(notification)) {
       return const Color(0xFFB42318);
     }
 
