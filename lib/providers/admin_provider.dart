@@ -6,6 +6,8 @@ import '../services/admin_service.dart';
 class AdminProvider with ChangeNotifier {
   late AdminService _adminService;
   final SupabaseClient _supabase = Supabase.instance.client;
+  static const String _resendTestingModeMessage =
+      'Resend esta en modo prueba: solo puedes enviar correos al email dueño de la cuenta. Para enviar a cualquier usuario, verifica un dominio en Resend y usa ese dominio como remitente.';
 
   // Estado
   List<Map<String, dynamic>> allUsers = [];
@@ -119,16 +121,35 @@ class AdminProvider with ChangeNotifier {
       );
 
       if (response.status >= 400) {
-        throw Exception('No se pudo enviar el correo: ${response.data}');
+        final detail = response.data.toString();
+        if (_isResendTestingModeError(detail)) {
+          throw Exception(_resendTestingModeMessage);
+        }
+        throw Exception('No se pudo enviar el correo: $detail');
       }
 
       _clearError();
     } catch (e) {
-      _setError('Error sending message: $e');
-      rethrow;
+      final message = _formatAdminEmailError(e);
+      _setError(message);
+      throw Exception(message);
     } finally {
       _setLoading(false);
     }
+  }
+
+  bool _isResendTestingModeError(String value) {
+    final normalized = value.toLowerCase();
+    return normalized.contains('you can only send testing emails') ||
+        normalized.contains('verify a domain at resend.com/domains');
+  }
+
+  String _formatAdminEmailError(Object error) {
+    final value = error.toString();
+    if (_isResendTestingModeError(value)) {
+      return _resendTestingModeMessage;
+    }
+    return value.replaceFirst('Exception: ', '');
   }
 
   Future<void> loadUsersStats() async {

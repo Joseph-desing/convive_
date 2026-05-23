@@ -1249,10 +1249,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 }
               } catch (e) {
                 if (mounted) {
+                  final errorText = e.toString().replaceFirst('Exception: ', '');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error: ${e.toString()}'),
+                      content: Text(errorText),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 6),
                     ),
                   );
                 }
