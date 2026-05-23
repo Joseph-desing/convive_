@@ -209,17 +209,15 @@ class _ConViveAppState extends State<ConViveApp> {
             return '/reset-password?error_code=$errorCode';
           }
 
-          // Detectar si es recovery por type=recovery o por presencia de code
+          // Detectar si es recovery SOLO cuando type=recovery está explícito
+          // (NO basar en la presencia de 'code' ya que email confirmation también usa 'code')
           bool isRecovery = state.uri.fragment.contains('type=recovery') || 
                             state.uri.queryParameters['type'] == 'recovery' ||
-                            uriBaseParams['type'] == 'recovery' ||
-                            uriBaseParams.containsKey('code') ||
-                            state.uri.queryParameters.containsKey('code');
+                            uriBaseParams['type'] == 'recovery';
           
           if (isRecovery) {
-            print('🔐 Detectado recovery en URI, redirigiendo a /auth-callback');
+            print('🔐 Detectado recovery en URI, redirigiendo a /reset-password');
             
-            // Pasar los parámetros a /auth-callback
             String token = state.uri.queryParameters['access_token'] ??
                 fragmentParams['access_token'] ??
                 uriBaseParams['access_token'] ??
@@ -237,12 +235,21 @@ class _ConViveAppState extends State<ConViveApp> {
                 fragmentParams['email'] ??
                 '';
             
-            // Si hay code, pasarlo también
             if (code.isNotEmpty) {
               return '/reset-password?code=$code&type=$type&email=$email';
             } else if (token.isNotEmpty) {
               return '/reset-password?token=$token&type=$type&email=$email';
             }
+          }
+
+          // Si hay code pero NO es recovery → es confirmación de email
+          // Dejar que /email-confirmed lo maneje
+          final hasCode = uriBaseParams.containsKey('code') ||
+              state.uri.queryParameters.containsKey('code');
+          if (hasCode && !isRecovery) {
+            print('📧 Código de confirmación de email detectado → /email-confirmed');
+            final code = uriBaseParams['code'] ?? state.uri.queryParameters['code'] ?? '';
+            return '/email-confirmed?code=${Uri.encodeComponent(code)}';
           }
         }
         
@@ -264,6 +271,31 @@ class _ConViveAppState extends State<ConViveApp> {
         // Si hay sesión y se intenta acceder a login, ir a home
         if (session != null && location.startsWith('/login')) {
           return '/home';
+        }
+
+        // 🔒 GUARD: Si hay sesión y el usuario intenta acceder a rutas protegidas,
+        // verificar que tenga perfil completo en public.profiles.
+        // Rutas protegidas = cualquier ruta que requiere estar logueado y tener perfil.
+        final protectedRoutes = [
+          '/home', '/matches', '/profile', '/notifications',
+          '/map', '/my-publications', '/settings', '/help',
+          '/user-profile', '/chat', '/chatbot', '/complaints',
+        ];
+        final isProtectedRoute = protectedRoutes.any((r) => location.startsWith(r));
+
+        if (session != null && isProtectedRoute) {
+          try {
+            final userId = session.user.id;
+            final profile = await SupabaseProvider.databaseService.getProfile(userId);
+            if (profile == null) {
+              print('⚠️ Router guard: usuario sin perfil → /complete-profile');
+              final email = Uri.encodeComponent(session.user.email ?? '');
+              return '/complete-profile?userId=$userId&email=$email';
+            }
+          } catch (e) {
+            // Si falla la consulta, dejar pasar (evitar loop)
+            print('⚠️ Router guard: error consultando perfil: $e');
+          }
         }
 
         return null;
