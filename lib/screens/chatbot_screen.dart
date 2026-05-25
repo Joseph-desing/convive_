@@ -76,6 +76,43 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
   }
 
+  double? _readCoordinate(Map<String, dynamic> location, List<String> keys) {
+    for (final key in keys) {
+      final value = location[key];
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+    }
+    return null;
+  }
+
+  void _openRecommendationLocation(ChatbotMessage message) {
+    final location = message.propertyLocation;
+    final lat = location == null
+        ? null
+        : _readCoordinate(location, ['lat', 'latitude']);
+    final lng = location == null
+        ? null
+        : _readCoordinate(location, ['lng', 'lon', 'long', 'longitude']);
+
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta recomendación no tiene ubicación disponible'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MapLocationPicker(
+          initialLat: lat,
+          initialLng: lng,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -359,89 +396,96 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   Widget _buildSuggestionCard(BuildContext context, ChatbotMessage message) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    final rawScore = message.compatibilityScore ?? 0;
+    final score = rawScore.clamp(0.0, 1.0).toDouble();
+    final scorePercent = (score * 100).round();
+    final scoreColor = score >= 0.85
+        ? AppColors.primary
+        : score >= 0.70
+            ? const Color(0xFF8B5CF6)
+            : score >= 0.55
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFEF4444);
+
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.all(18),
+      margin: EdgeInsets.symmetric(vertical: 14, horizontal: compact ? 0 : 2),
+      padding: EdgeInsets.all(compact ? 14 : 16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withOpacity(0.08),
-            AppColors.secondary.withOpacity(0.06),
-          ],
+        color: Colors.white,
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.18),
+          width: 1.2,
         ),
-        border: Border.all(color: AppColors.primary.withOpacity(0.25), width: 1.5),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: AppColors.primary.withOpacity(0.10),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado con chip de compatibilidad
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.primary, AppColors.secondary],
                   ),
-                  borderRadius: BorderRadius.circular(50),
+                  shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome,
-                    color: Colors.white, size: 16),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 17,
+                ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Coincidencia encontrada para ti',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey,
-                    letterSpacing: 0.5,
+                    fontSize: compact ? 11 : 12,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF6B7280),
+                    letterSpacing: 0.2,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Badge de score
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
+                  color: scoreColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: scoreColor.withOpacity(0.22)),
                 ),
                 child: Text(
-                  '${((message.compatibilityScore ?? 0) * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
+                  '$scorePercent%',
+                  style: TextStyle(
+                    color: scoreColor,
+                    fontSize: compact ? 12 : 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          // Avatar, nombre y barra de compatibilidad
+          const SizedBox(height: 16),
           Row(
             children: [
-              // Avatar con borde
               Container(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                  ),
+                  color: scoreColor.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: ClipRRect(
@@ -449,19 +493,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   child: message.matchedUserAvatar != null
                       ? CachedNetworkImage(
                           imageUrl: message.matchedUserAvatar!,
-                          width: 66,
-                          height: 66,
+                          width: compact ? 54 : 62,
+                          height: compact ? 54 : 62,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
-                            width: 66,
-                            height: 66,
+                            width: compact ? 54 : 62,
+                            height: compact ? 54 : 62,
                             color: Colors.grey.shade200,
                             child: const Icon(Icons.person,
                                 color: Colors.grey, size: 30),
                           ),
                           errorWidget: (context, url, error) => Container(
-                            width: 66,
-                            height: 66,
+                            width: compact ? 54 : 62,
+                            height: compact ? 54 : 62,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -475,8 +519,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                           ),
                         )
                       : Container(
-                          width: 66,
-                          height: 66,
+                          width: compact ? 54 : 62,
+                          height: compact ? 54 : 62,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [AppColors.primary, AppColors.secondary],
@@ -487,38 +531,38 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         ),
                 ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: compact ? 12 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       message.matchedUserName ?? 'Usuario',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                      style: TextStyle(
+                        fontSize: compact ? 16 : 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1F2937),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: score,
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    // Barra de compatibilidad
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: (message.compatibilityScore ?? 0),
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     Text(
-                      '${((message.compatibilityScore ?? 0) * 100).toStringAsFixed(0)}% compatible contigo',
+                      '$scorePercent% compatible contigo',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 11 : 12,
+                        color: scoreColor,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -531,8 +575,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           Divider(color: AppColors.primary.withOpacity(0.15), height: 1),
           const SizedBox(height: 12),
           // Descripción formateada
-          _buildFormattedContent(message.content,
-              baseColor: Colors.black87, baseFontSize: 14),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(compact ? 12 : 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7FB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withOpacity(0.10)),
+            ),
+            child: _buildFormattedContent(
+              message.content,
+              baseColor: const Color(0xFF374151),
+              baseFontSize: compact ? 13 : 14,
+            ),
+          ),
           const SizedBox(height: 14),
           // Botones de acción
           Row(
@@ -540,42 +596,33 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => _showUserDetails(context, message),
-                  icon: const Icon(Icons.person, size: 16),
+                  icon: const Icon(Icons.person_rounded, size: 16),
                   label: const Text('Ver Perfil'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: EdgeInsets.symmetric(vertical: compact ? 11 : 12),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    if (message.propertyLocation != null) {
-                      final lat = message.propertyLocation!['lat'] as double?;
-                      final lng = message.propertyLocation!['lng'] as double?;
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MapLocationPicker(
-                            initialLat: lat,
-                            initialLng: lng,
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: () => _openRecommendationLocation(message),
                   icon: const Icon(Icons.location_on, size: 16),
                   label: const Text('Ubicación'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
+                    backgroundColor: AppColors.secondary.withOpacity(0.92),
                     foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: EdgeInsets.symmetric(vertical: compact ? 11 : 12),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),

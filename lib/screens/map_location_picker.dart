@@ -25,6 +25,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialLat != null && widget.initialLng != null) {
+      _center = LatLng(widget.initialLat!, widget.initialLng!);
+      _picked = _center;
+      _pickedAddress = 'Ubicación de la recomendación';
+    }
   }
 
   @override

@@ -6,8 +6,6 @@ abstract class AppConfig {
   static const String supabaseUrl = 'https://xdpknfhbieejnqpjqpll.supabase.co';
   static const String supabaseAnonKey =
       'sb_publishable_N1HtO6hxmRLYb8V1kL0uoA_n3LKuHUv';
-  static const String supabaseSecretKey =
-      'sb_secret_A3ZbTGjrPbb7yrOSeX4CuQ_rtondvYm';
 
   /// Microservicio IA.
   ///
