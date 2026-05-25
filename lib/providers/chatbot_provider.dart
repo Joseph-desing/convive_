@@ -119,6 +119,24 @@ class ChatbotProvider extends ChangeNotifier {
 
       // Detectar si el usuario quiere ver recomendaciones
       final msgLower = userMessage.toLowerCase();
+      final wantsExplanation = _isCompatibilityExplanationRequest(msgLower);
+
+      if (wantsExplanation) {
+        final lastSuggestion = _lastSuggestionMessage();
+        _messages.add(
+          ChatbotMessage(
+            type: MessageType.assistant,
+            content: lastSuggestion == null
+                ? 'Primero necesito mostrarte una coincidencia concreta para poder explicarte por qué es compatible contigo. Toca "Sí, mostrar departamentos" o "Sí, mostrar compañeros" y luego te explico el resultado.'
+                : _buildCompatibilityExplanation(lastSuggestion, userHabits),
+          ),
+        );
+
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       final wantsRecommendation =
           msgLower.contains('mostrar') ||
           msgLower.contains('sí, mostrar') ||
@@ -232,6 +250,61 @@ class ChatbotProvider extends ChangeNotifier {
     _currentRecommendation = null;
     _error = null;
     notifyListeners();
+  }
+
+  bool _isCompatibilityExplanationRequest(String message) {
+    final normalized = message
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n');
+
+    return normalized.contains('explica') ||
+        normalized.contains('por que') ||
+        normalized.contains('porque') ||
+        normalized.contains('detalle') ||
+        normalized.contains('compatible conmigo') ||
+        normalized.contains('compatibilidad');
+  }
+
+  ChatbotMessage? _lastSuggestionMessage() {
+    for (final message in _messages.reversed) {
+      if (message.type == MessageType.suggestion) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  String _buildCompatibilityExplanation(
+    ChatbotMessage suggestion,
+    Map<String, dynamic> userHabits,
+  ) {
+    final score = ((suggestion.compatibilityScore ?? 0) * 100).round();
+    final name = suggestion.matchedUserName ?? 'esta recomendación';
+    final hasLocation = suggestion.propertyLocation != null;
+    final target = hasLocation ? 'esta opción' : 'esta persona';
+    final cleanedContent = suggestion.content
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    final habitSummary = [
+      if (userHabits['cleanliness'] != null)
+        'limpieza ${userHabits['cleanliness']}/10',
+      if (userHabits['noise_level'] != null)
+        'ruido ${userHabits['noise_level']}/10',
+      if (userHabits['responsibility'] != null)
+        'responsabilidad ${userHabits['responsibility']}/10',
+      if (userHabits['pets_tolerance'] != null)
+        'mascotas ${userHabits['pets_tolerance']}/10',
+    ].join(', ');
+
+    return 'Claro. $name aparece con $score% de compatibilidad porque $target coincide con tus hábitos registrados y con las respuestas que diste en el chat.\n\n'
+        'Se revisan factores como limpieza, ruido, visitas, fiestas, tiempo en casa, responsabilidad y mascotas${habitSummary.isEmpty ? '.' : ' ($habitSummary).'}\n\n'
+        'Resumen de la coincidencia: $cleanedContent\n\n'
+        'El porcentaje no es al azar: mientras más parecidos sean tus hábitos y preferencias con la publicación o el perfil recomendado, más alto aparece el resultado.';
   }
 
   /// Obtener detalles de usuario recomendado
