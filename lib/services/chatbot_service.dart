@@ -52,8 +52,8 @@ class ChatbotService {
             userHabits: userHabits,
             chatHistory: chatHistory,
           );
-        } catch (_) {
-          return _serviceUnavailableMessage();
+        } catch (error) {
+          return _serviceUnavailableMessage(detail: error.toString());
         }
       }
       return _serviceUnavailableMessage();
@@ -231,11 +231,12 @@ class ChatbotService {
     _groqService?.dispose();
   }
 
-  ChatbotMessage _serviceUnavailableMessage() {
+  ChatbotMessage _serviceUnavailableMessage({String? detail}) {
     return ChatbotMessage(
       type: MessageType.assistant,
-      content:
-          'Aun no tengo conexion con el asistente en linea. Para que funcione en el APK, configura la URL publica del backend al compilar.',
+      content: detail == null
+          ? 'Aun no tengo conexion con el asistente en linea. Para que funcione en el APK, configura la URL publica del backend al compilar.'
+          : 'El asistente en linea respondio con un error. Revisa que el backend este desplegado con el modelo correcto de Groq.\n\nDetalle tecnico: $detail',
     );
   }
 }
