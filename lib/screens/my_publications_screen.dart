@@ -392,7 +392,12 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+        12,
+        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+        24,
+      ),
       itemCount: _properties.length,
       itemBuilder: (context, index) {
         final property = _properties[index];
@@ -468,7 +473,12 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+        12,
+        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+        24,
+      ),
       itemCount: _searches.length,
       itemBuilder: (context, index) {
         final search = _searches[index];
@@ -661,11 +671,16 @@ class _PropertyCardState extends State<_PropertyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        margin: EdgeInsets.symmetric(
+          vertical: compact ? 8 : 10,
+          horizontal: compact ? 0 : 4,
+        ),
         elevation: _isHovered ? 12 : 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -687,7 +702,7 @@ class _PropertyCardState extends State<_PropertyCard> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(compact ? 12 : 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -700,8 +715,8 @@ class _PropertyCardState extends State<_PropertyCard> {
                         children: [
                           Text(
                             widget.property.title,
-                            style: const TextStyle(
-                              fontSize: 17,
+                            style: TextStyle(
+                              fontSize: compact ? 15 : 17,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                               letterSpacing: 0.3,
@@ -750,15 +765,15 @@ class _PropertyCardState extends State<_PropertyCard> {
                             icon: Icon(
                               Icons.edit_rounded,
                               color: AppColors.primary,
-                              size: 20,
+                              size: compact ? 18 : 20,
                             ),
                             onPressed: widget.onEdit,
                             tooltip: 'Editar',
-                            iconSize: 20,
+                            iconSize: compact ? 18 : 20,
                             padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(
-                              minWidth: 40,
-                              minHeight: 40,
+                            constraints: BoxConstraints(
+                              minWidth: compact ? 36 : 40,
+                              minHeight: compact ? 36 : 40,
                             ),
                           ),
                         ),
@@ -769,18 +784,18 @@ class _PropertyCardState extends State<_PropertyCard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_rounded,
                               color: Colors.red,
-                              size: 20,
+                              size: compact ? 18 : 20,
                             ),
                             onPressed: widget.onDelete,
                             tooltip: 'Eliminar',
-                            iconSize: 20,
+                            iconSize: compact ? 18 : 20,
                             padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(
-                              minWidth: 40,
-                              minHeight: 40,
+                            constraints: BoxConstraints(
+                              minWidth: compact ? 36 : 40,
+                              minHeight: compact ? 36 : 40,
                             ),
                           ),
                         ),
@@ -823,12 +838,16 @@ class _PropertyCardState extends State<_PropertyCard> {
                               color: AppColors.primary,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              '${widget.property.price}',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                            Flexible(
+                              child: Text(
+                                '${widget.property.price}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: compact ? 13 : 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                             const Text(
@@ -902,6 +921,8 @@ class _PropertyCardState extends State<_PropertyCard> {
                       widget.property.isRented
                           ? 'Marcar como no alquilado'
                           : 'Marcar como alquilado',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: widget.property.isRented
@@ -965,11 +986,16 @@ class _SearchCardState extends State<_SearchCard> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        margin: EdgeInsets.symmetric(
+          vertical: compact ? 8 : 10,
+          horizontal: compact ? 0 : 4,
+        ),
         elevation: _isHovered ? 12 : 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -991,7 +1017,7 @@ class _SearchCardState extends State<_SearchCard> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(compact ? 12 : 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1002,10 +1028,10 @@ class _SearchCardState extends State<_SearchCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Busco compañero/a',
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: compact ? 15 : 17,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                               letterSpacing: 0.3,
@@ -1050,15 +1076,15 @@ class _SearchCardState extends State<_SearchCard> {
                             icon: Icon(
                               Icons.edit_rounded,
                               color: AppColors.secondary,
-                              size: 20,
+                              size: compact ? 18 : 20,
                             ),
                             onPressed: widget.onEdit,
                             tooltip: 'Editar',
-                            iconSize: 20,
+                            iconSize: compact ? 18 : 20,
                             padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(
-                              minWidth: 40,
-                              minHeight: 40,
+                            constraints: BoxConstraints(
+                              minWidth: compact ? 36 : 40,
+                              minHeight: compact ? 36 : 40,
                             ),
                           ),
                         ),
@@ -1069,18 +1095,18 @@ class _SearchCardState extends State<_SearchCard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_rounded,
                               color: Colors.red,
-                              size: 20,
+                              size: compact ? 18 : 20,
                             ),
                             onPressed: widget.onDelete,
                             tooltip: 'Eliminar',
-                            iconSize: 20,
+                            iconSize: compact ? 18 : 20,
                             padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(
-                              minWidth: 40,
-                              minHeight: 40,
+                            constraints: BoxConstraints(
+                              minWidth: compact ? 36 : 40,
+                              minHeight: compact ? 36 : 40,
                             ),
                           ),
                         ),
@@ -1123,12 +1149,16 @@ class _SearchCardState extends State<_SearchCard> {
                               color: AppColors.secondary,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Max: ${widget.search.budget.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
+                            Flexible(
+                              child: Text(
+                                'Max: ${widget.search.budget.toStringAsFixed(0)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: compact ? 12 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.secondary,
+                                ),
                               ),
                             ),
                           ],
@@ -1167,8 +1197,10 @@ class _SearchCardState extends State<_SearchCard> {
                               Flexible(
                                 child: Text(
                                   _genderLabel(widget.search.genderPreference),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: compact ? 12 : 13,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.green[700],
                                   ),

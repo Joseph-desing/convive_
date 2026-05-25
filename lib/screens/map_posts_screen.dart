@@ -342,18 +342,21 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
   Widget build(BuildContext context) {
     final initialCenter = _initialMapCenter();
     final summaryTop = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
+    final compact = MediaQuery.sizeOf(context).width < 360;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         titleSpacing: 0,
-        title: const Text(
+        title: Text(
           'Mapa de publicaciones',
           style: TextStyle(
-            fontSize: 19,
+            fontSize: compact ? 17 : 19,
             fontWeight: FontWeight.w800,
             color: AppColors.primary,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         backgroundColor: Colors.white.withOpacity(0.94),
         foregroundColor: AppColors.primary,
@@ -433,8 +436,8 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                 ),
 
                 Positioned(
-                  left: 14,
-                  right: 14,
+                  left: compact ? 8 : 14,
+                  right: compact ? 8 : 14,
                   top: summaryTop,
                   child: _buildMapSummary(),
                 ),
@@ -1076,13 +1079,17 @@ class _MapSummaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveColor = active ? color : Colors.grey;
+    final compact = MediaQuery.sizeOf(context).width < 360;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        width: 116,
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        width: compact ? 104 : 116,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 7 : 9,
+          vertical: compact ? 7 : 8,
+        ),
         decoration: BoxDecoration(
           color: active ? effectiveColor.withOpacity(0.08) : Colors.grey[100],
           borderRadius: BorderRadius.circular(10),
@@ -1103,7 +1110,7 @@ class _MapSummaryButton extends StatelessWidget {
               ),
               child: Icon(icon, color: effectiveColor, size: 17),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: compact ? 6 : 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1112,7 +1119,7 @@ class _MapSummaryButton extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: compact ? 13 : 14,
                       fontWeight: FontWeight.w800,
                       color: active ? const Color(0xFF1F2937) : Colors.grey,
                     ),
@@ -1122,7 +1129,7 @@ class _MapSummaryButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: compact ? 9 : 10,
                       fontWeight: FontWeight.w600,
                       color: active ? Colors.grey[600] : Colors.grey,
                     ),

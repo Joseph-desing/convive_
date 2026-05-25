@@ -118,10 +118,30 @@ class _ConViveAppState extends State<ConViveApp> {
           }
         }
 
-        // ── CASO 2: Email confirmado (com.example.convive://login-callback) ──
+        // ── CASO 2: Google OAuth callback (com.example.convive://login-callback) ──
         else if (host == 'login-callback' || path.contains('login-callback')) {
-          print('✅ Email confirmado via deep link mobile. Redirigiendo a home...');
-          _router.go('/home');
+          print('✅ Google OAuth callback recibido en móvil');
+          // Procesar el callback de Google: crear usuario si es necesario
+          // y detectar si es nuevo para redirigir a completar perfil
+          Future.microtask(() async {
+            // ignore: use_build_context_synchronously
+            final authProvider = _router.routerDelegate.navigatorKey
+                .currentContext
+                ?.read<AuthProvider>();
+            if (authProvider != null) {
+              await authProvider.handleGoogleCallback();
+              if (authProvider.isNewUser) {
+                final userId = authProvider.currentUser?.id ?? '';
+                final email = Uri.encodeComponent(authProvider.currentUser?.email ?? '');
+                _router.go('/complete-profile?userId=$userId&email=$email');
+              } else {
+                final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+                _router.go(role == 'admin' ? '/admin' : '/home');
+              }
+            } else {
+              _router.go('/home');
+            }
+          });
         }
 
         // ── CASO 3: Auth callback legacy ──

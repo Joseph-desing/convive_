@@ -41,12 +41,18 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signInWithGoogle() async {
     _isLoading = true;
     _error = null;
+    _isNewUser = false;
     notifyListeners();
 
     try {
       await SupabaseProvider.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'com.example.convive_://login-callback',
+        // Web → redirige a la app en Firebase Hosting
+        // Móvil → redirige via deep link al esquema nativo
+        redirectTo: kIsWeb
+            ? 'https://convive-app-6debf.web.app/home'
+            : 'com.example.convive_://login-callback',
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
     } catch (e) {
       _error = e.toString();
@@ -54,6 +60,84 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Llamar después de que Google redirige de vuelta a la app.
+  /// Crea el usuario en public.users si no existe y detecta si es nuevo.
+  Future<void> handleGoogleCallback() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final session = SupabaseProvider.client.auth.currentSession;
+      if (session == null) {
+        print('⚠️ handleGoogleCallback: no hay sesión activa');
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final authUser = session.user;
+      _isEmailVerified = authUser.emailConfirmedAt != null;
+      _isNewUser = false;
+
+      // Intentar cargar usuario de public.users
+      try {
+        final dbUser = await SupabaseProvider.databaseService.getUser(authUser.id);
+        if (await _blockIfSuspended(dbUser)) {
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
+        _currentUser = dbUser;
+        print('✅ Google: usuario encontrado en public.users: ${dbUser.fullName}');
+      } catch (e) {
+        // No existe → crear con datos de Google
+        print('⚠️ Google: usuario no existe en public.users, creando...');
+        _isNewUser = true;
+        final metadata = authUser.userMetadata ?? {};
+        final fullName = (metadata['full_name'] as String?) ??
+            (metadata['name'] as String?) ??
+            authUser.email?.split('@').first ?? '';
+        final user = convive_user.User(
+          id: authUser.id,
+          email: authUser.email ?? '',
+          fullName: fullName,
+          role: convive_user.UserRole.student,
+        );
+        try {
+          await SupabaseProvider.databaseService.createUser(user);
+          _currentUser = user;
+          print('✅ Google: usuario creado en public.users: $fullName');
+        } catch (createErr) {
+          print('❌ Google: error creando usuario: $createErr');
+          _currentUser = user;
+        }
+      }
+
+      // Verificar si tiene perfil en public.profiles
+      if (!_isNewUser) {
+        try {
+          final profile = await SupabaseProvider.databaseService.getProfile(authUser.id);
+          if (profile == null) {
+            _isNewUser = true;
+            print('⚠️ Google: sin perfil en public.profiles → es nuevo');
+          } else {
+            print('✅ Google: perfil encontrado en public.profiles');
+          }
+        } catch (e) {
+          _isNewUser = true;
+          print('⚠️ Google: error buscando perfil: $e');
+        }
+      }
+    } catch (e) {
+      _error = e.toString();
+      print('❌ handleGoogleCallback error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Forzar refresco del estado de verificación desde Supabase

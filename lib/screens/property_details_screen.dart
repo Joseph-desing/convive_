@@ -163,9 +163,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = widget.property;
+    final compact = MediaQuery.sizeOf(context).width < 360;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Propiedad'),
+        title: Text(
+          'Propiedad',
+          style: TextStyle(
+            fontSize: compact ? 18 : 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.primary,
         elevation: 0,
@@ -180,13 +187,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           children: [
             // Contenido principal
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(compact ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Tarjeta del propietario - PRIMERO
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(compact ? 12 : 16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -205,7 +212,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                         Row(
                           children: [
                             CircleAvatar(
-                              radius: 32,
+                              radius: compact ? 26 : 32,
                               backgroundColor: Colors.pink.withOpacity(0.2),
                               backgroundImage: _ownerProfile?.profileImageUrl != null ? NetworkImage(_ownerProfile!.profileImageUrl!) : null,
                               child: _ownerProfile?.profileImageUrl == null
@@ -219,27 +226,30 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                     )
                                   : null,
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: compact ? 12 : 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     _ownerProfile?.fullName ?? 'Propietario',
-                                    style: const TextStyle(
-                                      fontSize: 16,
+                                    style: TextStyle(
+                                      fontSize: compact ? 15 : 16,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1A1A1A),
+                                      color: const Color(0xFF1A1A1A),
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     _ownerProfile?.bio ?? 'Sin biografía',
                                     style: TextStyle(
-                                      fontSize: 13,
+                                      fontSize: compact ? 12 : 13,
                                       color: Colors.grey[600],
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    maxLines: 1,
                                   ),
                                 ],
                               ),
@@ -319,26 +329,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   // Título
                   Text(
                     p.title,
-                    style: const TextStyle(
-                      fontSize: 26,
+                    style: TextStyle(
+                      fontSize: compact ? 22 : 26,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A),
+                      color: const Color(0xFF1A1A1A),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Badges con información clave
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       if (p.bedrooms != null && p.bedrooms! > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 10 : 14,
+                            vertical: compact ? 7 : 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.pink.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.pink.withOpacity(0.3)),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.bed_rounded, size: 18, color: Colors.pink),
                               const SizedBox(width: 6),
@@ -352,9 +368,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                             ],
                           ),
                         ),
-                      const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 9 : 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
@@ -376,9 +394,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 9 : 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: p.includeAlicuota ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),

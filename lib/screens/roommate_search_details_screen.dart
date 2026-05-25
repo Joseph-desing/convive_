@@ -172,9 +172,18 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
   @override
   Widget build(BuildContext context) {
     final s = widget.search;
+    final compact = MediaQuery.sizeOf(context).width < 360;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Búsqueda de Compañero'),
+        title: Text(
+          'Búsqueda de Compañero',
+          style: TextStyle(
+            fontSize: compact ? 18 : 20,
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.primary,
         elevation: 0,
@@ -189,13 +198,13 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
           children: [
             // Contenido principal
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(compact ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Tarjeta del autor - PRIMERO
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(compact ? 12 : 16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -214,7 +223,7 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
                         Row(
                           children: [
                             CircleAvatar(
-                              radius: 32,
+                              radius: compact ? 26 : 32,
                               backgroundColor: Colors.orange.withOpacity(0.2),
                               backgroundImage: _authorProfile?.profileImageUrl != null ? NetworkImage(_authorProfile!.profileImageUrl!) : null,
                               child: _authorProfile?.profileImageUrl == null
@@ -228,27 +237,30 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
                                     )
                                   : null,
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: compact ? 12 : 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     _authorProfile?.fullName ?? 'Usuario',
-                                    style: const TextStyle(
-                                      fontSize: 16,
+                                    style: TextStyle(
+                                      fontSize: compact ? 15 : 16,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1A1A1A),
+                                      color: const Color(0xFF1A1A1A),
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     _authorProfile?.bio ?? 'Sin biografía',
                                     style: TextStyle(
-                                      fontSize: 13,
+                                      fontSize: compact ? 12 : 13,
                                       color: Colors.grey[600],
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    maxLines: 1,
                                   ),
                                 ],
                               ),
@@ -328,26 +340,32 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
                   // Título
                   Text(
                     s.title,
-                    style: const TextStyle(
-                      fontSize: 26,
+                    style: TextStyle(
+                      fontSize: compact ? 22 : 26,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A),
+                      color: const Color(0xFF1A1A1A),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Badges con información clave
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       if (s.genderPreference != null && s.genderPreference!.isNotEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 10 : 14,
+                            vertical: compact ? 7 : 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.pink.shade700.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.pink.shade700.withOpacity(0.3)),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.person_rounded, size: 18, color: Colors.pink.shade700),
                               const SizedBox(width: 6),
@@ -361,9 +379,11 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
                             ],
                           ),
                         ),
-                      const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 9 : 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
@@ -385,9 +405,11 @@ class _RoommateSearchDetailsScreenState extends State<RoommateSearchDetailsScree
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 9 : 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: s.includeAlicuota ? Colors.purple.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),

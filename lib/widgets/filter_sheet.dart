@@ -217,10 +217,15 @@ class _FilterSheetState extends State<FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.width < 360;
+    final maxHeight = size.height * 0.88;
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.all(compact ? 6 : 10),
         child: Container(
+          constraints: BoxConstraints(maxHeight: maxHeight),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -233,7 +238,12 @@ class _FilterSheetState extends State<FilterSheet> {
               ),
             ],
           ),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+          padding: EdgeInsets.fromLTRB(
+            compact ? 12 : 18,
+            14,
+            compact ? 12 : 18,
+            16,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,6 +279,8 @@ class _FilterSheetState extends State<FilterSheet> {
                         SizedBox(height: 2),
                         Text(
                           'Ajusta lo que quieres ver en el mapa',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -324,64 +336,44 @@ class _FilterSheetState extends State<FilterSheet> {
                             setState(() => _radiusKm = double.tryParse(v)),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Precio min',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                TextFormField(
-                                  initialValue: _priceMin?.toString(),
-                                  keyboardType: TextInputType.number,
-                                  decoration: _fieldDecoration(
-                                    hint: 'Min',
-                                    icon: Icons.attach_money_rounded,
-                                  ),
-                                  onChanged: (v) => setState(
-                                    () => _priceMin = int.tryParse(v),
-                                  ),
-                                ),
-                              ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final stackFields = constraints.maxWidth < 310;
+                          final minField = _priceField(
+                            label: 'Precio min',
+                            hint: 'Min',
+                            initialValue: _priceMin?.toString(),
+                            onChanged: (v) => setState(
+                              () => _priceMin = int.tryParse(v),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Precio max',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                TextFormField(
-                                  initialValue: _priceMax?.toString(),
-                                  keyboardType: TextInputType.number,
-                                  decoration: _fieldDecoration(
-                                    hint: 'Max',
-                                    icon: Icons.attach_money_rounded,
-                                  ),
-                                  onChanged: (v) => setState(
-                                    () => _priceMax = int.tryParse(v),
-                                  ),
-                                ),
-                              ],
+                          );
+                          final maxField = _priceField(
+                            label: 'Precio max',
+                            hint: 'Max',
+                            initialValue: _priceMax?.toString(),
+                            onChanged: (v) => setState(
+                              () => _priceMax = int.tryParse(v),
                             ),
-                          ),
-                        ],
+                          );
+
+                          if (stackFields) {
+                            return Column(
+                              children: [
+                                minField,
+                                const SizedBox(height: 12),
+                                maxField,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: minField),
+                              const SizedBox(width: 12),
+                              Expanded(child: maxField),
+                            ],
+                          );
+                        },
                       ),
                       const Divider(height: 28),
                       _sectionTitle('Orden y habitaciones'),
@@ -513,6 +505,37 @@ class _FilterSheetState extends State<FilterSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _priceField({
+    required String label,
+    required String hint,
+    required String? initialValue,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          initialValue: initialValue,
+          keyboardType: TextInputType.number,
+          decoration: _fieldDecoration(
+            hint: hint,
+            icon: Icons.attach_money_rounded,
+          ),
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 
