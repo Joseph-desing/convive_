@@ -1,5 +1,7 @@
 # ConVive
 
+![Logo de ConVive](assets/images/logo1.png)
+
 Aplicacion movil y web para conectar personas que buscan vivienda compartida,
 departamentos y companeros compatibles. El sistema combina Flutter, Supabase,
 mapas, chat en tiempo real, panel administrativo, verificacion de publicaciones
@@ -293,20 +295,35 @@ Archivos principales:
 
 ### 3.10 Chatbot e Inteligencia Artificial
 
-El chatbot combina dos capas:
+El chatbot combina una experiencia guiada con respuestas libres usando IA.
+Para produccion, el backend publico esta desplegado en Hugging Face Spaces:
 
-- Backend mock local en `chatbot_backend_mock.py`, usado para flujo guiado.
-- Backend FastAPI en `backend/main.py`, usado como proxy hacia Groq.
+```text
+https://joseph1606-convive-backend.hf.space
+```
 
-El servicio Flutter intenta primero el backend mock en `localhost:8001`. Si no
-esta disponible, usa Groq mediante el backend FastAPI.
+Capas:
+
+- `ChatbotScreen`: interfaz visual del asistente.
+- `ChatbotProvider`: administra mensajes, opciones, carga y errores.
+- `ChatbotService`: conecta Flutter con el backend publico.
+- `chatbot_backend_mock.py`: backend principal del flujo guiado y recomendaciones.
+- `backend/main.py`: backend FastAPI para chat libre con Groq.
+- Hugging Face Spaces: alojamiento publico del backend Python.
+- Groq API: modelo de lenguaje usado para respuestas libres.
+
+En desarrollo se puede ejecutar localmente, pero el APK debe compilarse con la
+URL publica del backend. La clave de Groq nunca debe estar dentro de Flutter.
 
 Funciones:
 
 - Mensaje de bienvenida.
 - Conversacion con contexto del usuario.
-- Recomendaciones basadas en respuestas y habitos.
-- Fallback cuando el servidor no responde.
+- Flujo guiado para buscar departamento o companero.
+- Respuestas libres cuando el usuario escribe preguntas normales.
+- Recomendaciones basadas en respuestas, perfil y habitos.
+- Algoritmo de compatibilidad v2 con pesos diferenciados.
+- Mensajes claros cuando el backend no responde.
 
 Archivos principales:
 
@@ -318,8 +335,16 @@ Archivos principales:
 - `backend/main.py`
 - `chatbot_backend_mock.py`
 
-Importante: las claves privadas no deben vivir en Flutter. Deben moverse al
-backend y cargarse por variables de entorno.
+Endpoints usados en produccion:
+
+- `GET /health`: verifica que el backend este vivo y que Groq este configurado.
+- `POST /api/chat`: procesa texto libre con Groq.
+- `POST /chatbot/welcome`: genera bienvenida del asistente.
+- `POST /chatbot/process`: procesa flujo guiado del chatbot.
+- `POST /chatbot/recommend`: devuelve perfiles o publicaciones recomendadas.
+
+Importante: las claves privadas no viven en Flutter. Se cargan en Hugging Face
+como variables de entorno.
 
 ### 3.11 Panel Administrativo
 
@@ -433,7 +458,44 @@ Build y despliegue:
 - Flutter Web.
 - Firebase Hosting configurado en `firebase.json`.
 - Android/iOS nativo.
-- Backend Python desplegable en Railway, Render, Heroku, Cloud Run o servidor.
+- Backend Python desplegado en Hugging Face Spaces.
+- Groq API conectada desde el backend, no desde Flutter.
+
+Dominio y correos:
+
+- Resend con dominio verificado `conviveapp.online`.
+- Remitente recomendado: `ConVive <notificaciones@conviveapp.online>`.
+- Supabase Edge Function para correos administrativos.
+
+## 6.1 Imagenes y Capturas del Proyecto
+
+El repositorio ya contiene imagenes base en `assets/images/`, por ejemplo:
+
+- `assets/images/logo1.png`: logo principal.
+- `assets/images/logo2.jpeg`: variante del logo.
+- `assets/images/google_logo.webp`: icono usado en inicio con Google.
+
+Para documentar visualmente cada seccion, se recomienda guardar capturas reales
+en una carpeta dedicada:
+
+```text
+docs/screenshots/
+  01-login.png
+  02-home-swipe.png
+  03-mapa-publicaciones.png
+  04-chatbot.png
+  05-mis-publicaciones.png
+  06-panel-admin.png
+  07-notificaciones.png
+```
+
+Cuando existan esas capturas, se pueden insertar en este README asi:
+
+```md
+![Login de ConVive](docs/screenshots/01-login.png)
+![Mapa de publicaciones](docs/screenshots/03-mapa-publicaciones.png)
+![Chatbot ConVive](docs/screenshots/04-chatbot.png)
+```
 
 ## 7. Modelo de Datos
 
@@ -723,21 +785,22 @@ Capas:
 
 1. `ChatbotScreen`: interfaz de conversacion.
 2. `ChatbotProvider`: estado de mensajes, carga y errores.
-3. `ChatbotService`: decide si usa mock local o Groq.
-4. `chatbot_backend_mock.py`: backend local de flujo guiado.
+3. `ChatbotService`: decide si usa flujo guiado, recomendaciones o chat libre.
+4. `chatbot_backend_mock.py`: backend del flujo guiado y compatibilidad.
 5. `backend/main.py`: backend FastAPI para conectarse con Groq.
-6. Groq API: modelo de lenguaje.
+6. Hugging Face Spaces: despliegue publico del backend.
+7. Groq API: modelo de lenguaje.
 
 Flujo:
 
 1. El usuario abre el chatbot.
 2. Se carga un mensaje de bienvenida.
 3. El usuario escribe o selecciona una opcion.
-4. La app intenta enviar el mensaje al mock local `localhost:8001`.
-5. Si el mock responde, se usa esa respuesta.
-6. Si el mock no esta disponible, se usa fallback a Groq mediante FastAPI.
-7. El backend FastAPI arma el prompt con perfil y habitos del usuario.
-8. Groq genera la respuesta.
+4. Si es una opcion del flujo guiado, Flutter llama a `/chatbot/process`.
+5. Si el usuario pide recomendaciones, Flutter llama a `/chatbot/recommend`.
+6. Si el usuario escribe una pregunta libre, Flutter llama a `/api/chat`.
+7. El backend arma el prompt con perfil y habitos del usuario.
+8. Groq genera la respuesta cuando corresponde.
 9. Flutter muestra el mensaje en la conversacion.
 
 Tipos de respuesta:
@@ -756,6 +819,41 @@ Archivos relacionados:
 - `lib/services/groq_service.dart`
 - `backend/main.py`
 - `chatbot_backend_mock.py`
+
+### 9.9.1 Algoritmo de Compatibilidad v2
+
+El backend incluye un algoritmo de compatibilidad v2 para evitar que todos los
+resultados tengan porcentajes parecidos. La compatibilidad no depende de un solo
+factor, sino de pesos diferentes segun el tipo de recomendacion.
+
+Roommate:
+
+- Limpieza: 18%.
+- Responsabilidad: 15%.
+- Ruido: 15%.
+- Sueno: 12%.
+- Visitas: 10%.
+- Fiestas: 10%.
+- Mascotas: 8%.
+- Tiempo en casa: 7%.
+- Ubicacion: 5%.
+
+Departamento:
+
+- Presupuesto: 25%.
+- Ubicacion: 20%.
+- Habitaciones: 15%.
+- Disponibilidad: 12%.
+- Aprobacion administrativa: 10%.
+- Preferencias: 10%.
+- Alicuota: 8%.
+
+Reglas clave:
+
+- Una propiedad alquilada se descarta.
+- Una propiedad no aprobada por administracion se descarta.
+- Resultados por debajo de 45% no se muestran.
+- Hay una variacion pequena controlada para desempatar resultados similares.
 
 ### 9.10 Panel Administrativo
 
@@ -791,7 +889,20 @@ Archivos relacionados:
 
 ## 10. Backend FastAPI
 
-Ubicacion: `backend/main.py`.
+Ubicacion principal: `backend/main.py`.
+
+Backend de chatbot y compatibilidad: `chatbot_backend_mock.py`.
+
+Despliegue publico actual:
+
+```text
+https://joseph1606-convive-backend.hf.space
+```
+
+Este despliegue esta alojado en Hugging Face Spaces. Hugging Face sirve como
+servidor publico para que la app web y el APK puedan llamar al chatbot sin
+depender de `localhost`. Tambien protege la API key de Groq, porque la clave se
+guarda como secreto del backend y no dentro de Flutter.
 
 Responsabilidades:
 
@@ -802,17 +913,55 @@ Responsabilidades:
 - Retornar respuesta limpia a Flutter.
 - Evitar problemas de CORS del navegador.
 - Mantener la API key fuera del cliente cuando se configure correctamente.
+- Ejecutar el flujo guiado de busqueda.
+- Calcular compatibilidad de companeros y departamentos.
 
 Endpoints:
 
 - `GET /health`: verifica estado del servicio y si Groq esta configurado.
 - `POST /api/chat`: procesa mensaje conversacional.
-- `POST /api/recommendations`: genera recomendaciones por habitos.
+- `POST /chatbot/welcome`: devuelve bienvenida del asistente.
+- `POST /chatbot/process`: procesa respuestas del flujo guiado.
+- `POST /chatbot/recommend`: genera recomendaciones por habitos y criterios.
 
 Variables esperadas:
 
 - `GROQ_API_KEY`
-- `GROQ_MODEL`
+- `GROQ_MODEL`, recomendado `llama-3.1-8b-instant`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Comandos de prueba rapida:
+
+```powershell
+Invoke-RestMethod -Uri "https://joseph1606-convive-backend.hf.space/health"
+```
+
+```powershell
+$body = @{
+  user_message = "Hola, dime si estas usando Groq"
+  chat_history = @()
+  system_prompt = "Responde breve en espanol."
+} | ConvertTo-Json -Depth 5 -Compress
+
+Invoke-RestMethod `
+  -Uri "https://joseph1606-convive-backend.hf.space/api/chat" `
+  -Method Post `
+  -Headers @{ "Content-Type" = "application/json; charset=utf-8" } `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
+```
+
+Para actualizar el backend en Hugging Face:
+
+```bash
+git add backend/main.py chatbot_backend_mock.py
+git commit -m "feat: actualizar backend chatbot ConVive"
+git push
+```
+
+Si el Space esta conectado al repositorio, Hugging Face reconstruye el backend
+automaticamente. Si no esta conectado, se debe subir el cambio directamente al
+repositorio del Space.
 
 Ver mas en `backend/README.md`.
 
@@ -822,14 +971,15 @@ Antes de produccion se deben atender estos puntos:
 
 - Rotar cualquier clave privada que haya estado en el repositorio.
 - Quitar claves secretas del cliente Flutter.
-- Mover Groq API key exclusivamente al backend.
+- Mantener `GROQ_API_KEY` exclusivamente en Hugging Face Secrets.
 - Proteger rutas admin por rol en frontend y en RLS.
 - Revisar politicas RLS de Supabase para todas las tablas sensibles.
 - Reducir permisos Android al minimo necesario.
-- Cambiar URLs `localhost` por configuracion por ambiente.
+- Compilar APK y web con URLs publicas por `--dart-define`.
 - Evitar signed URLs de PDF con duracion excesiva.
 - Unificar reglas de match para que no existan flujos contradictorios.
 - Validar que los usuarios no puedan cambiarse a rol admin o propietario si no corresponde.
+- Restringir CORS del backend a dominios reales antes de produccion cerrada.
 
 ## 12. Ejecucion Local
 
@@ -850,6 +1000,22 @@ Ejecutar web:
 ```bash
 flutter run -d chrome
 ```
+
+Ejecutar web usando el backend publico de Hugging Face:
+
+```bash
+flutter run -d chrome --dart-define=AI_SERVICE_URL=https://joseph1606-convive-backend.hf.space --dart-define=CHATBOT_MOCK_URL=https://joseph1606-convive-backend.hf.space
+```
+
+Generar APK de produccion con chatbot funcionando:
+
+```bash
+flutter build apk --release --dart-define=AI_SERVICE_URL=https://joseph1606-convive-backend.hf.space --dart-define=CHATBOT_MOCK_URL=https://joseph1606-convive-backend.hf.space
+```
+
+Sin estos `dart-define`, el APK puede quedar apuntando a `localhost` o sin URL
+publica para el asistente, y el chatbot mostrara un mensaje de conexion no
+configurada.
 
 Backend IA:
 
@@ -892,6 +1058,8 @@ Pruebas recomendadas:
 - `DOCUMENTACION_INDICE.md`: indice de documentacion.
 - `docs/Librerias_seleccionadas.md`: librerias usadas.
 - `docs/Herramientas_seleccionadas.md`: herramientas usadas.
+- `docs/screenshots/`: carpeta recomendada para capturas de login, home,
+  chatbot, mapa, publicaciones, panel admin y notificaciones.
 
 ## 15. Estado de Implementacion
 
@@ -911,6 +1079,8 @@ Implementado:
 - Panel admin.
 - Quejas y sugerencias.
 - Chatbot con backend local y FastAPI/Groq.
+- Backend publico del chatbot en Hugging Face Spaces.
+- Algoritmo de compatibilidad v2 para roommate y departamentos.
 - Temas claro/oscuro.
 - Localizacion base ES/EN.
 
@@ -921,5 +1091,5 @@ Pendiente para produccion:
 - Menos permisos Android.
 - Configuracion por ambiente.
 - Tests reales.
-- Despliegue estable del backend IA.
+- Monitoreo estable del backend IA en Hugging Face.
 - Limpieza final de logs `print`/`debugPrint`.
