@@ -90,7 +90,12 @@ class ChatResponse(BaseModel):
 
 # Configuración de Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+_configured_groq_model = os.getenv("GROQ_MODEL", "").strip()
+GROQ_MODEL = (
+    "llama-3.1-8b-instant"
+    if _configured_groq_model in {"", "llama-3.1-70b-versatile"}
+    else _configured_groq_model
+)
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 if not GROQ_API_KEY:
