@@ -147,6 +147,9 @@ class ChatbotProvider extends ChangeNotifier {
           msgLower.contains('ver departamentos') ||
           msgLower.contains('ver opciones');
 
+      final shouldUseFreeAi =
+          _isFreeTextQuestion(msgLower) && !_matchesLatestOption(userMessage);
+
       if (wantsRecommendation) {
         List<String> userResponses = _messages
             .where((m) => m.type == MessageType.user)
@@ -167,6 +170,7 @@ class ChatbotProvider extends ChangeNotifier {
         userHabits: userHabits,
         chatHistory: _messages,
         conversationCount: conversationCount,
+        preferGroq: shouldUseFreeAi,
       );
 
       _messages.add(response);
@@ -305,6 +309,57 @@ class ChatbotProvider extends ChangeNotifier {
         'Se revisan factores como limpieza, ruido, visitas, fiestas, tiempo en casa, responsabilidad y mascotas${habitSummary.isEmpty ? '.' : ' ($habitSummary).'}\n\n'
         'Resumen de la coincidencia: $cleanedContent\n\n'
         'El porcentaje no es al azar: mientras más parecidos sean tus hábitos y preferencias con la publicación o el perfil recomendado, más alto aparece el resultado.';
+  }
+
+  bool _isFreeTextQuestion(String message) {
+    final normalized = _normalizeText(message);
+
+    return message.contains('?') ||
+        normalized.contains('no hay') ||
+        normalized.contains('mas opciones') ||
+        normalized.contains('otra opcion') ||
+        normalized.contains('otra casa') ||
+        normalized.contains('otro departamento') ||
+        normalized.contains('recomienda') ||
+        normalized.contains('ayuda') ||
+        normalized.contains('que hago') ||
+        normalized.contains('cual') ||
+        normalized.contains('como') ||
+        normalized.contains('puedes') ||
+        normalized.contains('dime');
+  }
+
+  bool _matchesLatestOption(String userMessage) {
+    final normalizedMessage = _normalizeText(userMessage);
+    if (normalizedMessage.isEmpty) return false;
+
+    for (final message in _messages.reversed) {
+      final options = message.options;
+      if (message.type == MessageType.assistant &&
+          options != null &&
+          options.isNotEmpty) {
+        return options.any((option) {
+          final normalizedOption = _normalizeText(option);
+          return normalizedOption == normalizedMessage ||
+              normalizedOption.contains(normalizedMessage);
+        });
+      }
+    }
+
+    return false;
+  }
+
+  String _normalizeText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .trim();
   }
 
   /// Obtener detalles de usuario recomendado

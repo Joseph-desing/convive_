@@ -90,7 +90,7 @@ class ChatResponse(BaseModel):
 
 # Configuración de Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 if not GROQ_API_KEY:
@@ -225,11 +225,14 @@ async def chat(request: ChatRequest) -> ChatResponse:
             detail="Timeout conectando a Groq API"
         )
     
+    except HTTPException:
+        raise
+
     except Exception as e:
-        logger.error(f"🔴 Error en /api/chat: {str(e)}")
+        logger.exception(f"Error en /api/chat: {type(e).__name__}: {repr(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error procesando chatbot: {str(e)}"
+            detail=f"Error procesando chatbot: {type(e).__name__}: {repr(e)}"
         )
 
 @app.post("/api/recommendations")

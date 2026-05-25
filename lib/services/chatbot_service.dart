@@ -14,18 +14,22 @@ class ChatbotService {
     String? baseUrl,
     String? mockBaseUrl,
     String? groqApiKey,
-  })  : baseUrl = baseUrl ?? AppConfig.aiServiceUrl,
+  })  : baseUrl = (baseUrl ?? AppConfig.aiServiceUrl).trim(),
         mockBaseUrl = (mockBaseUrl ?? AppConfig.chatbotMockUrl).trim(),
-        _groqService = (baseUrl ?? AppConfig.aiServiceUrl).isNotEmpty
+        _groqService = ((baseUrl ?? AppConfig.aiServiceUrl).trim().isNotEmpty ||
+                (mockBaseUrl ?? AppConfig.chatbotMockUrl).trim().isNotEmpty)
             ? GroqService(
                 apiKey: groqApiKey,
-                baseUrl: baseUrl ?? AppConfig.aiServiceUrl,
+                baseUrl: (baseUrl ?? AppConfig.aiServiceUrl).trim().isNotEmpty
+                    ? (baseUrl ?? AppConfig.aiServiceUrl).trim()
+                    : (mockBaseUrl ?? AppConfig.chatbotMockUrl).trim(),
               )
             : null {
     _client = http.Client();
   }
 
-  bool get useGroq => _groqService != null && baseUrl.isNotEmpty;
+  bool get useGroq =>
+      _groqService != null && (baseUrl.isNotEmpty || mockBaseUrl.isNotEmpty);
   bool get useMock => mockBaseUrl.isNotEmpty;
 
   /// Procesar mensaje del usuario y obtener respuesta del chatbot con IA.
@@ -36,7 +40,25 @@ class ChatbotService {
     required Map<String, dynamic> userHabits,
     required List<ChatbotMessage> chatHistory,
     int conversationCount = 0,
+    bool preferGroq = false,
   }) async {
+    if (preferGroq) {
+      if (useGroq) {
+        try {
+          return await _groqService!.processMessageWithContext(
+            userId: userId,
+            userMessage: userMessage,
+            userProfile: userProfile,
+            userHabits: userHabits,
+            chatHistory: chatHistory,
+          );
+        } catch (_) {
+          return _serviceUnavailableMessage();
+        }
+      }
+      return _serviceUnavailableMessage();
+    }
+
     // Primario cuando esta configurado: backend guiado con opciones/botones.
     if (useMock) {
       try {
