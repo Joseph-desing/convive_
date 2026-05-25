@@ -120,76 +120,159 @@ def get_all_habits(exclude_user_id: str) -> list:
     return [r for r in rows if r.get("user_id") != exclude_user_id]
 
 def get_available_properties(exclude_user_id: str) -> list:
+    """
+    Obtiene SOLO propiedades:
+      - is_active = true
+      - is_rented = false
+      - is_approved = true
+    Filtra a nivel de Supabase Y en Python para triple seguridad.
+    """
     rows = _sb_get(
         "properties",
         "is_active=eq.true&is_rented=eq.false&is_approved=eq.true&select=*"
     )
-    return [p for p in rows if p.get("owner_id") != exclude_user_id
-                             and p.get("user_id")  != exclude_user_id]
+    result = []
+    for p in rows:
+        # Filtro Python redundante — nunca debe pasar una propiedad invalida
+        if p.get("is_rented", False):
+            print(f"  🛡️  Prop descartada (alquilada): {p.get('title','?')}")
+            continue
+        if not p.get("is_approved", True):
+            print(f"  🛡️  Prop descartada (no aprobada): {p.get('title','?')}")
+            continue
+        if not p.get("is_active", True):
+            print(f"  🛡️  Prop descartada (inactiva): {p.get('title','?')}")
+            continue
+        # Excluir propiedades del mismo usuario
+        if p.get("owner_id") == exclude_user_id or p.get("user_id") == exclude_user_id:
+            continue
+        result.append(p)
+    print(f"  ✅ Propiedades válidas tras filtro triple: {len(result)}")
+    return result
 
 # ════════════════════════════════════════════════════════════════════════════
-# GROQ — generación de texto bonito
+# GROQ — solo redacta explicaciones en lenguaje natural
+# 🛑 REGLA ABSOLUTA: Groq NUNCA calcula ni inventa el porcentaje.
+#    El score viene únicamente del algoritmo matemático v2.
 # ════════════════════════════════════════════════════════════════════════════
 
-def groq_describe_roommate(name: str, bio: str, score: float, habits: dict) -> str:
-    """Pide a Groq que redacte una descripción atractiva del candidato."""
+def groq_describe_roommate_v2(
+    name: str, bio: str, score: float,
+    breakdown: dict, strong: list, weak: list, penalties: list
+) -> str:
+    """
+    Groq redacta la explicación en lenguaje natural.
+    El score (pct) ya fue calculado por el algoritmo y se pasa como dato.
+    Groq NO puede cambiarlo — el prompt lo prohíbe explicitamente.
+    """
+    pct = int(score * 100)
+    strong_str = ", ".join(strong[:3]) if strong else "hábitos similares"
+    weak_str   = ", ".join(weak[:2])   if weak   else ""
+    pen_str    = "; ".join(p.split("→")[0].strip() for p in penalties[:2]) if penalties else ""
+
+    # Fallback sin Groq
     if not GROQ_API_KEY:
-        return f"🎯 {name} — {int(score*100)}% compatible\n{bio}"
+        note = f" La compatibilidad baja un poco en {weak_str}." if weak_str else ""
+        return f"Te recomiendo a {name} porque coinciden bien en {strong_str}.{note}"
+
     try:
-        prompt = f"""Eres el asistente de ConVive. Redacta en 2-3 oraciones por qué {name} es un buen compañero de cuarto.
-Compatibilidad: {int(score*100)}%
-Bio: {bio or 'No disponible'}
-Hábitos (escala 1-10): limpieza={habits.get('cleanliness',5)}, ruido={habits.get('noise_level',5)}, fiestas={habits.get('party_frequency',5)}, invitados={habits.get('guests_frequency',5)}, tiempo_en_casa={habits.get('home_time',5)}, responsabilidad={habits.get('responsibility',5)}.
-Escribe en español. Sé breve, cálido y motivador. No uses asteriscos ni markdown."""
+        debil_text = f"Puntos débiles detectados por el algoritmo: {weak_str}." if weak_str else "No hay puntos débiles relevantes."
+        penal_text = f"Penalizaciones aplicadas: {pen_str}." if pen_str else ""
+        prompt = (
+            f"Eres el asistente de ConVive. Tu tarea es redactar una explicación en 2 oraciones de por qué {name} "
+            f"es recomendado como compañero de cuarto, basándote en estos datos del algoritmo:\n"
+            f"- Puntos fuertes: {strong_str}\n"
+            f"- {debil_text}\n"
+            f"- {penal_text}\n"
+            f"- Bio del candidato: {bio or 'Sin bio'}\n"
+            f"INSTRUCCIONES OBLIGATORIAS:\n"
+            f"1. NO escribas ningún porcentaje ni número de compatibilidad. El porcentaje lo muestra la app, no tú.\n"
+            f"2. Si hay puntos débiles o penalizaciones, mencionarlos honestamente en pocas palabras.\n"
+            f"3. Escribe en español, sin asteriscos, sin markdown, sin emojis."
+        )
         resp = requests.post(
             f"{GROQ_BASE_URL}/chat/completions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}],
-                  "max_tokens": 150, "temperature": 0.7},
+                  "max_tokens": 120, "temperature": 0.55},
             timeout=10,
         )
         if resp.status_code == 200:
-            return resp.json()["choices"][0]["message"]["content"].strip()
+            text = resp.json()["choices"][0]["message"]["content"].strip()
+            # Seguridad extra: si Groq metió un porcentaje en el texto, removerlo
+            text = re.sub(r'\b\d{1,3}\s*%', '', text).strip()
+            return text
     except Exception as e:
-        print(f"⚠️  Groq roommate description error: {e}")
-    return f"🎯 {name} — {int(score*100)}% compatible\n{bio}"
+        print(f"⚠️ Groq roommate error: {e}")
 
-def groq_describe_property(title: str, address: str, price, score: float, features: dict) -> str:
-    """Pide a Groq que redacte una descripción atractiva de la propiedad."""
+    note = f" Atención: difiere en {weak_str}." if weak_str else ""
+    return f"Te recomiendo a {name} porque coinciden en {strong_str}.{note}"
+
+
+def groq_describe_property_v2(
+    title: str, address: str, price,
+    score: float, features: dict, breakdown: dict, penalties: list
+) -> str:
+    """
+    Groq redacta la explicación del departamento en lenguaje natural.
+    El score ya fue calculado por el algoritmo. Groq NO lo inventa.
+    """
+    pct = int(score * 100)  # solo para referencia interna, NO se pasa a Groq
+    price_text = f"${int(price)}/mes" if price else "precio no especificado"
+    pen_str    = "; ".join(p.split("→")[0].strip() for p in penalties[:2]) if penalties else ""
+
+    # Fallback sin Groq
     if not GROQ_API_KEY:
-        price_text = f" · ${int(price)}/mes" if price else ""
-        return f"🏠 {title or address}{price_text}\n{int(score*100)}% compatible con tu perfil."
+        pen_note = f" Observación: {penalties[0].split('→')[0].strip()}." if penalties else ""
+        return f"Este departamento en {address or title} ({price_text}) se ajusta bien a tu perfil.{pen_note}"
+
     try:
-        price_text = f"${int(price)}/mes" if price else "precio no especificado"
-        prompt = f"""Eres el asistente de ConVive. Redacta en 2-3 oraciones por qué este departamento es ideal para el usuario.
-Título: {title or 'Departamento disponible'}
-Dirección: {address or 'Sin dirección'}
-Precio: {price_text}
-Características: habitaciones={features.get('bedrooms','?')}, baños={features.get('bathrooms','?')}, amoblado={features.get('furnished',False)}, mascotas={features.get('pets_allowed',False)}, alícuota incluida={features.get('aliquot_included',False)}.
-Compatibilidad: {int(score*100)}%
-Escribe en español. Sé breve y entusiasta. No uses asteriscos ni markdown."""
+        budget_score = breakdown.get('presupuesto', 65)
+        rooms_score  = breakdown.get('habitaciones', 70)
+        avail_score  = breakdown.get('disponibilidad', 100)
+        penal_text   = f"Observaciones del algoritmo: {pen_str}." if pen_str else "Sin penalizaciones."
+        prompt = (
+            f"Eres el asistente de ConVive. Redacta en 2 oraciones por qué este departamento es recomendado, "
+            f"basándote en estos datos del algoritmo:\n"
+            f"- Título: {title}. Dirección: {address or 'Sin dirección'}. Precio: {price_text}.\n"
+            f"- Habitaciones: {features.get('bedrooms','?')}, amoblado: {features.get('furnished',False)}, "
+            f"mascotas permitidas: {features.get('pets_allowed',False)}, alícuota incluida: {features.get('aliquot_included',False)}.\n"
+            f"- Score presupuesto: {budget_score}/100. Score habitaciones: {rooms_score}/100. Disponibilidad: {avail_score}/100.\n"
+            f"- {penal_text}\n"
+            f"INSTRUCCIONES OBLIGATORIAS:\n"
+            f"1. NO escribas ningún porcentaje ni número de compatibilidad. El porcentaje lo calcula y muestra la app.\n"
+            f"2. Si hay observaciones o penalizaciones, mencionarlas brevemente y con honestidad.\n"
+            f"3. Escribe en español, sin asteriscos, sin markdown, sin emojis."
+        )
         resp = requests.post(
             f"{GROQ_BASE_URL}/chat/completions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": prompt}],
-                  "max_tokens": 150, "temperature": 0.7},
+                  "max_tokens": 120, "temperature": 0.55},
             timeout=10,
         )
         if resp.status_code == 200:
-            return resp.json()["choices"][0]["message"]["content"].strip()
+            text = resp.json()["choices"][0]["message"]["content"].strip()
+            # Seguridad extra: remover cualquier porcentaje que Groq pudiera haber inventado
+            text = re.sub(r'\b\d{1,3}\s*%', '', text).strip()
+            return text
     except Exception as e:
-        print(f"⚠️  Groq property description error: {e}")
-    price_text = f" · ${int(price)}/mes" if price else ""
-    return f"🏠 {title or address}{price_text}\n{int(score*100)}% compatible con tu perfil."
+        print(f"⚠️ Groq property error: {e}")
+
+    pen_note = f" Observación: {pen_str}." if pen_str else ""
+    return f"Departamento en {address or title} ({price_text}).{pen_note}"
 
 # ════════════════════════════════════════════════════════════════════════════
-# COMPATIBILIDAD — algoritmo espejado del CompatibilityService de Dart
+# COMPATIBILIDAD v2 — algoritmo diferenciado con pesos, penalizaciones y
+# variación controlada para producir porcentajes realistas (45%–95%)
 # ════════════════════════════════════════════════════════════════════════════
 
 def _scale_diff(a: float, b: float, max_d: float = 10.0) -> float:
+    """Diferencia normalizada entre 0 y 1 (0=opuestos, 1=idénticos)."""
     return max(0.0, 1.0 - abs(a - b) / max_d)
 
 def _sleep_compat(us: int, ue: int, os_: int, oe: int) -> float:
+    """Compatibilidad de horarios de sueño (máx 6h toleradas)."""
     sd = abs(us - os_); sd = 24 - sd if sd > 12 else sd
     ed = abs(ue - oe);  ed = 24 - ed if ed > 12 else ed
     return max(0.0, 1.0 - ((sd + ed) / 2.0) / 6.0)
@@ -205,76 +288,220 @@ def _normalize_habits(raw: dict) -> dict:
     pet_raw = raw.get("pet_tolerance", False)
     pet_val = 10.0 if pet_raw is True else (0.0 if pet_raw is False else float(pet_raw))
     return {
-        "cleanliness":     float(raw.get("cleanliness_level",   5)),
-        "noise_level":     float(raw.get("noise_tolerance",     5)),
-        "party_frequency": float(raw.get("party_frequency",     5)),
-        "guests_frequency":float(raw.get("guests_tolerance",    5)),
-        "home_time":       float(raw.get("time_at_home",        5)),
-        "responsibility":  float(raw.get("responsibility_level",5)),
-        "pets_tolerance":  pet_val,
-        "has_pets":        bool(raw.get("pets", False)),
-        "sleep_start":     int(raw.get("sleep_schedule_start",  23)),
-        "sleep_end":       int(raw.get("sleep_schedule_end",    7)),
-        "alcohol_frequency":float(raw.get("alcohol_frequency",  3)),
+        "cleanliness":      float(raw.get("cleanliness_level",    5)),
+        "noise_level":      float(raw.get("noise_tolerance",      5)),
+        "party_frequency":  float(raw.get("party_frequency",      5)),
+        "guests_frequency": float(raw.get("guests_tolerance",     5)),
+        "home_time":        float(raw.get("time_at_home",         5)),
+        "responsibility":   float(raw.get("responsibility_level", 5)),
+        "pets_tolerance":   pet_val,
+        "has_pets":         bool(raw.get("pets", False)),
+        "sleep_start":      int(raw.get("sleep_schedule_start",   23)),
+        "sleep_end":        int(raw.get("sleep_schedule_end",      7)),
+        "alcohol_frequency":float(raw.get("alcohol_frequency",    3)),
     }
 
-def calculate_roommate_compatibility(user_h: dict, candidate_h: dict) -> float:
+# ── ROOMMATE ─────────────────────────────────────────────────────────────────
+
+def calculate_roommate_compatibility(user_h: dict, candidate_h: dict) -> tuple:
     """
-    Calcula compatibilidad entre hábitos de dos personas.
-    Factores (suman 100%):
-      sueño 15% · limpieza 20% · ruido 15% · fiestas 15%
-      invitados 10% · mascotas 10% · alcohol 5% · tiempo casa 10%
+    Retorna (score: float, breakdown: dict, penalties: list).
+    Pesos:
+      limpieza 18% · responsabilidad 15% · ruido 15% · sueño 12%
+      visitas 10% · fiestas 10% · mascotas 8% · tiempo_casa 7% · ubicación 5%
+    Penalizaciones extra por diferencias críticas.
+    Variación desempate: ±3% (nunca reemplaza el cálculo real).
     """
-    total = 0.0
-    total += _sleep_compat(
+    breakdown = {}
+    penalties = []
+
+    # ── Criterios base ───────────────────────────────────────────────────────
+    c_clean = _scale_diff(user_h.get("cleanliness", 5),      candidate_h.get("cleanliness", 5))
+    c_resp  = _scale_diff(user_h.get("responsibility", 5),   candidate_h.get("responsibility", 5))
+    c_noise = _scale_diff(user_h.get("noise_level", 5),      candidate_h.get("noise_level", 5))
+    c_sleep = _sleep_compat(
         user_h.get("sleep_start", 23), user_h.get("sleep_end", 7),
         candidate_h.get("sleep_start", 23), candidate_h.get("sleep_end", 7)
-    ) * 0.15
-    total += _scale_diff(user_h.get("cleanliness", 5),      candidate_h.get("cleanliness", 5))      * 0.20
-    total += _scale_diff(user_h.get("noise_level", 5),      candidate_h.get("noise_level", 5))      * 0.15
-    total += _scale_diff(user_h.get("party_frequency", 5),  candidate_h.get("party_frequency", 5))  * 0.15
-    total += _scale_diff(user_h.get("guests_frequency", 5), candidate_h.get("guests_frequency", 5)) * 0.10
-    total += _pet_compat(
+    )
+    c_guests = _scale_diff(user_h.get("guests_frequency", 5), candidate_h.get("guests_frequency", 5))
+    c_party  = _scale_diff(user_h.get("party_frequency", 5),  candidate_h.get("party_frequency", 5))
+    c_pets   = _pet_compat(
         user_h.get("has_pets", False), user_h.get("pets_tolerance", 5),
         candidate_h.get("has_pets", False), candidate_h.get("pets_tolerance", 5)
-    ) * 0.10
-    total += _scale_diff(user_h.get("alcohol_frequency", 3), candidate_h.get("alcohol_frequency", 3)) * 0.05
-    total += _scale_diff(user_h.get("home_time", 5),         candidate_h.get("home_time", 5),  max_d=100.0 if user_h.get("home_time", 5) > 10 else 10.0) * 0.10
-    return round(min(max(total, 0.0), 1.0), 4)
+    )
+    c_home   = _scale_diff(user_h.get("home_time", 5), candidate_h.get("home_time", 5))
+    c_zone   = 0.75  # neutral: no tenemos zona del candidato normalmente
 
-def calculate_property_compatibility(user_h: dict, prop: dict, owner_h: dict = None) -> float:
+    breakdown = {
+        "limpieza":        round(c_clean * 100),
+        "responsabilidad": round(c_resp  * 100),
+        "ruido":           round(c_noise * 100),
+        "suenio":          round(c_sleep * 100),
+        "visitas":         round(c_guests* 100),
+        "fiestas":         round(c_party * 100),
+        "mascotas":        round(c_pets  * 100),
+        "tiempo_casa":     round(c_home  * 100),
+        "ubicacion":       round(c_zone  * 100),
+    }
+
+    # ── Score ponderado ───────────────────────────────────────────────────────
+    total = (
+        c_clean  * 0.18 +
+        c_resp   * 0.15 +
+        c_noise  * 0.15 +
+        c_sleep  * 0.12 +
+        c_guests * 0.10 +
+        c_party  * 0.10 +
+        c_pets   * 0.08 +
+        c_home   * 0.07 +
+        c_zone   * 0.05
+    )
+
+    # ── Penalizaciones por diferencias críticas ───────────────────────────────
+    # 1) Limpieza muy diferente (≥5 puntos) → -8%
+    clean_diff = abs(user_h.get("cleanliness", 5) - candidate_h.get("cleanliness", 5))
+    if clean_diff >= 5:
+        total -= 0.08
+        penalties.append(f"limpieza muy diferente ({clean_diff:.0f} pts) → -8%")
+    elif clean_diff >= 3:
+        total -= 0.04
+        penalties.append(f"limpieza algo diferente ({clean_diff:.0f} pts) → -4%")
+
+    # 2) Silencio vs fiestas: uno quiere silencio (noise<4) y otro muchas fiestas (party>7) → -12%
+    user_wants_quiet   = user_h.get("noise_level", 5) < 4
+    cand_has_parties   = candidate_h.get("party_frequency", 5) > 7
+    cand_wants_quiet   = candidate_h.get("noise_level", 5) < 4
+    user_has_parties   = user_h.get("party_frequency", 5) > 7
+    if (user_wants_quiet and cand_has_parties) or (cand_wants_quiet and user_has_parties):
+        total -= 0.12
+        penalties.append("conflicto silencio vs fiestas → -12%")
+
+    # 3) Horarios de sueño muy distintos (score < 0.40) → -7%
+    if c_sleep < 0.40:
+        total -= 0.07
+        penalties.append(f"horarios de sueño muy distintos (compat {int(c_sleep*100)}%) → -7%")
+
+    # 4) Responsabilidad muy baja del candidato (< 3/10) → -6%
+    if candidate_h.get("responsibility", 5) < 3:
+        total -= 0.06
+        penalties.append("candidato con responsabilidad muy baja → -6%")
+
+    # ── Variación de desempate: ±3% máximo ───────────────────────────────────
+    noise = random.uniform(-0.03, 0.03)
+    total += noise
+
+    score = round(min(max(total, 0.0), 1.0), 4)
+    return score, breakdown, penalties
+
+# ── DEPARTAMENTO ─────────────────────────────────────────────────────────────
+
+def calculate_property_compatibility(user_h: dict, prop: dict, owner_h: dict = None, user_responses_text: str = "") -> tuple:
     """
-    Compatibilidad usuario ↔ departamento.
-    Factores:
-      hábitos del propietario 40% · precio ajustado 20%
-      mascotas 15% · amoblado 10% · disponibilidad 15%
+    Retorna (score: float, breakdown: dict, penalties: list).
+    Pesos:
+      presupuesto 25% · ubicación 20% · habitaciones 15%
+      disponibilidad 12% · aprobado_admin 10% · preferencias 10% · alícuota 8%
     """
-    total = 0.0
+    breakdown = {}
+    penalties = []
 
-    # 1. Hábitos del propietario (40%) — si no hay, neutral
-    if owner_h:
-        habit_score = calculate_roommate_compatibility(user_h, owner_h)
-        total += habit_score * 0.40
+    # ── Filtros descalificadores (score = 0 inmediato) ───────────────────────
+    # Estas condiciones eliminan la propiedad ANTES de calcular nada.
+    # El score devuelto es 0.0 y Flutter nunca la mostrará.
+    if prop.get("is_rented", False):
+        penalties.append("DESCARTADO: propiedad ya alquilada")
+        return 0.0, breakdown, penalties
+    if not prop.get("is_approved", True):
+        penalties.append("DESCARTADO: no aprobada por admin")
+        return 0.0, breakdown, penalties
+    if not prop.get("is_active", True):
+        penalties.append("DESCARTADO: propiedad inactiva")
+        return 0.0, breakdown, penalties
+
+    # ── 1. Presupuesto vs precio (25%) ────────────────────────────────────────
+    price = float(prop.get("price") or prop.get("rent_amount") or prop.get("budget") or 0)
+    budget_str = user_responses_text  # texto de respuestas del usuario
+    budget_max = _parse_budget(budget_str) if budget_str else 0.0
+
+    if price > 0 and budget_max > 0:
+        if price <= budget_max:
+            c_price = 1.0
+        elif price <= budget_max * 1.15:   # hasta 15% sobre presupuesto → gradual
+            c_price = max(0.0, 1.0 - (price - budget_max) / (budget_max * 0.5))
+        else:                              # muy sobre presupuesto → penalización fuerte
+            c_price = max(0.0, 0.3 - (price - budget_max * 1.15) / price)
+            penalties.append(f"precio ${price:.0f} muy sobre presupuesto ${budget_max:.0f} → penalización fuerte")
     else:
-        total += 0.70 * 0.40  # neutral
+        c_price = 0.65  # neutral si no hay dato
+    breakdown["presupuesto"] = round(c_price * 100)
 
-    # 2. Precio vs presupuesto del usuario (20%)
-    price = prop.get("price") or prop.get("rent_amount") or prop.get("budget") or 0
-    user_budget_str = user_h.get("budget", "")
-    price_score = 0.75  # neutral si no hay dato
-    if price and user_budget_str:
-        budget_max = _parse_budget(str(user_budget_str))
-        if budget_max and budget_max > 0:
-            price_score = 1.0 if price <= budget_max else max(0.0, 1.0 - (price - budget_max) / budget_max)
-    total += price_score * 0.20
+    # ── 2. Ubicación (20%) ────────────────────────────────────────────────────
+    has_lat = bool(prop.get("latitude") or prop.get("lat"))
+    c_location = 0.80 if has_lat else 0.55  # penalizar si no hay coords
+    if not has_lat:
+        penalties.append("sin coordenadas de ubicación → -20% en ubicación")
+    breakdown["ubicacion"] = round(c_location * 100)
 
-    # 3. Mascotas (15%)
-    user_tol = user_h.get("pets_tolerance", 5)
-    pets_ok   = prop.get("pets_allowed", False)
-    if user_tol >= 7:
-        total += (1.0 if pets_ok else 0.2) * 0.15
-    else:
-        total += 1.0 * 0.15  # no necesita mascotas → siempre ok
+    # ── 3. Habitaciones (15%) ─────────────────────────────────────────────────
+    bedrooms = int(prop.get("bedrooms") or 0)
+    # Detectar habitaciones pedidas del texto de respuestas
+    c_rooms = 0.70  # neutral por defecto
+    if bedrooms > 0:
+        if "3 o más" in budget_str or "3+" in budget_str:
+            c_rooms = 1.0 if bedrooms >= 3 else max(0.3, 1.0 - (3 - bedrooms) * 0.35)
+        elif "2 habitaciones" in budget_str:
+            c_rooms = 1.0 if bedrooms == 2 else (0.7 if bedrooms > 2 else 0.4)
+        elif "1 habitación" in budget_str or "estudio" in budget_str:
+            c_rooms = 1.0 if bedrooms == 1 else (0.6 if bedrooms == 2 else 0.5)
+    breakdown["habitaciones"] = round(c_rooms * 100)
+
+    # ── 4. Disponibilidad real (12%) ──────────────────────────────────────────
+    is_active  = prop.get("is_active", True)
+    is_rented  = prop.get("is_rented", False)
+    c_avail = 1.0 if (is_active and not is_rented) else 0.0
+    breakdown["disponibilidad"] = round(c_avail * 100)
+
+    # ── 5. Aprobado por admin (10%) ───────────────────────────────────────────
+    is_approved = prop.get("is_approved", True)  # si no tiene campo, asumir aprobado
+    c_approved  = 1.0 if is_approved else 0.0
+    breakdown["aprobado"] = round(c_approved * 100)
+
+    # ── 6. Preferencias del usuario (10%) ────────────────────────────────────
+    pref_score = 0.70
+    pets_ok    = prop.get("pets_allowed", False)
+    user_tol   = user_h.get("pets_tolerance", 5)
+    if user_tol >= 7 and not pets_ok:
+        pref_score -= 0.25
+        penalties.append("usuario necesita mascotas pero no se permiten → -25% preferencias")
+    furnished = prop.get("furnished") or prop.get("is_furnished", False)
+    if "amoblado" in budget_str.lower() and not furnished:
+        pref_score -= 0.15
+        penalties.append("usuario quiere amoblado pero no lo está → -15% preferencias")
+    c_pref = max(0.0, pref_score)
+    breakdown["preferencias"] = round(c_pref * 100)
+
+    # ── 7. Alícuota incluida (8%) ─────────────────────────────────────────────
+    aliquot_included = prop.get("aliquot_included", False)
+    c_aliquot = 1.0 if aliquot_included else 0.60
+    breakdown["alicuota"] = round(c_aliquot * 100)
+
+    # ── Score ponderado ───────────────────────────────────────────────────────
+    total = (
+        c_price    * 0.25 +
+        c_location * 0.20 +
+        c_rooms    * 0.15 +
+        c_avail    * 0.12 +
+        c_approved * 0.10 +
+        c_pref     * 0.10 +
+        c_aliquot  * 0.08
+    )
+
+    # ── Variación de desempate ±3% ────────────────────────────────────────────
+    noise = random.uniform(-0.03, 0.03)
+    total += noise
+
+    score = round(min(max(total, 0.0), 1.0), 4)
+    return score, breakdown, penalties
 
     # 4. Amoblado (10%)
     furnished = prop.get("furnished", False) or prop.get("is_furnished", False)
@@ -451,14 +678,14 @@ async def process_message(request: ProcessMessageRequest):
 @app.post("/chatbot/recommend")
 def recommend(request: RecommendationRequest):
     """
-    Recomendaciones con datos reales de Supabase + Groq para redacción.
-    Devuelve máximo 3 resultados ordenados por compatibilidad.
+    Recomendaciones con datos reales de Supabase + Groq v2.
+    Usa algoritmo diferenciado: scores 45-95% según hábitos reales.
     """
     responses_text = " ".join(request.responses).lower()
-    user_h         = request.habits  # hábitos del usuario desde Flutter
+    user_h         = request.habits
 
     print(f"\n{'='*60}")
-    print(f"🔍 RECOMMEND | user_id={request.user_id}")
+    print(f"🔍 RECOMMEND v2 | user_id={request.user_id}")
     print(f"📝 Respuestas: {responses_text[:120]}")
     print(f"📋 Hábitos: {user_h}")
 
@@ -472,143 +699,125 @@ def recommend(request: RecommendationRequest):
     ])
 
     print(f"🏷️  Tipo: {'DEPARTAMENTO' if is_dept else 'COMPAÑERO' if is_roommate else 'DESCONOCIDO'}")
-
     recommendations = []
+    discarded = []
 
     # ── COMPAÑERO DE CUARTO ──────────────────────────────────────────────────
     if is_roommate:
         all_habits = get_all_habits(request.user_id)
-        print(f"👥 Candidatos con hábitos en Supabase: {len(all_habits)}")
-
+        print(f"👥 Candidatos encontrados en Supabase: {len(all_habits)}")
         for row in all_habits:
             try:
                 cuid = row.get("user_id")
                 if not cuid:
                     continue
                 candidate_h = _normalize_habits(row)
-                score = calculate_roommate_compatibility(user_h, candidate_h)
-                print(f"  → {cuid[:8]}... score={int(score*100)}% {'✅' if score >= 0.60 else '❌'}")
+                score, breakdown, penalties = calculate_roommate_compatibility(user_h, candidate_h)
 
-                if score < 0.60:
+                nivel = "🟢" if score>=0.85 else "🟡" if score>=0.75 else "🟠" if score>=0.60 else "🔴"
+                print(f"  {nivel} {cuid[:8]}... {int(score*100)}%")
+                print(f"     breakdown: limpieza={breakdown.get('limpieza')}% resp={breakdown.get('responsabilidad')}% ruido={breakdown.get('ruido')}% sueño={breakdown.get('suenio')}% fiestas={breakdown.get('fiestas')}%")
+                if penalties:
+                    print(f"     ⚠️ penalizaciones: {penalties}")
+
+                if score < 0.45:
+                    discarded.append(f"{cuid[:8]} ({int(score*100)}%) — score bajo")
                     continue
 
                 profile = get_user_profile(cuid)
                 name    = profile.get("full_name") or profile.get("name") or "Usuario"
                 avatar  = profile.get("profile_image_url") or profile.get("avatar_url")
                 bio     = profile.get("bio") or ""
-
-                # Ubicación del candidato (desde perfil o roommate_searches)
-                prop_location = None
                 lat = profile.get("latitude") or profile.get("lat")
                 lng = profile.get("longitude") or profile.get("lng")
-                if lat and lng:
-                    prop_location = {
-                        "lat":     float(lat),
-                        "lng":     float(lng),
-                        "address": profile.get("address") or profile.get("city") or "",
-                    }
+                prop_location = {"lat": float(lat), "lng": float(lng), "address": profile.get("address") or profile.get("city") or ""} if lat and lng else None
 
-                # Groq redacta la descripción
-                content = groq_describe_roommate(name, bio, score, candidate_h)
+                strong = [k for k, v in breakdown.items() if v >= 80]
+                weak   = [k for k, v in breakdown.items() if v < 60]
+                content = groq_describe_roommate_v2(name, bio, score, breakdown, strong, weak, penalties)
 
                 recommendations.append({
-                    "content":              content,
-                    "matched_user_id":      cuid,
-                    "matched_user_name":    name,
-                    "matched_user_avatar":  avatar,
-                    "compatibility_score":  score,
-                    "property_location":    prop_location,
+                    "content": content, "matched_user_id": cuid,
+                    "matched_user_name": name, "matched_user_avatar": avatar,
+                    "compatibility_score": score, "property_location": prop_location,
                 })
             except Exception as e:
-                print(f"  ⚠️ Error procesando candidato: {e}")
+                print(f"  ⚠️ Error candidato: {e}")
 
     # ── DEPARTAMENTO ─────────────────────────────────────────────────────────
     elif is_dept:
         props = get_available_properties(request.user_id)
         print(f"🏠 Propiedades disponibles en Supabase: {len(props)}")
-
         for prop in props:
             try:
                 prop_id  = prop.get("id")
                 owner_id = prop.get("owner_id") or prop.get("user_id")
-
                 owner_h_raw = get_user_habits(owner_id) if owner_id else {}
                 owner_h     = _normalize_habits(owner_h_raw) if owner_h_raw else {}
 
-                score = calculate_property_compatibility(user_h, prop, owner_h or None)
-                print(f"  → {prop.get('title','?')[:30]} | score={int(score*100)}% {'✅' if score >= 0.55 else '❌'}")
+                score, breakdown, penalties = calculate_property_compatibility(
+                    user_h, prop, owner_h or None, responses_text
+                )
+                prop_title = (prop.get("title") or "?")[:30]
+                nivel = "🟢" if score>=0.85 else "🟡" if score>=0.75 else "🟠" if score>=0.60 else "🔴"
+                print(f"  {nivel} {prop_title} {int(score*100)}%")
+                print(f"     breakdown: precio={breakdown.get('presupuesto')}% ubicacion={breakdown.get('ubicacion')}% habitaciones={breakdown.get('habitaciones')}% disponibilidad={breakdown.get('disponibilidad')}%")
+                if penalties:
+                    print(f"     ⚠️ penalizaciones: {penalties}")
 
-                if score < 0.55:
+                if score == 0.0:
+                    discarded.append(f"{prop_title} — {penalties[0] if penalties else 'descartado'}")
+                    continue
+                if score < 0.45:
+                    discarded.append(f"{prop_title} ({int(score*100)}%) — score bajo")
                     continue
 
                 owner_profile = get_user_profile(owner_id) if owner_id else {}
-                name   = owner_profile.get("full_name") or owner_profile.get("name") or "Propietario"
-                avatar = (
-                    prop.get("main_image_url") or
-                    prop.get("image_url") or
-                    owner_profile.get("profile_image_url")
-                )
-                title   = prop.get("title") or prop.get("name") or "Departamento"
+                name  = owner_profile.get("full_name") or owner_profile.get("name") or "Propietario"
+                avatar = prop.get("main_image_url") or prop.get("image_url") or owner_profile.get("profile_image_url")
+                title   = prop.get("title") or "Departamento"
                 address = prop.get("address") or prop.get("location") or ""
                 price   = prop.get("price") or prop.get("rent_amount") or prop.get("budget")
-
                 features = {
-                    "bedrooms":         prop.get("bedrooms"),
-                    "bathrooms":        prop.get("bathrooms"),
-                    "furnished":        prop.get("furnished") or prop.get("is_furnished", False),
-                    "pets_allowed":     prop.get("pets_allowed", False),
+                    "bedrooms": prop.get("bedrooms"), "bathrooms": prop.get("bathrooms"),
+                    "furnished": prop.get("furnished") or prop.get("is_furnished", False),
+                    "pets_allowed": prop.get("pets_allowed", False),
                     "aliquot_included": prop.get("aliquot_included", False),
                 }
-
-                # Ubicación de la propiedad
                 lat = prop.get("latitude") or prop.get("lat")
                 lng = prop.get("longitude") or prop.get("lng")
-                prop_location = None
-                if lat and lng:
-                    prop_location = {
-                        "lat":     float(lat),
-                        "lng":     float(lng),
-                        "address": address,
-                    }
+                prop_location = {"lat": float(lat), "lng": float(lng), "address": address} if lat and lng else None
 
-                content = groq_describe_property(title, address, price, score, features)
-
+                content = groq_describe_property_v2(title, address, price, score, features, breakdown, penalties)
                 recommendations.append({
-                    "content":              content,
-                    "matched_user_id":      owner_id or prop_id,
-                    "matched_user_name":    name,
-                    "matched_user_avatar":  avatar,
-                    "compatibility_score":  score,
-                    "property_location":    prop_location,
+                    "content": content, "matched_user_id": owner_id or prop_id,
+                    "matched_user_name": name, "matched_user_avatar": avatar,
+                    "compatibility_score": score, "property_location": prop_location,
                 })
             except Exception as e:
-                print(f"  ⚠️ Error procesando propiedad: {e}")
+                print(f"  ⚠️ Error propiedad: {e}")
 
-    # ── Ordenar y limitar ─────────────────────────────────────────────────────
+    # ── Ordenar, limitar a top 3 y loguear ───────────────────────────────────
     recommendations.sort(key=lambda x: x["compatibility_score"], reverse=True)
     top3 = recommendations[:3]
 
-    print(f"\n✅ Top {len(top3)} recomendaciones devueltas")
+    print(f"\n✅ Top {len(top3)} recomendaciones:")
     for r in top3:
-        print(f"  • {r['matched_user_name']} → {int(r['compatibility_score']*100)}%")
+        nivel = "🟢 Excelente" if r["compatibility_score"]>=0.85 else \
+                "🟡 Muy bueno" if r["compatibility_score"]>=0.75 else \
+                "🟠 Bueno"     if r["compatibility_score"]>=0.60 else "🔴 Regular"
+        print(f"  {nivel} | {r['matched_user_name']} → {int(r['compatibility_score']*100)}%")
+    if discarded:
+        print(f"🗑️  Descartados ({len(discarded)}): {discarded}")
     print(f"{'='*60}\n")
 
     if top3:
-        return JSONResponse({
-            "type":            "suggestions_batch",
-            "recommendations": top3,
-            "count":           len(top3),
-        })
+        return JSONResponse({"type": "suggestions_batch", "recommendations": top3, "count": len(top3)})
 
-    # Sin resultados
     search_type = "departamento" if is_dept else "compañero/a de cuarto"
     return JSONResponse({
-        "type":    "assistant",
-        "content": (
-            f"😔 Lo siento, no encontramos ningún {search_type} compatible con tus preferencias "
-            "en este momento.\n\nPuedes ajustar tus preferencias o intentarlo más tarde "
-            "cuando haya más usuarios en la plataforma."
-        ),
+        "type": "assistant",
+        "content": f"😔 Lo siento, no encontramos ningún {search_type} compatible en este momento.\n\nPuedes ajustar tus preferencias o intentarlo más tarde.",
         "options": ["Intentar de nuevo", "Cambiar preferencias"],
         "timestamp": datetime.now().isoformat(),
     })
