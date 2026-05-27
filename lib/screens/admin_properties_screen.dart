@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1334,16 +1335,10 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  onPressed: () async {
-                                    final uri = Uri.tryParse(pdfUrl);
-                                    if (uri != null &&
-                                        await canLaunchUrl(uri)) {
-                                      await launchUrl(
-                                        uri,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    }
-                                  },
+                                  onPressed: () => _openPdfUrl(
+                                    context: ctx,
+                                    pdfUrl: pdfUrl,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1602,5 +1597,65 @@ class _AdminPropertiesScreenState extends State<AdminPropertiesScreen>
             (prop['title']?.toLowerCase().contains(query) ?? false) ||
             (prop['description']?.toLowerCase().contains(query) ?? false))
         .toList();
+  }
+
+  /// Abre el PDF de verificación en Web (pestaña) o Android (browser/visor externo).
+  /// Incluye logs detallados y SnackBar de error claro si no puede abrir.
+  Future<void> _openPdfUrl({
+    required BuildContext context,
+    required String pdfUrl,
+  }) async {
+    debugPrint('📄 [PDF] URL original: $pdfUrl');
+
+    final Uri? uri = Uri.tryParse(pdfUrl.trim());
+
+    if (uri == null || !uri.hasScheme) {
+      debugPrint('❌ [PDF] URL inválida o sin scheme');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('URL del PDF inválida.'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      return;
+    }
+
+    debugPrint('🔗 [PDF] URI final: $uri');
+
+    final bool canOpen = await canLaunchUrl(uri);
+    debugPrint('🔍 [PDF] canLaunchUrl = $canOpen | platform: ${kIsWeb ? "web" : "android"}');
+
+    if (!canOpen && !kIsWeb) {
+      debugPrint('⚠️ [PDF] canLaunchUrl=false en Android — intentando igual con externalApplication...');
+    }
+
+    try {
+      // Web: platformDefault abre nueva pestaña del navegador
+      // Android: externalApplication abre el browser o visor de PDF del sistema
+      final LaunchMode mode =
+          kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication;
+
+      final bool launched = await launchUrl(uri, mode: mode);
+      debugPrint('✅ [PDF] launchUrl result = $launched');
+
+      if (!launched) throw Exception('launchUrl returned false');
+    } catch (e) {
+      debugPrint('❌ [PDF] Error al abrir: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'No se pudo abrir el PDF. Verifica que tengas un visor de PDF o navegador instalado.',
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
   }
 }
