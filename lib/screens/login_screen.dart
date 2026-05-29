@@ -125,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: 'tu@email.com',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        disallowSpaces: true,
                         validator: (value) {
                           if (value == null || !value.contains('@'))
                             return 'Email inválido';
@@ -345,6 +346,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool disallowSpaces = false,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
@@ -364,7 +366,15 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: controller,
           obscureText: isPassword && (_obscurePassword ?? true),
           keyboardType: keyboardType,
-          validator: validator,
+          autovalidateMode: disallowSpaces
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
+          validator: (value) {
+            if (disallowSpaces && (value ?? '').contains(RegExp(r'\s'))) {
+              return 'El correo no puede tener espacios';
+            }
+            return validator?.call(value);
+          },
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
