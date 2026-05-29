@@ -145,8 +145,13 @@ class _ConViveAppState extends State<ConViveApp> {
     final isLoginCallback = host == 'login-callback'
         || path.contains('login-callback');
 
+    // 📧 Email confirmation: type=signup, type=email_change, o host=email-confirmed
+    // IMPORTANTE: Esta detección es DISTINTA de Google OAuth (login-callback)
+    // para evitar que los usuarios de email confirmation terminen en /complete-profile
+    // desde el navegador.
     final isEmailConfirmed = host == 'email-confirmed'
         || path.contains('email-confirmed')
+        || fragment.contains('email-confirmed')
         || type == 'signup'
         || type == 'email_change';
 
@@ -204,9 +209,11 @@ class _ConViveAppState extends State<ConViveApp> {
       return;
     }
 
-    // ── CASO 3: Confirmación de email (auth-callback con type=signup) ──────
-    if (isAuthCallback || isEmailConfirmed) {
-      debugPrint('📧 [DeepLink] → Email confirmation callback');
+    // ── CASO 3: Confirmación de email (auth-callback con type=signup O directo a email-confirmed) ──
+    // IMPORTANTE: Si es email-confirmed, SIEMPRE navegar a /email-confirmed SIN parámetros adicionales.
+    // Esto garantiza que nunca se abre /complete-profile desde el navegador web.
+    if (isEmailConfirmed) {
+      debugPrint('📧 [DeepLink] → Email confirmation');
       // Guardamos el code/token globalmente para que EmailConfirmedRedirectScreen lo consuma
       // sin depender de Uri.base (que en Android es localhost)
       if (code.isNotEmpty) {
@@ -218,6 +225,23 @@ class _ConViveAppState extends State<ConViveApp> {
         _router.go('/email-confirmed');
       } else {
         // Sin code: puede que Supabase ya confirmó server-side
+        _router.go('/email-confirmed');
+      }
+      return;
+    }
+
+    // ── CASO 4: Auth callback que NO es email confirmation ────────────────
+    // (puede ser recovery/reset-password con type=recovery, pero eso debería haber sido capturado antes)
+    if (isAuthCallback) {
+      debugPrint('🔐 [DeepLink] → Auth callback (no es email confirmation)');
+      // Si llegamos aquí y no fue recovery, probablemente sea un email confirmation
+      // que no fue detectado correctamente. Redirigir a /email-confirmed por seguridad.
+      if (type == 'signup' || type == 'email_change') {
+        EmailConfirmedRedirectScreen.pendingCode = code.isNotEmpty ? code : token;
+        _router.go('/email-confirmed');
+      } else {
+        // Si no sabemos qué es, asumir que no es email confirmation
+        // y dejar que se maneje en el router redirect
         _router.go('/email-confirmed');
       }
       return;
@@ -243,7 +267,37 @@ class _ConViveAppState extends State<ConViveApp> {
           return '/reset-password?error_code=otp_expired';
         }
         
-        // Si es una ruta de recuperación de contraseña, forgot password o email-confirmed, permitir (sin redirigir)
+        // 🚨 PRIORIDAD 1: Si es /email-confirmed, PERMITIR INCONDICIONALMENTE
+        // SIN verificar perfil, sin redirigir, nada.
+        // Esta es una ruta de confirmación que NO debe ser interceptada.
+        if (location == '/email-confirmed' || 
+            location.startsWith('/email-confirmed?') ||
+            location.startsWith('/email-confirmed#')) {
+          return null;
+        }
+
+        // 🚨 EMERGENCIA: Si viene a /complete-profile pero tiene un 'code' (parámetro de email)
+        // y NO tiene userId válido, redirigir a /email-confirmed.
+        // Esto maneja el caso donde Supabase Auth está cacheado con un redirectTo incorrecto.
+        if (location.startsWith('/complete-profile')) {
+          final code = state.uri.queryParameters['code'] ?? '';
+          final userId = state.uri.queryParameters['userId'] ?? '';
+          
+          // Si hay code pero no hay userId = es un intento de email confirmation
+          if (code.isNotEmpty && userId.isEmpty) {
+            debugPrint('🚨 EMERGENCIA: /complete-profile con code de email → redirigiendo a /email-confirmed');
+            return '/email-confirmed?code=${Uri.encodeComponent(code)}';
+          }
+          
+          // Si hay userId = es un flujo legítimo de complete-profile
+          // Proteger: requiere sesión
+          if (session == null) {
+            return '/login';
+          }
+          return null;
+        }
+        
+        // Si es una ruta de recuperación de contraseña, forgot password, permitir (sin redirigir)
         if (location == '/auth-callback' ||
             location == '/suspended' ||
             location == '/reset-password' ||
@@ -252,9 +306,7 @@ class _ConViveAppState extends State<ConViveApp> {
             location == '/forgot-password' ||
             location.startsWith('/forgot-password?') ||
             location == '/email-verification' ||
-            location.startsWith('/email-verification?') ||
-            location == '/email-confirmed' ||
-            location.startsWith('/complete-profile')) {
+            location.startsWith('/email-verification?')) {
           return null;
         }
         
@@ -263,8 +315,6 @@ class _ConViveAppState extends State<ConViveApp> {
           if (session == null) {
             return '/login';
           }
-          // Aquí podrías agregar lógica adicional para verificar el rol
-          // Por ahora, permitir si hay sesión
           return null;
         }
         
@@ -712,8 +762,7 @@ class _EmailConfirmedRedirectScreenState
             _message = 'El enlace expiró. Solicita uno nuevo.';
           });
         }
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) context.go('/login');
+        // No redirigir automáticamente - el usuario debe tomar una acción manualmente
         return;
       }
 
@@ -726,8 +775,7 @@ class _EmailConfirmedRedirectScreenState
             _message = '¡Tu correo ha sido confirmado!';
           });
         }
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) context.go('/login');
+        // No redirigir automáticamente - el usuario debe volver a la app manualmente
         return;
       }
 
@@ -785,22 +833,23 @@ class _EmailConfirmedRedirectScreenState
         setState(() {
           _emailConfirmed = true;
           _message = sessionCreated
-              ? '¡Correo confirmado! Entrando a tu cuenta...'
+              ? '¡Correo confirmado! Ya puedes iniciar sesión.'
               : '¡Correo confirmado! Inicia sesión para continuar.';
         });
       }
 
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (!mounted) return;
-
-      if (sessionCreated) {
-        print('🚀 Sesión activa, redirigiendo a /home');
-        context.go('/home');
-      } else {
-        print('🚀 Sin sesión, redirigiendo a /login');
-        context.go('/login');
-      }
+      // 🎯 IMPORTANTE: NO redirigir automáticamente a /home en el navegador
+      // porque el redirect guard enviará al usuario a /complete-profile
+      // si no tiene perfil, lo cual no es deseado en la web.
+      //
+      // El flujo correcto es:
+      // 1. Usuario abre el link → ve esta pantalla de éxito
+      // 2. Usuario vuelve manualmente a la app
+      // 3. En la app, cuando inicia sesión, el redirect guard lo lleva a /complete-profile si es necesario
+      //
+      // NO hacer: context.go('/home') o context.go('/login')
+      // porque eso dispara el redirect guard que envía a /complete-profile en la web
+      print('✅ Email confirmado correctamente. Usuario debe volver a la app para continuar.');
     } catch (e) {
       print('❌ Error en _confirmEmailAndRedirect: $e');
       // Aun con error, el email probablemente ya fue confirmado
@@ -810,8 +859,8 @@ class _EmailConfirmedRedirectScreenState
           _message = '¡Correo confirmado! Inicia sesión para continuar.';
         });
       }
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) context.go('/login');
+      // No redirigir automáticamente - dejar que el usuario decida volver a la app
+      print('✅ Email confirmado. Usuario debe volver a la app para completar registro.');
     }
   }
 
@@ -880,13 +929,28 @@ class _EmailConfirmedRedirectScreenState
                     strokeWidth: 3,
                   )
                 else
-                  const Text(
-                    'Te llevaremos a continuar en un momento.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6B7280),
-                    ),
+                  Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Tu email ha sido confirmado exitosamente.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Por favor, regresa a la app para completar tu registro.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CA3AF),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
