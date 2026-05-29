@@ -45,17 +45,25 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('🔵 [Google] Iniciando OAuth...');
       await SupabaseProvider.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // Web → redirige a la app en Firebase Hosting
-        // Móvil → redirige via deep link al esquema nativo
+        // Web → redirige directamente a la app en Firebase Hosting
+        // Android → usa deep link custom scheme para volver a la app
+        // IMPORTANTE: usar inAppWebView (Chrome Custom Tab) en Android
+        // para que el redirect al custom scheme sea capturado correctamente.
+        // externalApplication (Chrome) no puede redirigir a custom schemes.
         redirectTo: kIsWeb
             ? 'https://convive-app-6debf.web.app/home'
             : 'com.example.convive_://login-callback',
-        authScreenLaunchMode: LaunchMode.externalApplication,
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.inAppWebView, // ← Chrome Custom Tab en Android
       );
+      debugPrint('🔵 [Google] signInWithOAuth lanzado');
     } catch (e) {
       _error = e.toString();
+      debugPrint('❌ [Google] Error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -233,9 +241,11 @@ class AuthProvider extends ChangeNotifier {
       final authResponse = await SupabaseProvider.authService.signUp(
         email: email,
         password: password,
+        // Web → abre la página de confirmación en Firebase Hosting
+        // Android → deep link 'auth-callback' (distinto de login-callback para no confundir con Google OAuth)
         emailRedirectTo: kIsWeb
-            ? 'https://convive-app-6debf.web.app/#/email-confirmed' // Flutter Web
-            : 'com.example.convive://login-callback', // Mobile deep link
+            ? 'https://convive-app-6debf.web.app/#/email-confirmed'
+            : 'com.example.convive_://auth-callback',
         data: {
           'full_name': fullName,
           'role': role.name,
@@ -398,18 +408,24 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔄 Enviando email de recuperación a: $email');
-      
+      debugPrint('🔄 [Reset] Enviando email de recuperación a: $email');
+
+      // Web → hash routing de Flutter Web
+      // Android → deep link custom scheme que captura la app directamente
+      final redirectTo = kIsWeb
+          ? 'https://convive-app-6debf.web.app/#/reset-password'
+          : 'com.example.convive_://reset-password';
+
+      debugPrint('🔄 [Reset] redirectTo: $redirectTo');
+
       await SupabaseProvider.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: kIsWeb 
-          ? 'https://convive-app-6debf.web.app/#/reset-password' // Flutter Web hash routing
-          : 'com.example.convive://reset-password',              // Mobile deep link
+        redirectTo: redirectTo,
       );
 
-      print('✅ Email de recuperación enviado');
+      debugPrint('✅ [Reset] Email de recuperación enviado');
     } catch (e) {
-      print('❌ Error enviando email: $e');
+      debugPrint('❌ [Reset] Error enviando email: $e');
       _error = e.toString();
       rethrow;
     } finally {

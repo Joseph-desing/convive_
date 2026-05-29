@@ -77,98 +77,153 @@ class _ConViveAppState extends State<ConViveApp> {
 
   void _setupDeepLinkListener() {
     _appLinks = AppLinks();
-    
-    // Escuchar deep links cuando la app está abierta
+
+    // ── CASO COLD-START: app estaba cerrada y se abrió por deep link ──
+    // uriLinkStream NO emite el link inicial; hay que leerlo manualmente.
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) {
+        debugPrint('🔗 [DeepLink] Cold-start link: $uri');
+        _handleDeepLink(uri);
+      }
+    }).catchError((e) {
+      debugPrint('❌ [DeepLink] Error leyendo initialLink: $e');
+    });
+
+    // ── CASO HOT/WARM: app ya estaba abierta o en background ──
     _deepLinkSubscription = _appLinks.uriLinkStream.listen(
       (uri) {
-        print('🔗 Deep link recibido: $uri');
-        print('🔗 Scheme: ${uri.scheme}');
-        print('🔗 Host: ${uri.host}');
-        print('🔗 Path: ${uri.path}');
-        print('🔗 Query Parameters: ${uri.queryParameters}');
-        print('🔗 Fragment: ${uri.fragment}');
-
-        final host = uri.host;
-        final path = uri.path;
-
-        // ── CASO 1: Reset password con code (flujo PKCE de Supabase) ──
-        // URI: com.example.convive://reset-password?code=XXX
-        if (host == 'reset-password' ||
-            path.contains('reset-password') ||
-            uri.fragment.contains('reset-password') ||
-            uri.queryParameters['type'] == 'recovery') {
-          String code = uri.queryParameters['code'] ?? '';
-          String token = uri.queryParameters['token'] ?? '';
-          String email = uri.queryParameters['email'] ?? '';
-
-          // Fallback: buscar en fragment
-          if (code.isEmpty && token.isEmpty && uri.fragment.isNotEmpty) {
-            final fp = Uri.parse('http://x.com?${uri.fragment}').queryParameters;
-            code = fp['code'] ?? '';
-            token = fp['access_token'] ?? '';
-            email = fp['email'] ?? '';
-          }
-
-          print('📝 Code: $code | Token: $token | Email: $email');
-
-          if (code.isNotEmpty) {
-            _router.push('/reset-password?code=${Uri.encodeComponent(code)}&email=${Uri.encodeComponent(email)}');
-          } else if (token.isNotEmpty) {
-            _router.push('/reset-password?token=${Uri.encodeComponent(token)}&email=${Uri.encodeComponent(email)}');
-          }
-        }
-
-        // ── CASO 2: Google OAuth callback (com.example.convive://login-callback) ──
-        else if (host == 'login-callback' || path.contains('login-callback')) {
-          print('✅ Google OAuth callback recibido en móvil');
-          // Procesar el callback de Google: crear usuario si es necesario
-          // y detectar si es nuevo para redirigir a completar perfil
-          Future.microtask(() async {
-            // ignore: use_build_context_synchronously
-            final authProvider = _router.routerDelegate.navigatorKey
-                .currentContext
-                ?.read<AuthProvider>();
-            if (authProvider != null) {
-              await authProvider.handleGoogleCallback();
-              if (authProvider.isNewUser) {
-                final userId = authProvider.currentUser?.id ?? '';
-                final email = Uri.encodeComponent(authProvider.currentUser?.email ?? '');
-                _router.go('/complete-profile?userId=$userId&email=$email');
-              } else {
-                final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
-                _router.go(role == 'admin' ? '/admin' : '/home');
-              }
-            } else {
-              _router.go('/home');
-            }
-          });
-        }
-
-        // ── CASO 3: Auth callback legacy ──
-        else if (host == 'auth-callback' || path.contains('auth-callback')) {
-          String token = '';
-          String email = '';
-
-          if (uri.queryParameters.containsKey('token')) {
-            token = uri.queryParameters['token'] ?? '';
-            email = uri.queryParameters['email'] ?? '';
-          } else if (uri.fragment.isNotEmpty) {
-            final fp = Uri.parse('http://x.com?${uri.fragment}').queryParameters;
-            token = fp['access_token'] ?? '';
-            email = fp['email'] ?? '';
-          }
-
-          print('📝 Token: $token | Email: $email');
-
-          if (token.isNotEmpty) {
-            _router.push('/reset-password?token=${Uri.encodeComponent(token)}&email=${Uri.encodeComponent(email)}');
-          }
-        }
+        debugPrint('🔗 [DeepLink] Hot link recibido: $uri');
+        _handleDeepLink(uri);
       },
       onError: (err) {
-        print('❌ Error en deep link: $err');
+        debugPrint('❌ [DeepLink] Error en stream: $err');
       },
     );
+  }
+
+  /// Manejo centralizado de deep links. Soporta:
+  ///   com.example.convive_://reset-password?code=...
+  ///   com.example.convive_://auth-callback?code=...&type=recovery
+  ///   com.example.convive_://login-callback          (Google OAuth)
+  ///   com.example.convive_://email-confirmed?code=...
+  ///   https://convive-app-6debf.web.app/?code=...#/reset-password  (Web fallback)
+  void _handleDeepLink(Uri uri) {
+    debugPrint('🔍 [DeepLink] scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
+    debugPrint('🔍 [DeepLink] query=${uri.queryParameters} fragment=${uri.fragment}');
+
+    final host    = uri.host;
+    final path    = uri.path;
+    final fragment = uri.fragment;
+
+    // ── Extraer parámetros de query y/o fragment ──────────────────────────
+    // Supabase puede enviar el code antes del #  (?code=X#/ruta)
+    // o dentro del fragment (#access_token=X&type=recovery)
+    Map<String, String> fParams = {};
+    if (fragment.isNotEmpty) {
+      // El fragment puede ser "/reset-password" o "access_token=...&type=recovery"
+      final clean = fragment.startsWith('/') ? '' : fragment;
+      if (clean.contains('=')) {
+        fParams = Uri.splitQueryString(clean);
+      }
+    }
+
+    String code         = uri.queryParameters['code']         ?? fParams['code']         ?? '';
+    String token        = uri.queryParameters['access_token'] ?? fParams['access_token'] ?? '';
+    String type         = uri.queryParameters['type']         ?? fParams['type']         ?? '';
+    String email        = uri.queryParameters['email']        ?? fParams['email']        ?? '';
+    String errorCode    = uri.queryParameters['error_code']   ?? fParams['error_code']   ?? '';
+
+    // Inferir tipo por el host/path si no viene explícito
+    final isResetPath = host == 'reset-password'
+        || path.contains('reset-password')
+        || fragment.contains('reset-password')
+        || type == 'recovery';
+
+    final isAuthCallback = host == 'auth-callback'
+        || path.contains('auth-callback');
+
+    final isLoginCallback = host == 'login-callback'
+        || path.contains('login-callback');
+
+    final isEmailConfirmed = host == 'email-confirmed'
+        || path.contains('email-confirmed')
+        || type == 'signup'
+        || type == 'email_change';
+
+    debugPrint('🔍 [DeepLink] code=$code token=$token type=$type error=$errorCode');
+    debugPrint('🔍 [DeepLink] isReset=$isResetPath isAuth=$isAuthCallback isLogin=$isLoginCallback isEmail=$isEmailConfirmed');
+
+    // ── CASO: Error en el link ─────────────────────────────────────────────
+    if (errorCode.isNotEmpty) {
+      debugPrint('⚠️ [DeepLink] Error en link: $errorCode');
+      _router.go('/reset-password?error_code=${Uri.encodeComponent(errorCode)}');
+      return;
+    }
+
+    // ── CASO 1: Reset password ─────────────────────────────────────────────
+    if (isResetPath || (isAuthCallback && (type == 'recovery' || code.isNotEmpty && type.isEmpty))) {
+      if (code.isNotEmpty) {
+        debugPrint('🔑 [DeepLink] → /reset-password con code PKCE');
+        // Guardamos el code para que ResetPasswordScreen lo use
+        _router.push(
+          '/reset-password?code=${Uri.encodeComponent(code)}&email=${Uri.encodeComponent(email)}',
+        );
+      } else if (token.isNotEmpty) {
+        debugPrint('🔑 [DeepLink] → /reset-password con access_token');
+        _router.push(
+          '/reset-password?token=${Uri.encodeComponent(token)}&email=${Uri.encodeComponent(email)}',
+        );
+      } else {
+        debugPrint('⚠️ [DeepLink] Reset sin code ni token, navegando igual');
+        _router.push('/reset-password');
+      }
+      return;
+    }
+
+    // ── CASO 2: Google OAuth callback ─────────────────────────────────────
+    if (isLoginCallback) {
+      debugPrint('🔵 [DeepLink] → Google OAuth callback');
+      Future.microtask(() async {
+        final authProvider = _router.routerDelegate.navigatorKey
+            .currentContext
+            ?.read<AuthProvider>();
+        if (authProvider != null) {
+          await authProvider.handleGoogleCallback();
+          if (authProvider.isNewUser) {
+            final userId = authProvider.currentUser?.id ?? '';
+            final userEmail = Uri.encodeComponent(authProvider.currentUser?.email ?? '');
+            _router.go('/complete-profile?userId=$userId&email=$userEmail');
+          } else {
+            final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+            _router.go(role == 'admin' ? '/admin' : '/home');
+          }
+        } else {
+          _router.go('/home');
+        }
+      });
+      return;
+    }
+
+    // ── CASO 3: Confirmación de email (auth-callback con type=signup) ──────
+    if (isAuthCallback || isEmailConfirmed) {
+      debugPrint('📧 [DeepLink] → Email confirmation callback');
+      // Guardamos el code/token globalmente para que EmailConfirmedRedirectScreen lo consuma
+      // sin depender de Uri.base (que en Android es localhost)
+      if (code.isNotEmpty) {
+        EmailConfirmedRedirectScreen.pendingCode = code;
+        _router.go('/email-confirmed');
+      } else if (token.isNotEmpty) {
+        // Legacy: access_token directo (flujo implicit)
+        EmailConfirmedRedirectScreen.pendingCode = token;
+        _router.go('/email-confirmed');
+      } else {
+        // Sin code: puede que Supabase ya confirmó server-side
+        _router.go('/email-confirmed');
+      }
+      return;
+    }
+
+    debugPrint('⚠️ [DeepLink] Link no reconocido: $uri');
   }
 
   @override
@@ -613,6 +668,10 @@ class _ConViveAppState extends State<ConViveApp> {
 class EmailConfirmedRedirectScreen extends StatefulWidget {
   const EmailConfirmedRedirectScreen({Key? key}) : super(key: key);
 
+  /// El deep link handler guarda aquí el code antes de navegar a /email-confirmed.
+  /// Esto evita depender de Uri.base (que en Android siempre es localhost/).
+  static String? pendingCode;
+
   @override
   State<EmailConfirmedRedirectScreen> createState() =>
       _EmailConfirmedRedirectScreenState();
@@ -631,13 +690,20 @@ class _EmailConfirmedRedirectScreenState
 
   Future<void> _confirmEmailAndRedirect() async {
     try {
-      final errorCode = Uri.base.queryParameters['error_code'] ?? '';
-      final code = Uri.base.queryParameters['code'] ?? '';
+      // 1️⃣ Leer el code:
+      //    - En Android: viene del pendingCode que llenó _handleDeepLink()
+      //    - En Web:     viene de Uri.base.queryParameters (el navegador tiene la URL completa)
+      final String code = EmailConfirmedRedirectScreen.pendingCode
+          ?? Uri.base.queryParameters['code']
+          ?? '';
 
-      print('🔍 Email Confirmed Screen');
-      print('🔍 Error Code: $errorCode');
-      print('🔍 Code from URL: $code');
-      print('🔍 Full URI: ${Uri.base}');
+      // Limpiar el pendingCode para evitar que se reutilice
+      EmailConfirmedRedirectScreen.pendingCode = null;
+
+      final String errorCode = Uri.base.queryParameters['error_code'] ?? '';
+
+      debugPrint('🔍 [EmailConfirmed] code=$code errorCode=$errorCode');
+      debugPrint('🔍 [EmailConfirmed] Uri.base=${Uri.base}');
 
       if (errorCode.isNotEmpty) {
         if (mounted) {

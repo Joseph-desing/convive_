@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  bool? _obscurePassword = true;
 
   bool _acceptTerms = false;
   bool _isLoading = false; // Para evitar múltiples clics
@@ -361,13 +362,32 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          obscureText: isPassword,
+          obscureText: isPassword && (_obscurePassword ?? true),
           keyboardType: keyboardType,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
             prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20),
+            suffixIcon: isPassword
+                ? IconButton(
+                    tooltip: (_obscurePassword ?? true)
+                        ? 'Mostrar contraseña'
+                        : 'Ocultar contraseña',
+                    icon: Icon(
+                      (_obscurePassword ?? true)
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: AppColors.primary,
+                      size: 21,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !(_obscurePassword ?? true);
+                      });
+                    },
+                  )
+                : null,
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(

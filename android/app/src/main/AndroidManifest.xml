@@ -24,7 +24,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep Link: auth-callback -->
+            <!-- Deep Link: auth-callback (confirmación de cuenta) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
@@ -38,12 +38,19 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.example.convive_" android:host="reset-password"/>
             </intent-filter>
-            <!-- Deep Link: login-callback (Google OAuth + email confirmation) -->
+            <!-- Deep Link: login-callback (Google OAuth) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.example.convive_" android:host="login-callback"/>
+            </intent-filter>
+            <!-- Deep Link: email-confirmed (confirmación de correo electrónico) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.example.convive_" android:host="email-confirmed"/>
             </intent-filter>
         </activity>
         

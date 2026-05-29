@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 class SupabaseAuthService {
   final SupabaseClient _supabase;
@@ -47,14 +48,19 @@ class SupabaseAuthService {
   }
 
   /// Enviar email de recuperación de contraseña
+  /// NOTA: El flujo principal usa AuthProvider.resetPassword() que tiene kIsWeb.
+  /// Este método es helper alternativo, también usa kIsWeb correctamente.
   Future<void> resetPassword(String email) async {
+    final redirectTo = kIsWeb
+        ? 'https://convive-app-6debf.web.app/#/reset-password'
+        : 'com.example.convive_://reset-password';
     await _supabase.auth.resetPasswordForEmail(
       email,
-      redirectTo: 'https://convive-app-6debf.web.app/reset-password',
+      redirectTo: redirectTo,
     );
   }
 
-  /// Actualizar contraseña del usuario actual
+  /// Actualizar contraseña del usuario actual (debe haber sesión válida)
   Future<void> updatePassword(String newPassword) async {
     await _supabase.auth.updateUser(
       UserAttributes(password: newPassword),
