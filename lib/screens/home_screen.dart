@@ -130,6 +130,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return 'Usuario';
   }
 
+  String _getRoleLabel(String? roleName) {
+    switch (roleName) {
+      case 'admin':
+        return 'Administrador';
+      case 'non_student':
+        return 'Propietario';
+      case 'student':
+      default:
+        return 'Estudiante';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -355,12 +367,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 future: _getUserNameFuture(),
                 builder: (context, snapshot) {
                   final displayName = snapshot.data ?? widget.userName;
-                  return Text(
-                    'Hola, $displayName',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                  final roleName =
+                      context.watch<AuthProvider>().currentUser?.role.name;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hola, $displayName',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _getRoleLabel(roleName),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
