@@ -1298,11 +1298,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   List<Map<String, dynamic>> _filterUsers(List<Map<String, dynamic>> users) {
+    final visibleUsers = users
+        .where((user) => (user['role']?.toString().toLowerCase() ?? '') != 'admin')
+        .toList();
+
     if (_searchController.text.isEmpty) {
-      return users;
+      return visibleUsers;
     }
     final query = _searchController.text.toLowerCase();
-    return users
+    return visibleUsers
         .where((user) =>
             (user['email']?.toLowerCase().contains(query) ?? false) ||
             (user['profiles'] is List &&

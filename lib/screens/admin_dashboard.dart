@@ -229,9 +229,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             // Departamentos
             _buildStatCard(
-              title: 'Departamentos',
+              title: 'Departamentos ',
               value: '${stats['properties']?['total'] ?? 0}',
-              subtitle: 'Publicaciones',
+              subtitle: 'Publicados',
               icon: FontAwesomeIcons.building,
               color: Colors.orange,
             ),
@@ -239,7 +239,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             _buildStatCard(
               title: 'Roomies',
               value: '${stats['roommateSearches']?['total'] ?? 0}',
-              subtitle: 'Búsquedas activas',
+              subtitle: 'Activos',
               icon: FontAwesomeIcons.handshake,
               color: Colors.purple,
             ),
@@ -247,7 +247,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   _buildStatCard(
                     title: 'Quejas',
                     value: '${stats['feedback']?['total'] ?? 0}',
-                    subtitle: 'Total',
+                    subtitle: 'Pendientes',
               icon: FontAwesomeIcons.comments,
               color: Colors.red,
             ),
