@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/colors.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -13,6 +12,9 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const selectedColor = Color(0xFFE91E63);
+    final unselectedColor = Colors.grey.shade600;
+
     return SafeArea(
       left: true,
       right: true,
@@ -21,43 +23,53 @@ class CustomBottomNavBar extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -3),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildNavItem(
                 icon: Icons.home_rounded,
                 label: 'Inicio',
                 index: 0,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
               ),
               _buildNavItem(
                 icon: Icons.favorite_rounded,
                 label: 'Matches',
                 index: 1,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
               ),
               _buildNavItem(
                 icon: Icons.error_outline,
                 label: 'Quejas',
                 index: 2,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
               ),
               _buildNavItem(
                 icon: Icons.smart_toy_rounded,
                 label: 'Chatbot',
                 index: 3,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
               ),
               _buildNavItem(
                 icon: Icons.person_rounded,
                 label: 'Perfil',
                 index: 4,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
               ),
             ],
           ),
@@ -70,62 +82,44 @@ class CustomBottomNavBar extends StatelessWidget {
     required IconData icon,
     required String label,
     required int index,
+    required Color selectedColor,
+    required Color unselectedColor,
   }) {
     final isSelected = currentIndex == index;
 
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 18 : 12,
-          vertical: isSelected ? 10 : 8,
-        ),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? null
-              : null,
-          color: isSelected ? Colors.pink.shade600 : Colors.transparent,
-          borderRadius: BorderRadius.circular(isSelected ? 20 : 16),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.pink.withOpacity(0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedScale(
-              scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 300),
-              child: Icon(
+    return Expanded(
+      child: InkWell(
+        onTap: () => onTap(index),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.grey.shade700,
-                size: isSelected ? 28 : 24,
+                color: isSelected ? selectedColor : unselectedColor,
+                size: 23,
               ),
-            ),
-            const SizedBox(height: 6),
-            AnimatedOpacity(
-              opacity: isSelected ? 1.0 : 0.8,
-              duration: const Duration(milliseconds: 300),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: isSelected ? 12 : 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? Colors.white : Colors.grey.shade700,
-                  letterSpacing: isSelected ? 0.3 : 0,
+              const SizedBox(height: 3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: isSelected ? selectedColor : unselectedColor,
+                    letterSpacing: 0,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
