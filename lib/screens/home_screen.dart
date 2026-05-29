@@ -36,7 +36,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late int _currentIndex;
   int _currentCardIndex = 0;
   int _currentRoommateCardIndex = 0;
@@ -49,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final Map<String, List<String>> _propertyImagesCache = {};
   final Map<String, List<String>> _roommateImagesCache = {};
   TabController? _tabController;
+  // Evita recargas dobles en menos de 3 segundos
+  DateTime? _lastLoadTime;
 
   // Overlay de acción (estrella / corazón)
   bool _overlayVisible = false;
@@ -75,8 +78,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController?.dispose();
     super.dispose();
+  }
+
+  /// Detecta cuando la app vuelve al primer plano (desde tareas recientes, etc.)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 [Home] App reanudada — refrescando datos...');
+      _refreshData();
+    }
   }
 
   Future<String> _getUserNameFuture() async {
@@ -145,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // ← lifecycle observer
     _currentIndex = widget.initialIndex;
     _loadUserProfile().then((_) {
       _loadData();
@@ -154,8 +168,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notificationsProvider = context.read<NotificationsProvider>();
       notificationsProvider.loadNotifications();
-      print('📬 Cargando notificaciones en HomeScreen...');
+      debugPrint('📬 [Home] Cargando notificaciones...');
     });
+  }
+
+  /// Refresca los datos de Inicio respetando un intervalo mínimo de 3 s
+  /// para evitar recargas redundantes al navegar rápidamente.
+  Future<void> _refreshData({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force &&
+        _lastLoadTime != null &&
+        now.difference(_lastLoadTime!) < const Duration(seconds: 3)) {
+      debugPrint('⏱️ [Home] Refresco ignorado — demasiado pronto');
+      return;
+    }
+    // Limpia caché e índices para que la pila de tarjetas se reinicie
+    _profileCache.clear();
+    _habitsCache.clear();
+    _propertyImagesCache.clear();
+    _roommateImagesCache.clear();
+    _currentCardIndex = 0;
+    _currentRoommateCardIndex = 0;
+    await _loadData();
   }
 
   Future<void> _loadUserProfile() async {
@@ -199,16 +233,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Provider.of<PropertyProvider>(context, listen: false);
       final roommateProvider =
           Provider.of<RoommateSearchProvider>(context, listen: false);
-      final currentUserId = SupabaseProvider.client.auth.currentUser?.id;
+
+      // Doble fallback para obtener el userId del usuario actual:
+      // 1️⃣ AuthProvider (puede estar aún inicializando al llegar a Home)
+      // 2️⃣ Supabase client directamente (más confiable en initState)
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUserId = (authProvider.currentUser?.id ?? '').isNotEmpty
+          ? authProvider.currentUser!.id
+          : SupabaseProvider.client.auth.currentUser?.id;
+
+      debugPrint('🏠 [Home] Cargando datos — currentUserId: $currentUserId');
 
       await Future.wait([
+        // El neq en Supabase ya excluye las publicaciones propias:
+        // getProperties usa .neq('owner_id', excludeUserId)
+        // fetchRoommateSearches usa .neq('user_id', excludeUserId)
         propertyProvider.loadProperties(excludeUserId: currentUserId),
         roommateProvider.fetchRoommateSearches(excludeUserId: currentUserId),
       ]);
 
+      // ── Filtro de seguridad en memoria (segunda línea de defensa) ─────────
+      // Si currentUserId era null cuando se llamó (condición de carrera),
+      // el neq de Supabase no se aplicó. Filtramos aquí en memoria.
+      List<Property> safeProperties = propertyProvider.properties;
+      List<RoommateSearch> safeSearches = roommateProvider.searches;
+
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        final beforeProps = safeProperties.length;
+        final beforeSearches = safeSearches.length;
+
+        safeProperties = safeProperties
+            .where((p) => p.ownerId != currentUserId)
+            .toList();
+        safeSearches = safeSearches
+            .where((s) => s.userId != currentUserId)
+            .toList();
+
+        final removedProps = beforeProps - safeProperties.length;
+        final removedSearches = beforeSearches - safeSearches.length;
+        if (removedProps > 0 || removedSearches > 0) {
+          debugPrint(
+              '🔒 [Home] Filtro seg.: removidas $removedProps props y $removedSearches búsquedas propias del usuario');
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
       final ownerIds = <String>{
-        ...propertyProvider.properties.map((p) => p.ownerId),
-        ...roommateProvider.searches.map((s) => s.userId),
+        ...safeProperties.map((p) => p.ownerId),
+        ...safeSearches.map((s) => s.userId),
       }..removeWhere((id) => id.isEmpty);
 
       // Agregar usuario actual para calcular compatibilidad
@@ -218,18 +290,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       await _preloadProfiles(ownerIds);
       await _preloadHabits(ownerIds);
-      await _preloadPropertyImages(propertyProvider.properties);
-      await _preloadRoommateImages(roommateProvider.searches);
+      await _preloadPropertyImages(safeProperties);
+      await _preloadRoommateImages(safeSearches);
 
       setState(() {
-        _properties = propertyProvider.properties;
-        _roommateSearches = roommateProvider.searches;
+        _properties = safeProperties;
+        _roommateSearches = safeSearches;
         _isLoading = false;
-        print(
-            '📊 Datos cargados: ${_properties.length} propiedades, ${_roommateSearches.length} búsquedas roommate');
+        _lastLoadTime = DateTime.now(); // ← registrar momento de carga
+        debugPrint(
+            '📊 [Home] Datos cargados: ${_properties.length} propiedades, ${_roommateSearches.length} búsquedas roommate');
       });
     } catch (e) {
-      print('Error cargando datos: $e');
+      debugPrint('❌ [Home] Error cargando datos: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -323,6 +396,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (index == 3) {
                 context.push('/chatbot');
                 return;
+              }
+              // Al volver al tab Inicio (0) desde otro tab, refrescamos datos
+              if (index == 0 && _currentIndex != 0) {
+                _refreshData();
               }
               setState(() => _currentIndex = index);
             },
@@ -505,46 +582,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _initializeTabController();
 
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.apartment, size: 20),
-                  const SizedBox(width: 8),
-                  Text('Departamentos (${_properties.length})'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.people_outline, size: 20),
-                  const SizedBox(width: 8),
-                  Text('Compañero/a (${_roommateSearches.length})'),
-                ],
-              ),
-            ),
-          ],
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-        ),
-        Expanded(
-          child: TabBarView(
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => _refreshData(force: true),
+      child: Column(
+        children: [
+          TabBar(
             controller: _tabController,
-            children: [
-              _buildPropertiesTab(),
-              _buildRoommateSearchesTab(),
+            tabs: [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.apartment, size: 20),
+                    const SizedBox(width: 8),
+                    Text('Departamentos (${_properties.length})'),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.people_outline, size: 20),
+                    const SizedBox(width: 8),
+                    Text('Compañero/a (${_roommateSearches.length})'),
+                  ],
+                ),
+              ),
             ],
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
           ),
-        ),
-      ],
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPropertiesTab(),
+                _buildRoommateSearchesTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
