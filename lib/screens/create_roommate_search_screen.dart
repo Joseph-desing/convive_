@@ -322,7 +322,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             maxLines: 5,
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle('Presupuesto mensual'),
+          _buildSectionTitle('Presupuesto para compartir arriendo'),
           _buildTextField(
             controller: _budgetController,
             hint: 'Ej: 450',
