@@ -57,6 +57,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   
   bool _isLoading = false;
   late final bool _isEdit;
+  static const bool _showRoleSelectorInEdit = false;
 
   @override
   void initState() {
@@ -292,7 +293,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   const SizedBox(height: 20),
                   
                   // ✅ NUEVO: Selector de tipo de usuario (solo en edición)
-                  if (_isEdit)
+                  if (_isEdit && _showRoleSelectorInEdit)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -635,22 +636,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            final date = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now().subtract(const Duration(days: 365 * 20)),
-              firstDate: DateTime(1950),
-              lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.primary,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
+            final date = await _showBirthDatePicker();
             if (date != null) {
               setState(() => _birthDate = date);
             }
@@ -681,6 +667,132 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<DateTime?> _showBirthDatePicker() {
+    final firstDate = DateTime(1950);
+    final lastDate = DateTime.now().subtract(const Duration(days: 365 * 18));
+    var selectedDate = _birthDate ?? DateTime(lastDate.year - 2, lastDate.month, lastDate.day);
+
+    if (selectedDate.isBefore(firstDate)) selectedDate = firstDate;
+    if (selectedDate.isAfter(lastDate)) selectedDate = lastDate;
+
+    return showDialog<DateTime>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Seleccionar fecha',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF6FA),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                      ),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            onSurface: AppColors.textPrimary,
+                          ),
+                          textButtonTheme: TextButtonThemeData(
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        child: CalendarDatePicker(
+                          initialDate: selectedDate,
+                          firstDate: firstDate,
+                          lastDate: lastDate,
+                          onDateChanged: (date) {
+                            setDialogState(() => selectedDate = date);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, selectedDate),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              'Aceptar',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                              side: BorderSide(color: Colors.grey.shade300),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
