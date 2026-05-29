@@ -186,6 +186,12 @@ class _ConViveAppState extends State<ConViveApp> {
     }
 
     // ── CASO 2: Google OAuth callback ─────────────────────────────────────
+    // IMPORTANTE: NO redirigir directamente a /complete-profile desde deep link.
+    // Dejar que el redirect guard maneje la lógica de perfil incompleto.
+    // Flujo correcto:
+    // 1. Google OAuth completa → va a /home
+    // 2. Redirect guard detecta: ¿usuario nuevo sin perfil? → va a /complete-profile
+    // 3. Usuario completa perfil dentro de la app
     if (isLoginCallback) {
       debugPrint('🔵 [DeepLink] → Google OAuth callback');
       Future.microtask(() async {
@@ -194,14 +200,10 @@ class _ConViveAppState extends State<ConViveApp> {
             ?.read<AuthProvider>();
         if (authProvider != null) {
           await authProvider.handleGoogleCallback();
-          if (authProvider.isNewUser) {
-            final userId = authProvider.currentUser?.id ?? '';
-            final userEmail = Uri.encodeComponent(authProvider.currentUser?.email ?? '');
-            _router.go('/complete-profile?userId=$userId&email=$userEmail');
-          } else {
-            final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
-            _router.go(role == 'admin' ? '/admin' : '/home');
-          }
+          // Siempre ir a home (o admin si es admin)
+          // El redirect guard se encargará de /complete-profile si es necesario
+          final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+          _router.go(role == 'admin' ? '/admin' : '/home');
         } else {
           _router.go('/home');
         }
