@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/colors.dart';
@@ -367,7 +368,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                          ],
                           validator: (value) {
+                            final email = value?.trim() ?? '';
+                            if ((value ?? '').contains(RegExp(r'\s'))) {
+                              return 'El correo no puede tener espacios';
+                            }
+                            final emailRegex = RegExp(
+                              r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                            );
+                            if (email.isNotEmpty && !emailRegex.hasMatch(email)) {
+                              return 'Por favor ingresa un email válido';
+                            }
                             if (value == null || value.isEmpty) {
                               return 'El email es requerido';
                             }
