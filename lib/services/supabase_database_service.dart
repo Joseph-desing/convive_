@@ -733,4 +733,90 @@ class SupabaseDatabaseService {
       rethrow;
     }
   }
+
+  // ==================== VALIDACIÓN PARA ELIMINAR CUENTA ====================
+  /// Verifica si un usuario puede eliminar su cuenta
+  /// Devuelve un mapa con:
+  /// - 'can_delete': bool → si puede eliminar la cuenta
+  /// - 'reasons': List<String> → razones por las que NO puede eliminar (si aplica)
+  Future<Map<String, dynamic>> canDeleteAccount(String userId) async {
+    final reasons = <String>[];
+
+    try {
+      // 1. Verificar propiedades publicadas
+      try {
+        final properties = await _supabase
+            .from('properties')
+            .select('id, status')
+            .eq('owner_id', userId);
+        
+        if ((properties as List).isNotEmpty) {
+          reasons.add('Tienes publicaciones de departamentos registradas.');
+          print('🚫 Usuario tiene ${(properties as List).length} propiedades');
+        }
+      } catch (e) {
+        print('⚠️ Error verificando propiedades: $e');
+      }
+
+      // 2. Verificar búsquedas de compañero
+      try {
+        final searches = await _supabase
+            .from('roommate_searches')
+            .select('id')
+            .eq('user_id', userId);
+        
+        if ((searches as List).isNotEmpty) {
+          reasons.add('Tienes búsquedas de compañero/a registradas.');
+          print('🚫 Usuario tiene ${(searches as List).length} búsquedas de roommate');
+        }
+      } catch (e) {
+        print('⚠️ Error verificando búsquedas de roommate: $e');
+      }
+
+      // 3. Verificar quejas/feedback (creadas O reportadas)
+      try {
+        final feedbacks = await _supabase
+            .from('feedback')
+            .select('id')
+            .or('user_id.eq.$userId,reported_user_id.eq.$userId');
+        
+        if ((feedbacks as List).isNotEmpty) {
+          reasons.add('Tienes quejas, reportes o feedback asociado.');
+          print('🚫 Usuario tiene ${(feedbacks as List).length} quejas/reportes');
+        }
+      } catch (e) {
+        print('⚠️ Error verificando feedback: $e');
+      }
+
+      // 4. Verificar matches activos
+      try {
+        final matches = await _supabase
+            .from('matches')
+            .select('id')
+            .or('user_a_id.eq.$userId,user_b_id.eq.$userId');
+        
+        if ((matches as List).isNotEmpty) {
+          reasons.add('Tienes matches o conversaciones activas.');
+          print('🚫 Usuario tiene ${(matches as List).length} matches');
+        }
+      } catch (e) {
+        print('⚠️ Error verificando matches: $e');
+      }
+
+      // 5. Verificar mensajes/chats (indirectamente a través de matches que ya se verificaron)
+      // Si tiene matches, tiene chats potenciales, por lo que ya está cubierto
+
+      return {
+        'can_delete': reasons.isEmpty,
+        'reasons': reasons,
+      };
+    } catch (e) {
+      print('❌ Error en canDeleteAccount: $e');
+      // En caso de error, ser conservador: no permitir eliminar
+      return {
+        'can_delete': false,
+        'reasons': ['Error al verificar la cuenta. Intenta más tarde.'],
+      };
+    }
+  }
 }
