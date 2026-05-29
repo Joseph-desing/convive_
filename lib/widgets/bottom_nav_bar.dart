@@ -13,7 +13,10 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const selectedColor = Color(0xFFE91E63);
-    final unselectedColor = Colors.grey.shade600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedColor = isDark ? const Color(0xFFB0B0B0) : Colors.grey.shade600;
+    final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF333333) : Colors.grey.shade200;
 
     return SafeArea(
       left: true,
@@ -22,11 +25,11 @@ class CustomBottomNavBar extends StatelessWidget {
       top: false,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: backgroundColor,
+          border: Border(top: BorderSide(color: borderColor)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
               blurRadius: 10,
               offset: const Offset(0, -3),
             ),

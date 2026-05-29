@@ -414,13 +414,16 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     );
   }
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: isDark 
+          ? const Color(0xFF1E1E1E).withOpacity(0.95)
+          : Colors.white.withOpacity(0.9),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -536,14 +539,15 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     // Log para debugging
     print('🎴 Renderizando match: usuario=$otherUserId, nombre=$name, tieneImagen=${imageUrl?.isNotEmpty ?? false}');
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -601,11 +605,18 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                         decoration: BoxDecoration(
                           gradient: AppColors.primaryGradient,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFF5F5F5)
+                              : Colors.white,
+                            width: 2,
+                          ),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.favorite,
-                          color: Colors.white,
+                          color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFF5F5F5)
+                            : Colors.white,
                           size: 14,
                         ),
                       ),
@@ -785,7 +796,12 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
                                     decoration: BoxDecoration(
                                       color: Colors.red.shade500,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                      border: Border.all(
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFF121212)
+                                          : Colors.white,
+                                        width: 2,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -827,6 +843,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
     required VoidCallback onTap,
     Color? borderColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -838,7 +855,7 @@ class _MatchesScreenState extends State<MatchesScreen> with TickerProviderStateM
           border: borderColor != null ? Border.all(color: borderColor) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),

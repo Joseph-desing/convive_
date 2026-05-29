@@ -680,11 +680,13 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF242424)
+                              : Colors.white.withOpacity(0.95),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
+                              color: ThemeHelper.overlayLight(context),
                               blurRadius: 12,
                             ),
                           ],
@@ -767,11 +769,13 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF242424)
+                              : Colors.white.withOpacity(0.95),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
+                              color: ThemeHelper.overlayLight(context),
                               blurRadius: 12,
                             ),
                           ],

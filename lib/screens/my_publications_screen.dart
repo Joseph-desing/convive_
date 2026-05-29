@@ -501,8 +501,10 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -691,10 +693,15 @@ class _PropertyCardState extends State<_PropertyCard> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.white.withOpacity(0.98),
-              ],
+              colors: Theme.of(context).brightness == Brightness.dark
+                ? [
+                    const Color(0xFF1E1E1E),
+                    const Color(0xFF1A1A1A),
+                  ]
+                : [
+                    Colors.white,
+                    Colors.white.withOpacity(0.98),
+                  ],
             ),
             border: Border.all(
               color: AppColors.primary.withOpacity(0.1),
@@ -1006,10 +1013,15 @@ class _SearchCardState extends State<_SearchCard> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.white.withOpacity(0.98),
-              ],
+              colors: Theme.of(context).brightness == Brightness.dark
+                ? [
+                    const Color(0xFF1E1E1E),
+                    const Color(0xFF1A1A1A),
+                  ]
+                : [
+                    Colors.white,
+                    Colors.white.withOpacity(0.98),
+                  ],
             ),
             border: Border.all(
               color: AppColors.secondary.withOpacity(0.1),

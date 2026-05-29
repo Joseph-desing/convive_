@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/chatbot_provider.dart';
 import '../utils/colors.dart';
+import '../utils/theme_helper.dart';
 import '../screens/map_location_picker.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -146,7 +147,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
           ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : Colors.white,
         elevation: 1,
         actions: [
           Tooltip(
@@ -193,12 +196,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  AppColors.primary.withOpacity(0.04),
-                  AppColors.secondary.withOpacity(0.03),
-                  Colors.grey.shade50,
-                ],
+                colors: Theme.of(context).brightness == Brightness.dark
+                  ? [
+                      const Color(0xFF121212),
+                      const Color(0xFF1E1E1E),
+                      const Color(0xFF242424),
+                      const Color(0xFF1A1A1A),
+                    ]
+                  : [
+                      Colors.white,
+                      AppColors.primary.withOpacity(0.04),
+                      AppColors.secondary.withOpacity(0.03),
+                      Colors.grey.shade50,
+                    ],
                 stops: const [0.0, 0.4, 0.7, 1.0],
               ),
             ),
@@ -235,7 +245,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFF5F5F5)
+                                    : Colors.black87,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -332,19 +344,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 vertical: hasMarkdown ? 18 : 16,
               ),
               decoration: BoxDecoration(
-                color: isUserMessage ? AppColors.primary : Colors.white,
+                color: isUserMessage 
+                  ? AppColors.primary 
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1E1E1E)
+                      : Colors.white),
                 boxShadow: [
                   BoxShadow(
                     color: isUserMessage
                         ? AppColors.primary.withOpacity(0.15)
-                        : Colors.black.withOpacity(0.06),
+                        : Colors.black.withOpacity(
+                            Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
                 ],
                 borderRadius: BorderRadius.circular(hasMarkdown ? 20 : 28),
                 border: !isUserMessage
-                    ? Border.all(color: Colors.grey.shade100, width: 1.2)
+                    ? Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF333333)
+                          : Colors.grey.shade100,
+                        width: 1.2)
                     : null,
               ),
               child: isUserMessage
@@ -381,7 +402,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         Flexible(
                           child: _buildFormattedContent(
                             message.content,
-                            baseColor: Colors.black87,
+                            baseColor: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFF5F5F5)
+                              : Colors.black87,
                           ),
                         ),
                       ],
@@ -412,7 +435,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       margin: EdgeInsets.symmetric(vertical: 14, horizontal: compact ? 0 : 2),
       padding: EdgeInsets.all(compact ? 14 : 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : Colors.white,
         border: Border.all(
           color: AppColors.primary.withOpacity(0.18),
           width: 1.2,
@@ -653,11 +678,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         12 + MediaQuery.of(context).viewInsets.bottom,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade100)),
+        color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF333333)
+              : Colors.grey.shade100,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(
+              Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),

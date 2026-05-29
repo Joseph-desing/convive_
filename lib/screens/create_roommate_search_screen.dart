@@ -185,9 +185,10 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   }
 
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
-      color: Colors.white.withOpacity(0.95),
+      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Column(
         children: [
           Row(
@@ -233,9 +234,10 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   }
 
   Widget _buildProgressIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
-      color: Colors.white.withOpacity(0.95),
+      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Column(
         children: [
           Row(
@@ -845,9 +847,10 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   }
 
   Widget _buildNavigationButtons() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      color: Colors.white.withOpacity(0.95),
+      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Row(
         children: [
           if (_tabController.index > 0)

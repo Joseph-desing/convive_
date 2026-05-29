@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/colors.dart';
+import '../utils/theme_helper.dart';
 import '../config/supabase_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/theme_provider.dart';
@@ -35,13 +36,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         elevation: 0,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[900]
-            : Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       ),
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.black
-          : Colors.white,
+      backgroundColor: ThemeHelper.background(context),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,11 +362,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               const SizedBox(height: 16),
               Container(
-                  padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3D8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFFFB84D)),
+                  color: isDark ? const Color(0xFF2A1F1F) : const Color(0xFFFFF3D8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF663D3D) : const Color(0xFFFFB84D),
+                    width: 1.5,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,17 +383,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: Icon(
                               Icons.circle,
                               size: 6,
-                              color: Colors.orange[700],
+                              color: isDark ? const Color(0xFFFF9800) : Colors.orange[700],
                             ),
                           ),
                           Expanded(
                             child: Text(
                               reason,
                               style: TextStyle(
-                                  fontSize: 13.5,
-                                  color: Colors.orange[900],
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
+                                fontSize: 13.5,
+                                color: isDark ? const Color(0xFFFFB84D) : Colors.orange[900],
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
                               ),
                             ),
                           ),
@@ -501,9 +501,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: ThemeHelper.error(context),
             ),
-            child: const Text('Eliminar cuenta'),
+            child: const Text('Eliminar cuenta', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

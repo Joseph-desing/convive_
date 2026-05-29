@@ -475,9 +475,11 @@ ${_complaintController.text}
                                         : null,
                                   ),
                                   child: (user['profile_image_url']?.toString() ?? '').isEmpty
-                                      ? const Icon(
+                                      ? Icon(
                                           Icons.person,
-                                          color: Colors.white,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                            ? const Color(0xFFF5F5F5)
+                                            : Colors.white,
                                           size: 20,
                                         )
                                       : null,
@@ -642,7 +644,9 @@ ${_complaintController.text}
                         ),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF242424)
+                        : Colors.white,
                     ),
                   ),
                   const SizedBox(height: 20),
