@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -53,6 +55,13 @@ class _HomeScreenState extends State<HomeScreen>
   // Evita recargas dobles en menos de 3 segundos
   DateTime? _lastLoadTime;
 
+  // ── Supabase Realtime ────────────────────────────────────────────────────
+  RealtimeChannel? _propertiesChannel;
+  RealtimeChannel? _roommateChannel;
+  // Debounce: espera 1.5 s tras el último evento antes de recargar
+  Timer? _realtimeDebounceTimer;
+  // ────────────────────────────────────────────────────────────────────────
+
   // Overlay de acción (estrella / corazón)
   bool _overlayVisible = false;
   IconData? _overlayIcon;
@@ -80,6 +89,9 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _tabController?.dispose();
+    _realtimeDebounceTimer?.cancel();
+    _propertiesChannel?.unsubscribe();
+    _roommateChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -161,7 +173,10 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.addObserver(this); // ← lifecycle observer
     _currentIndex = widget.initialIndex;
     _loadUserProfile().then((_) {
-      _loadData();
+      _loadData().then((_) {
+        // Inicia Realtime DESPUÉS de la primera carga para no duplicar
+        _startRealtimeSubscriptions();
+      });
     });
 
     // Inicializar notificaciones en tiempo real
@@ -169,6 +184,56 @@ class _HomeScreenState extends State<HomeScreen>
       final notificationsProvider = context.read<NotificationsProvider>();
       notificationsProvider.loadNotifications();
       debugPrint('📬 [Home] Cargando notificaciones...');
+    });
+  }
+
+  /// Suscripciones Supabase Realtime — escucha cambios en BD en vivo.
+  /// Usa debounce de 1.5 s para agrupar múltiples eventos seguidos.
+  void _startRealtimeSubscriptions() {
+    if (!mounted) return;
+
+    final client = SupabaseProvider.client;
+
+    // ── Canal: properties ────────────────────────────────────────────
+    _propertiesChannel = client
+        .channel('home_properties_channel')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'properties',
+          callback: (payload) {
+            debugPrint('📡 [Realtime] Cambio en properties: ${payload.eventType}');
+            _scheduleRealtimeRefresh();
+          },
+        )
+        .subscribe();
+
+    // ── Canal: roommate_searches ──────────────────────────────────────
+    _roommateChannel = client
+        .channel('home_roommate_channel')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'roommate_searches',
+          callback: (payload) {
+            debugPrint('📡 [Realtime] Cambio en roommate_searches: ${payload.eventType}');
+            _scheduleRealtimeRefresh();
+          },
+        )
+        .subscribe();
+
+    debugPrint('📡 [Realtime] Suscripciones activas para properties y roommate_searches');
+  }
+
+  /// Programa un refresh con debounce de 1.5 s.
+  /// Si llegan múltiples eventos seguidos, solo recarga una vez al final.
+  void _scheduleRealtimeRefresh() {
+    _realtimeDebounceTimer?.cancel();
+    _realtimeDebounceTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        debugPrint('🔄 [Realtime] Ejecutando refresh tras cambio en BD...');
+        _refreshData(force: true);
+      }
     });
   }
 
