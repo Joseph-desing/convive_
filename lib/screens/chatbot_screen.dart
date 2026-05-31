@@ -422,7 +422,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final rawScore = message.compatibilityScore ?? 0;
     final score = rawScore.clamp(0.0, 1.0).toDouble();
-    final scorePercent = (score * 100).round();
+    final scorePercent = _compatibilityPercent(message);
     final scoreColor = score >= 0.85
         ? AppColors.primary
         : score >= 0.70
@@ -975,6 +975,154 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   // ────────────────────────────────────────────────────────────────────────────
 
+  int _compatibilityPercent(ChatbotMessage message) {
+    final rawScore = message.compatibilityScore ?? 0;
+    if (rawScore <= 1) return (rawScore * 100).round();
+    return rawScore.round().clamp(0, 100).toInt();
+  }
+
+  List<String> _extractRecommendationDetails(ChatbotMessage message) {
+    final content = message.content
+        .replaceAll(RegExp(r'[*_`#]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final sentences = content
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((item) => item.trim())
+        .where((item) => item.length > 18)
+        .toList();
+    final isProperty = message.propertyLocation != null;
+    final keywords = isProperty
+        ? ['precio', 'presupuesto', 'ubic', 'habitaci', 'alicuota', 'servicio', 'amobl', 'mascota']
+        : ['respons', 'sue', 'visita', 'limpieza', 'ruido', 'fiesta', 'calmad', 'respet'];
+    final prioritized = sentences.where((sentence) {
+      final lower = sentence.toLowerCase();
+      return keywords.any(lower.contains);
+    }).toList();
+    return [...prioritized, ...sentences.where((s) => !prioritized.contains(s))]
+        .take(4)
+        .toList();
+  }
+
+  List<Widget> _buildQualityChips(ChatbotMessage message) {
+    final isProperty = message.propertyLocation != null;
+    final content = message.content.toLowerCase();
+    final chips = <MapEntry<IconData, String>>[];
+
+    void addIf(bool condition, IconData icon, String label) {
+      if (condition && !chips.any((chip) => chip.value == label)) {
+        chips.add(MapEntry(icon, label));
+      }
+    }
+
+    if (isProperty) {
+      addIf(content.contains('alicuota') && !content.contains('sin alicuota'), Icons.receipt_long_rounded, 'Incluye alícuota');
+      addIf(content.contains('amobl'), Icons.chair_rounded, 'Amoblado');
+      addIf(content.contains('servicio') || content.contains('suministro'), Icons.home_repair_service_rounded, 'Servicios');
+      addIf(content.contains('mascota'), Icons.pets_rounded, 'Mascotas');
+      addIf(content.contains('habitaci') || content.contains('dormitorio'), Icons.bed_rounded, 'Habitación');
+      addIf(message.propertyLocation != null || content.contains('ubic'), Icons.location_on_rounded, 'Ubicación');
+    } else {
+      addIf(content.contains('respons'), Icons.verified_user_rounded, 'Responsable');
+      addIf(content.contains('limpieza'), Icons.cleaning_services_rounded, 'Limpieza');
+      addIf(content.contains('sue'), Icons.bedtime_rounded, 'Sueño');
+      addIf(content.contains('visita'), Icons.group_rounded, 'Visitas');
+      addIf(content.contains('fiesta'), Icons.celebration_rounded, 'Fiestas');
+      addIf(content.contains('calmad') || content.contains('tranquil'), Icons.self_improvement_rounded, 'Tranquilo/a');
+      addIf(content.contains('respet'), Icons.handshake_rounded, 'Respetuoso/a');
+    }
+
+    if (chips.isEmpty) {
+      chips.addAll(isProperty
+          ? const [
+              MapEntry(Icons.home_rounded, 'Publicación recomendada'),
+              MapEntry(Icons.location_on_rounded, 'Ubicación revisada'),
+            ]
+          : const [
+              MapEntry(Icons.person_rounded, 'Perfil recomendado'),
+              MapEntry(Icons.favorite_rounded, 'Hábitos compatibles'),
+            ]);
+    }
+
+    return chips.take(6).map((chip) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.primary.withOpacity(0.18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(chip.key, size: 14, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Text(
+              chip.value,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildDetailsPanel(ChatbotMessage message) {
+    final isProperty = message.propertyLocation != null;
+    final details = _extractRecommendationDetails(message);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7FB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withOpacity(0.10)),
+      ),
+      child: details.isEmpty
+          ? _buildFormattedContent(
+              message.content,
+              baseColor: Colors.black87,
+              baseFontSize: 14,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: details.map((detail) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        isProperty
+                            ? Icons.home_rounded
+                            : Icons.check_circle_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          detail,
+                          style: const TextStyle(
+                            color: Color(0xFF374151),
+                            fontSize: 14,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+
   void _showUserDetails(BuildContext context, ChatbotMessage message) {
     showModalBottomSheet(
       context: context,
@@ -1022,20 +1170,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.favorite,
-                              size: 16, color: Colors.red),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${(message.compatibilityScore ?? 0).toStringAsFixed(0)}% Compatible',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.red,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.22),
                           ),
-                        ],
+                        ),
+                        child: Text(
+                          message.propertyLocation != null
+                              ? 'Departamento recomendado'
+                              : 'Roomie recomendado',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1043,15 +1197,23 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Detalles del Perfil',
-              style: TextStyle(
+            Text(
+              message.propertyLocation != null
+                  ? 'Detalles de la publicación'
+                  : 'Detalles del perfil',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
-            _buildFormattedContent(message.content, baseColor: Colors.black87),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _buildQualityChips(message),
+            ),
+            const SizedBox(height: 14),
+            _buildDetailsPanel(message),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
