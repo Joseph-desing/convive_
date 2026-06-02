@@ -33,13 +33,13 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
     super.initState();
     _cleanlinessLevel = widget.habits.cleanlinessLevel;
     _noiseTolerance = widget.habits.noiseTolerance;
-    _partyFrequency = widget.habits.partyFrequency;
+    _partyFrequency = widget.habits.partyFrequency.clamp(0, 7);
     _guestsTolerance = widget.habits.guestsTolerance;
     _timeAtHome = widget.habits.timeAtHome;
     _responsibilityLevel = widget.habits.responsibilityLevel;
     _petTolerance = widget.habits.petTolerance;
     _workMode = widget.habits.workMode;
-    
+
     // Convert sleep hours to TimeOfDay
     _sleepStart = TimeOfDay(hour: widget.habits.sleepStart, minute: 0);
     _sleepEnd = TimeOfDay(hour: widget.habits.sleepEnd, minute: 0);
@@ -58,7 +58,7 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
         {
           'cleanliness_level': _cleanlinessLevel,
           'noise_tolerance': _noiseTolerance,
-          'party_frequency': _partyFrequency,
+          'party_frequency': _partyFrequency.clamp(0, 7),
           'guests_tolerance': _guestsTolerance,
           'time_at_home': _timeAtHome,
           'responsibility_level': _responsibilityLevel,
@@ -133,7 +133,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                     'Nivel de limpieza',
                     Icons.cleaning_services_outlined,
                     _cleanlinessLevel,
-                    (value) => setState(() => _cleanlinessLevel = value.round()),
+                    (value) =>
+                        setState(() => _cleanlinessLevel = value.round()),
                   ),
                   const SizedBox(height: 16),
                   _buildSlider(
@@ -148,6 +149,7 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                     Icons.celebration_outlined,
                     _partyFrequency,
                     (value) => setState(() => _partyFrequency = value.round()),
+                    maxValue: 7,
                   ),
                   const SizedBox(height: 16),
                   _buildSlider(
@@ -168,7 +170,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                     'Nivel de responsabilidad',
                     Icons.verified_user_outlined,
                     _responsibilityLevel,
-                    (value) => setState(() => _responsibilityLevel = value.round()),
+                    (value) =>
+                        setState(() => _responsibilityLevel = value.round()),
                   ),
                   const SizedBox(height: 16),
                   _buildSlider(
@@ -293,8 +296,11 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
     String label,
     IconData icon,
     int value,
-    ValueChanged<double> onChanged,
-  ) {
+    ValueChanged<double> onChanged, {
+    int maxValue = 10,
+  }) {
+    final safeValue = value.clamp(0, maxValue);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -319,7 +325,7 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '$value/10',
+                '$safeValue/$maxValue',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -338,10 +344,10 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
             trackHeight: 4,
           ),
           child: Slider(
-            value: value.toDouble(),
+            value: safeValue.toDouble(),
             min: 0,
-            max: 10,
-            divisions: 10,
+            max: maxValue.toDouble(),
+            divisions: maxValue,
             onChanged: onChanged,
           ),
         ),
@@ -397,7 +403,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey[300]!),
                     borderRadius: BorderRadius.circular(8),
@@ -409,7 +416,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                         _formatTimeOfDay(_sleepStart),
                         style: const TextStyle(fontSize: 14),
                       ),
-                      Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
+                      Icon(Icons.access_time,
+                          size: 18, color: Colors.grey[600]),
                     ],
                   ),
                 ),
@@ -441,7 +449,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey[300]!),
                     borderRadius: BorderRadius.circular(8),
@@ -453,7 +462,8 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
                         _formatTimeOfDay(_sleepEnd),
                         style: const TextStyle(fontSize: 14),
                       ),
-                      Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
+                      Icon(Icons.access_time,
+                          size: 18, color: Colors.grey[600]),
                     ],
                   ),
                 ),
