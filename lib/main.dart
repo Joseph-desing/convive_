@@ -102,10 +102,10 @@ class _ConViveAppState extends State<ConViveApp> {
   }
 
   /// Manejo centralizado de deep links. Soporta:
-  ///   com.convive.app://reset-password?code=...
-  ///   com.convive.app://auth-callback?code=...&type=recovery
-  ///   com.convive.app://login-callback          (Google OAuth)
-  ///   com.convive.app://email-confirmed?code=...
+  ///   com.example.convive_://reset-password?code=...
+  ///   com.example.convive_://auth-callback?code=...&type=recovery
+  ///   com.example.convive_://login-callback          (Google OAuth)
+  ///   com.example.convive_://email-confirmed?code=...
   ///   https://convive-app-6debf.web.app/?code=...#/reset-password  (Web fallback)
   void _handleDeepLink(Uri uri) {
     debugPrint('🔍 [DeepLink] scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
@@ -157,6 +157,20 @@ class _ConViveAppState extends State<ConViveApp> {
 
     debugPrint('🔍 [DeepLink] code=$code token=$token type=$type error=$errorCode');
     debugPrint('🔍 [DeepLink] isReset=$isResetPath isAuth=$isAuthCallback isLogin=$isLoginCallback isEmail=$isEmailConfirmed');
+
+    // ── CASO 0: Volver al login desde reset-password web ──────────────────────
+    // La web reset-password redirige a com.example.convive_://login tras cambio exitoso.
+    if (host == 'login' && uri.scheme == 'com.example.convive_') {
+      debugPrint('🏠 [DeepLink] → Reset-password web completado, ir a /login');
+      Future.microtask(() async {
+        // Cerrar sesión de recuperación si existe (sesión temporal de Supabase)
+        try {
+          await SupabaseProvider.client.auth.signOut();
+        } catch (_) {}
+        _router.go('/login');
+      });
+      return;
+    }
 
     // ── CASO: Error en el link ─────────────────────────────────────────────
     if (errorCode.isNotEmpty) {

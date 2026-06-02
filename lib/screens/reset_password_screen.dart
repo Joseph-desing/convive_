@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../utils/colors.dart';
 import '../config/supabase_provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/deep_link_redirect.dart'
+    if (dart.library.html) '../utils/deep_link_redirect_web.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -116,23 +119,30 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         await SupabaseProvider.client.auth.signOut();
       }
       
-      // Usar el método normal del provider para cambiar la contraseña
-      
       print('✅ Contraseña actualizada exitosamente');
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Contraseña cambiada correctamente'),
+          content: Text('✅ Contraseña cambiada correctamente. Abriendo la app...'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ),
       );
 
-      // Volver al login después de 2 segundos
+      // Esperar que se vea el mensaje de éxito
       await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
+
+      if (!mounted) return;
+
+      if (kIsWeb) {
+        // En web: redirigir el navegador al deep link del APK.
+        // Android Chrome captura 'com.example.convive_://login' y abre la app
+        // si el APK tiene el intent-filter registrado para ese scheme.
+        redirectToDeepLink('com.example.convive_://login');
+      } else {
+        // En móvil (flujo directo sin pasar por web): ir al login internamente.
         context.go('/login');
       }
     } catch (e) {

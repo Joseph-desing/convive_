@@ -49,15 +49,14 @@ class AuthProvider extends ChangeNotifier {
       await SupabaseProvider.client.auth.signInWithOAuth(
         OAuthProvider.google,
         // Web → redirige directamente a la app en Firebase Hosting
-        // Android → usa deep link custom scheme para volver a la app
+        // Android → usa deep link custom scheme para volver al APK
         // IMPORTANTE: usar externalApplication (Chrome normal) en Android.
         // Chrome Custom Tab (inAppWebView) está sandboxeado y NO puede disparar
-        // intent-filters con custom scheme (com.convive.app://...).
-        // Chrome externo sí puede redirigir a custom schemes.
-        // SCHEME = applicationId (com.convive.app), NO el namespace (com.example.convive_)
+        // intent-filters con custom scheme.
+        // Chrome externo sí puede redirigir a custom schemes y Android captura el intent.
         redirectTo: kIsWeb
-            ? 'https://convive-app-6debf.web.app/home'
-            : 'com.convive.app://login-callback',
+            ? 'https://convive-app-6debf.web.app/#/login-callback'
+            : 'com.example.convive_://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication, // ← Chrome externo en Android
@@ -412,12 +411,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 [Reset] Enviando email de recuperación a: $email');
 
-      // Siempre usar la URL web para el redirectTo de reset password.
-      // Razón: el email de Supabase incluye un link https://supabase.co/auth/v1/verify
-      // que redirige al redirectTo. Gmail y otros clientes de correo en Android abren
-      // ese link en su navegador integrado, que NO puede abrir deep links custom scheme.
-      // La URL web ya funciona correctamente en navegador (web y Android).
-      // Para que el APK abra directamente la app se necesitaría App Links (assetlinks.json).
+      // Siempre usar la URL web para reset password.
+      // Flujo móvil → web → APK:
+      //   1. Link del email abre la WEB (funciona en cualquier cliente de correo)
+      //   2. Usuario cambia contraseña en la pantalla web
+      //   3. Tras éxito, la web redirige al APK con com.example.convive_://login
+      //   4. Android captura el deep link y abre la app en /login
       const redirectTo = 'https://convive-app-6debf.web.app/#/reset-password';
 
       debugPrint('🔄 [Reset] redirectTo: $redirectTo');
