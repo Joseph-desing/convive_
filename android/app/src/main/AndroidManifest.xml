@@ -29,28 +29,28 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.example.convive_" android:host="auth-callback"/>
+                <data android:scheme="com.convive.app" android:host="auth-callback"/>
             </intent-filter>
             <!-- Deep Link: reset-password -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.example.convive_" android:host="reset-password"/>
+                <data android:scheme="com.convive.app" android:host="reset-password"/>
             </intent-filter>
             <!-- Deep Link: login-callback (Google OAuth) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.example.convive_" android:host="login-callback"/>
+                <data android:scheme="com.convive.app" android:host="login-callback"/>
             </intent-filter>
             <!-- Deep Link: email-confirmed (confirmación de correo electrónico) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.example.convive_" android:host="email-confirmed"/>
+                <data android:scheme="com.convive.app" android:host="email-confirmed"/>
             </intent-filter>
         </activity>
         

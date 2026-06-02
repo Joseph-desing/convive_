@@ -50,15 +50,17 @@ class AuthProvider extends ChangeNotifier {
         OAuthProvider.google,
         // Web → redirige directamente a la app en Firebase Hosting
         // Android → usa deep link custom scheme para volver a la app
-        // IMPORTANTE: usar inAppWebView (Chrome Custom Tab) en Android
-        // para que el redirect al custom scheme sea capturado correctamente.
-        // externalApplication (Chrome) no puede redirigir a custom schemes.
+        // IMPORTANTE: usar externalApplication (Chrome normal) en Android.
+        // Chrome Custom Tab (inAppWebView) está sandboxeado y NO puede disparar
+        // intent-filters con custom scheme (com.convive.app://...).
+        // Chrome externo sí puede redirigir a custom schemes.
+        // SCHEME = applicationId (com.convive.app), NO el namespace (com.example.convive_)
         redirectTo: kIsWeb
             ? 'https://convive-app-6debf.web.app/home'
-            : 'com.example.convive_://login-callback',
+            : 'com.convive.app://login-callback',
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.inAppWebView, // ← Chrome Custom Tab en Android
+            : LaunchMode.externalApplication, // ← Chrome externo en Android
       );
       debugPrint('🔵 [Google] signInWithOAuth lanzado');
     } catch (e) {
@@ -410,11 +412,13 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 [Reset] Enviando email de recuperación a: $email');
 
-      // Web → hash routing de Flutter Web
-      // Android → deep link custom scheme que captura la app directamente
-      final redirectTo = kIsWeb
-          ? 'https://convive-app-6debf.web.app/#/reset-password'
-          : 'com.example.convive_://reset-password';
+      // Siempre usar la URL web para el redirectTo de reset password.
+      // Razón: el email de Supabase incluye un link https://supabase.co/auth/v1/verify
+      // que redirige al redirectTo. Gmail y otros clientes de correo en Android abren
+      // ese link en su navegador integrado, que NO puede abrir deep links custom scheme.
+      // La URL web ya funciona correctamente en navegador (web y Android).
+      // Para que el APK abra directamente la app se necesitaría App Links (assetlinks.json).
+      const redirectTo = 'https://convive-app-6debf.web.app/#/reset-password';
 
       debugPrint('🔄 [Reset] redirectTo: $redirectTo');
 

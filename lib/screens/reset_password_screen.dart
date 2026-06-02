@@ -9,11 +9,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ResetPasswordScreen extends StatefulWidget {
   final String resetToken;
   final String? email;
+  /// Cuando el deep link trae error_code (ej: otp_expired), se muestra un
+  /// mensaje claro en vez del formulario.
+  final String errorCode;
 
   const ResetPasswordScreen({
     Key? key,
     required this.resetToken,
     this.email,
+    this.errorCode = '',
   }) : super(key: key);
 
   @override
@@ -162,6 +166,128 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isTokenValid = widget.resetToken.isNotEmpty;
+    final hasError = widget.errorCode.isNotEmpty;
+
+    // Si viene con error_code (ej: otp_expired), mostrar pantalla de error dedicada
+    if (hasError) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios),
+            onPressed: () => context.go('/forgot-password'),
+            color: AppColors.primary,
+          ),
+          title: const Text(
+            'Enlace Expirado',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: AppColors.backgroundGradient,
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                          child: const Icon(
+                            Icons.timer_off_outlined,
+                            color: Colors.orange,
+                            size: 38,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Enlace expirado',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.orange,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'El enlace expiró o ya fue usado.\nSolicita uno nuevo desde \'Olvidé mi contraseña\'.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/forgot-password'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Solicitar nuevo enlace',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

@@ -102,10 +102,10 @@ class _ConViveAppState extends State<ConViveApp> {
   }
 
   /// Manejo centralizado de deep links. Soporta:
-  ///   com.example.convive_://reset-password?code=...
-  ///   com.example.convive_://auth-callback?code=...&type=recovery
-  ///   com.example.convive_://login-callback          (Google OAuth)
-  ///   com.example.convive_://email-confirmed?code=...
+  ///   com.convive.app://reset-password?code=...
+  ///   com.convive.app://auth-callback?code=...&type=recovery
+  ///   com.convive.app://login-callback          (Google OAuth)
+  ///   com.convive.app://email-confirmed?code=...
   ///   https://convive-app-6debf.web.app/?code=...#/reset-password  (Web fallback)
   void _handleDeepLink(Uri uri) {
     debugPrint('🔍 [DeepLink] scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
@@ -571,9 +571,11 @@ class _ConViveAppState extends State<ConViveApp> {
         GoRoute(
           path: '/reset-password',
           builder: (context, state) {
-            // Buscar parámetros en query (fallback)
-            String token = state.uri.queryParameters['code'] ?? '';  // Primero buscar 'code' (lo que envía Supabase)
-            
+            // Leer error_code primero — si viene, mostrar pantalla de error
+            final errorCode = state.uri.queryParameters['error_code'] ?? '';
+
+            // Buscar token/code en query params
+            String token = state.uri.queryParameters['code'] ?? ''; // Primero buscar 'code' (lo que envía Supabase)
             String email = state.uri.queryParameters['email'] ?? '';
             if (token.isEmpty) {
               token = Uri.base.queryParameters['code'] ?? '';
@@ -586,9 +588,9 @@ class _ConViveAppState extends State<ConViveApp> {
             if (token.startsWith('/')) {
               token = token.substring(1);
             }
-            
+
             if (token.isEmpty) {
-              token = state.uri.queryParameters['token'] ?? '';  // Fallback a 'token'
+              token = state.uri.queryParameters['token'] ?? ''; // Fallback a 'token'
             }
             if (token.isEmpty) {
               token = Uri.base.queryParameters['token'] ?? '';
@@ -597,15 +599,14 @@ class _ConViveAppState extends State<ConViveApp> {
             // Si no hay en query, buscar en fragment
             if (token.isEmpty && state.uri.fragment.isNotEmpty) {
               final fragmentParams = Uri.parse('http://example.com?${state.uri.fragment}').queryParameters;
-              token = fragmentParams['code'] ?? '';  // Buscar 'code' en fragment
-              
-              // Limpiar la barra inicial si existe
+              token = fragmentParams['code'] ?? ''; // Buscar 'code' en fragment
+
               if (token.startsWith('/')) {
                 token = token.substring(1);
               }
-              
+
               if (token.isEmpty) {
-                token = fragmentParams['access_token'] ?? '';  // Fallback a 'access_token'
+                token = fragmentParams['access_token'] ?? ''; // Fallback a 'access_token'
               }
               email = fragmentParams['email'] ?? '';
             }
@@ -613,10 +614,12 @@ class _ConViveAppState extends State<ConViveApp> {
             print('🔍 Reset Password Route');
             print('📝 Token/Code: $token');
             print('📧 Email: $email');
+            print('⚠️ Error Code: $errorCode');
 
             return ResetPasswordScreen(
               resetToken: token,
               email: email,
+              errorCode: errorCode,
             );
           },
         ),
