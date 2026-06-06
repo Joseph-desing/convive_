@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import '../utils/colors.dart';
+import '../utils/publication_text_validator.dart';
 import '../utils/pdf_picker.dart';
 import '../config/supabase_provider.dart';
 import '../models/index.dart';
@@ -24,18 +25,18 @@ class CreatePropertyScreen extends StatefulWidget {
 class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
-  
+
   // Datos básicos
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _addressController = TextEditingController();
-  
+
   // Ubicación
   double? _latitude;
   double? _longitude;
   String? _addressFromGeocoding;
-  
+
   // Comodidades
   final List<String> _selectedAmenities = [];
   final List<String> _availableAmenities = [
@@ -55,14 +56,14 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     'Terraza',
     'TV Cable',
   ];
-  
+
   // Detalles
   int _bedrooms = 1;
   int _bathrooms = 1;
   bool _isActive = false; // Empieza inactivo hasta que el admin lo apruebe
   bool _includeAlicuota = false;
   DateTime _availableFrom = DateTime.now();
-  
+
   // Imágenes
   final List<XFile> _imageFiles = [];
   final List<String> _existingImageUrls = [];
@@ -70,7 +71,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   final ImagePicker _picker = ImagePicker();
   PlatformFile? _verificationPdfFile;
   String? _existingVerificationPdfUrl;
-  
+
   bool _isLoading = false;
   bool _isLoadingImages = false;
 
@@ -114,13 +115,13 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : Colors.white,
+          ? const Color(0xFF121212)
+          : Colors.white,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF1E1E1E)
-          : Colors.white,
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -218,7 +219,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            
+
             _buildTextField(
               controller: _titleController,
               label: 'Título del anuncio',
@@ -228,26 +229,33 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Ingresa un título';
                 }
-                return null;
+                return validatePublicationText(
+                  value,
+                  fieldName: 'título',
+                );
               },
             ),
             const SizedBox(height: 20),
-            
+
             _buildTextField(
               controller: _descriptionController,
               label: 'Descripción',
-              hint: 'Describe tu propiedad, el barrio, qué estás buscando en un compañero/a...',
+              hint:
+                  'Describe tu propiedad, el barrio, qué estás buscando en un compañero/a...',
               icon: Icons.description_outlined,
               maxLines: 5,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Ingresa una descripción';
                 }
-                return null;
+                return validatePublicationText(
+                  value,
+                  fieldName: 'descripción',
+                );
               },
             ),
             const SizedBox(height: 20),
-            
+
             _buildTextField(
               controller: _priceController,
               label: 'Precio mensual (USD)',
@@ -259,11 +267,15 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Ingresa el precio';
                 }
+                final price = double.tryParse(value);
+                if (price == null || price <= 0) {
+                  return 'El precio debe ser mayor a 0';
+                }
                 return null;
               },
             ),
             const SizedBox(height: 20),
-            
+
             // Switch para ALICUOTA
             Container(
               padding: const EdgeInsets.all(16),
@@ -310,7 +322,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             _buildTextField(
               controller: _addressController,
               label: 'Dirección',
@@ -334,14 +346,15 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     textStyle: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            
+
             _buildDateField(),
           ],
         ),
@@ -372,7 +385,6 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
           Row(
             children: [
               Expanded(
@@ -395,10 +407,10 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             ],
           ),
           const SizedBox(height: 32),
-          
           Row(
             children: const [
-              Icon(Icons.checkroom_outlined, size: 20, color: AppColors.primary),
+              Icon(Icons.checkroom_outlined,
+                  size: 20, color: AppColors.primary),
               SizedBox(width: 8),
               Text(
                 'Comodidades',
@@ -411,7 +423,6 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -467,7 +478,6 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
           if (_isLoadingImages)
             const Center(child: CircularProgressIndicator())
           else if (_existingImageUrls.isEmpty && _imageFiles.isEmpty)
@@ -885,7 +895,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: validator,
         ),
@@ -899,7 +910,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       children: [
         Row(
           children: const [
-            Icon(Icons.calendar_today_outlined, size: 20, color: AppColors.primary),
+            Icon(Icons.calendar_today_outlined,
+                size: 20, color: AppColors.primary),
             SizedBox(width: 8),
             Text(
               'Disponible desde',
@@ -914,22 +926,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
-            final date = await showDatePicker(
-              context: context,
-              initialDate: _availableFrom,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.primary,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
+            final date = await _showConViveDatePicker();
             if (date != null) {
               setState(() => _availableFrom = date);
             }
@@ -950,13 +947,201 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18, color: AppColors.textSecondary),
+                const Icon(Icons.calendar_today,
+                    size: 18, color: AppColors.textSecondary),
               ],
             ),
           ),
         ),
       ],
     );
+  }
+
+  Future<DateTime?> _showConViveDatePicker() {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final lastDate = today.add(const Duration(days: 365));
+    var selectedDate = DateUtils.dateOnly(_availableFrom);
+    if (selectedDate.isBefore(today)) {
+      selectedDate = today;
+    }
+
+    return showDialog<DateTime>(
+      context: context,
+      builder: (context) {
+        var draftDate = selectedDate;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final compact = MediaQuery.sizeOf(context).width < 380;
+
+            return Dialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: compact ? 14 : 22,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(26),
+              ),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 18 : 22,
+                    20,
+                    compact ? 18 : 22,
+                    18,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Seleccionar fecha',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _formatPickerHeaderDate(draftDate),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: compact ? 27 : 30,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.edit_rounded,
+                            color: AppColors.textPrimary,
+                            size: compact ? 22 : 24,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.045),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.13),
+                          ),
+                        ),
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: AppColors.primary,
+                              onPrimary: Colors.white,
+                              onSurface: AppColors.textPrimary,
+                              surface: Colors.white,
+                            ),
+                            textButtonTheme: TextButtonThemeData(
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          child: CalendarDatePicker(
+                            initialDate: draftDate,
+                            firstDate: today,
+                            lastDate: lastDate,
+                            currentDate: today,
+                            onDateChanged: (date) {
+                              setDialogState(() {
+                                draftDate = date;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                backgroundColor:
+                                    AppColors.primary.withOpacity(0.08),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              child: const Text('Cancelar'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, draftDate),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              child: const Text('Aceptar'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatPickerHeaderDate(DateTime date) {
+    const weekdays = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+    const months = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic',
+    ];
+
+    final weekday = weekdays[date.weekday - 1];
+    final month = months[date.month - 1];
+    return '$weekday, ${date.day} $month';
   }
 
   Widget _buildCounter(
@@ -1018,9 +1203,7 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark
-          ? const Color(0xFF1E1E1E)
-          : Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
@@ -1135,7 +1318,8 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
               SizedBox(height: 14),
               Text('- Copia de cedula del propietario o responsable.'),
               Text('- Planilla de luz, agua o internet del inmueble.'),
-              Text('- Contrato, predio o documento que relacione la direccion.'),
+              Text(
+                  '- Contrato, predio o documento que relacione la direccion.'),
               Text('- Fotos o respaldo adicional si aplica.'),
             ],
           ),
@@ -1168,13 +1352,15 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
   Future<void> _pickOnMap() async {
     final result = await Navigator.push<Map<String, dynamic>?>(
       context,
-      MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
+      MaterialPageRoute(
+          builder: (_) =>
+              MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
     );
     if (result != null) {
       final lat = result['lat'] as double?;
       final lng = result['lng'] as double?;
       final address = result['address'] as String? ?? 'Ubicación desconocida';
-      
+
       if (lat != null && lng != null) {
         setState(() {
           _latitude = lat;
@@ -1186,7 +1372,77 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
     }
   }
 
+  String? _validateBasicPublicationText() {
+    final titleError = validatePublicationText(
+      _titleController.text,
+      fieldName: 'título',
+    );
+    if (titleError != null) return titleError;
+
+    final descriptionError = validatePublicationText(
+      _descriptionController.text,
+      fieldName: 'descripción',
+    );
+    if (descriptionError != null) return descriptionError;
+
+    return null;
+  }
+
+  void _showPublicationTextAlert(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(
+          Icons.edit_note_rounded,
+          color: AppColors.primary,
+          size: 42,
+        ),
+        title: const Text(
+          'Revisa la información',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleNext() async {
+    if (_currentStep == 0 &&
+        _titleController.text.trim().isNotEmpty &&
+        _descriptionController.text.trim().isNotEmpty) {
+      final textError = _validateBasicPublicationText();
+      if (textError != null) {
+        _showPublicationTextAlert(textError);
+        return;
+      }
+    }
+
     if (_currentStep < 2) {
       if (_currentStep == 0 && _formKey.currentState!.validate()) {
         setState(() => _currentStep++);
@@ -1222,12 +1478,11 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       return;
     }
 
-
     setState(() => _isLoading = true);
 
     try {
       final authUser = SupabaseProvider.authService.getCurrentUser();
-      
+
       if (authUser == null) {
         throw Exception('No hay usuario autenticado');
       }
@@ -1341,8 +1596,10 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              icon: const Icon(Icons.warning_amber_rounded,
+                  color: Colors.orange, size: 48),
               title: const Text(
                 'Límite de publicaciones alcanzado',
                 textAlign: TextAlign.center,
@@ -1365,10 +1622,12 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Entendido', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('Entendido',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -1389,12 +1648,12 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
 
   Future<void> _uploadPropertyImages(String propertyId) async {
     for (final file in _imageFiles) {
-      final url = await SupabaseProvider.storageService.uploadPropertyImageXFile(
+      final url =
+          await SupabaseProvider.storageService.uploadPropertyImageXFile(
         propertyId: propertyId,
         file: file,
       );
-      await SupabaseProvider.databaseService
-          .addPropertyImage(propertyId, url);
+      await SupabaseProvider.databaseService.addPropertyImage(propertyId, url);
     }
   }
 

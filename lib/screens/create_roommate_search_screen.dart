@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/colors.dart';
+import '../utils/publication_text_validator.dart';
 import '../utils/pdf_picker.dart';
 import '../models/roommate_search.dart';
 import '../providers/roommate_search_provider.dart';
@@ -39,7 +40,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
   bool _includeAlicuota = false;
   final List<String> _selectedHabits = [];
   final List<File> _selectedImages = [];
-  final List<String> _existingImageUrls = []; // Para imágenes existentes en edición
+  final List<String> _existingImageUrls =
+      []; // Para imágenes existentes en edición
   final List<String> _deletedImageUrls = []; // Para rastrear eliminadas
   PlatformFile? _verificationPdfFile;
   String? _existingVerificationPdfUrl;
@@ -84,21 +86,23 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       _longitude = search.longitude;
       _includeAlicuota = search.includeAlicuota;
       _existingVerificationPdfUrl = search.verificationPdfUrl;
-      
+
       // Convertir gender_preference de BD (male/female/any) a opciones del dropdown
       if (search.genderPreference != null) {
         _selectedGender = {
-          'male': 'Hombre',
-          'female': 'Mujer',
-          'any': 'Sin preferencia',
-        }[search.genderPreference!] ?? 'Sin preferencia';
+              'male': 'Hombre',
+              'female': 'Mujer',
+              'any': 'Sin preferencia',
+            }[search.genderPreference!] ??
+            'Sin preferencia';
       }
-      
+
       final normalizedHabits = search.habitsPreferences
-          .map((h) => h.isNotEmpty ? '${h[0].toUpperCase()}${h.substring(1)}' : h)
+          .map((h) =>
+              h.isNotEmpty ? '${h[0].toUpperCase()}${h.substring(1)}' : h)
           .toList();
       _selectedHabits.addAll(normalizedHabits);
-      
+
       // Cargar imágenes existentes desde BD
       _loadExistingImages(search.id ?? '');
       _loadExistingVerificationPdf(search.id ?? '');
@@ -119,21 +123,21 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       // Si no se puede refrescar, se conserva el dato recibido al abrir.
     }
   }
-  
+
   Future<void> _loadExistingImages(String searchId) async {
     if (searchId.isEmpty) {
       print('⚠️ searchId vacío, no se cargan imágenes');
       return;
     }
-    
+
     try {
       print('🔍 Intentando cargar imágenes para búsqueda: $searchId');
       final urls = await SupabaseProvider.databaseService
           .getRoommateSearchImages(searchId);
-      
+
       // Copia defensiva para evitar dartx_get en Flutter Web
       final urlsCopy = List<String>.from(urls);
-      
+
       setState(() {
         _existingImageUrls.addAll(urlsCopy);
         print('🖼️ Imágenes cargadas para edición: ${urlsCopy.length}');
@@ -188,7 +192,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
-      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
+      color:
+          (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Column(
         children: [
           Row(
@@ -237,7 +242,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
-      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
+      color:
+          (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Column(
         children: [
           Row(
@@ -255,7 +261,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
               value: (_tabController.index + 1) / 3,
               minHeight: 4,
               backgroundColor: AppColors.borderColor,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
         ],
@@ -332,7 +339,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             suffixText: '\$',
           ),
           const SizedBox(height: 20),
-          
+
           // Switch para ALICUOTA
           Container(
             padding: const EdgeInsets.all(16),
@@ -395,7 +402,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   textStyle: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -487,7 +495,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           const SizedBox(height: 20),
           // Mostrar imágenes existentes (en modo edición)
           if (_existingImageUrls.isNotEmpty) ...[
-            _buildSectionTitle('Fotos existentes (${_existingImageUrls.length})'),
+            _buildSectionTitle(
+                'Fotos existentes (${_existingImageUrls.length})'),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -498,13 +507,15 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
               ),
               itemCount: _existingImageUrls.length,
               itemBuilder: (context, index) {
-                return _buildExistingPhotoItem(_existingImageUrls[index], index);
+                return _buildExistingPhotoItem(
+                    _existingImageUrls[index], index);
               },
             ),
             const SizedBox(height: 20),
           ],
           if (_selectedImages.isNotEmpty) ...[
-            _buildSectionTitle('Fotos seleccionadas (${_selectedImages.length})'),
+            _buildSectionTitle(
+                'Fotos seleccionadas (${_selectedImages.length})'),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -677,6 +688,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       ),
     );
   }
+
   Widget _buildPhotoUpload() {
     return GestureDetector(
       onTap: _pickImages,
@@ -850,7 +862,8 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
+      color:
+          (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
       child: Row(
         children: [
           if (_tabController.index > 0)
@@ -892,8 +905,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         strokeWidth: 2,
                       ),
                     )
@@ -962,7 +974,93 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     );
   }
 
+  String? _validateBasicPublicationText() {
+    final titleError = validatePublicationText(
+      _titleController.text,
+      fieldName: 'título',
+    );
+    if (titleError != null) return titleError;
+
+    final descriptionError = validatePublicationText(
+      _descriptionController.text,
+      fieldName: 'descripción',
+    );
+    if (descriptionError != null) return descriptionError;
+
+    return null;
+  }
+
+  String? _validateBudget() {
+    final budget = double.tryParse(_budgetController.text.trim());
+    if (budget == null || budget <= 0) {
+      return 'El presupuesto debe ser mayor a 0';
+    }
+    return null;
+  }
+
+  void _showPublicationTextAlert(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(
+          Icons.edit_note_rounded,
+          color: AppColors.primary,
+          size: 42,
+        ),
+        title: const Text(
+          'Revisa la información',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleNext() {
+    if (_tabController.index == 0 && _budgetController.text.trim().isNotEmpty) {
+      final budgetError = _validateBudget();
+      if (budgetError != null) {
+        _showSnackBar(budgetError);
+        return;
+      }
+    }
+
+    if (_tabController.index == 0 &&
+        _titleController.text.trim().isNotEmpty &&
+        _descriptionController.text.trim().isNotEmpty) {
+      final textError = _validateBasicPublicationText();
+      if (textError != null) {
+        _showPublicationTextAlert(textError);
+        return;
+      }
+    }
+
     if (_tabController.index < 2) {
       // Validar paso actual
       if (_tabController.index == 0) {
@@ -1012,6 +1110,18 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       return;
     }
 
+    final textError = _validateBasicPublicationText();
+    if (textError != null) {
+      _showPublicationTextAlert(textError);
+      return;
+    }
+
+    final budgetError = _validateBudget();
+    if (budgetError != null) {
+      _showSnackBar(budgetError);
+      return;
+    }
+
     if (_verificationPdfFile == null &&
         (_existingVerificationPdfUrl == null ||
             _existingVerificationPdfUrl!.isEmpty)) {
@@ -1030,10 +1140,11 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     final genderPref = _selectedGender == null
         ? null
         : {
-            'Hombre': 'male',
-            'Mujer': 'female',
-            'Sin preferencia': 'any',
-          }[_selectedGender!] ?? 'any';
+              'Hombre': 'male',
+              'Mujer': 'female',
+              'Sin preferencia': 'any',
+            }[_selectedGender!] ??
+            'any';
 
     // Subir imágenes a Supabase Storage
     final imageUrls = <String>[];
@@ -1044,12 +1155,12 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
           final file = _selectedImages[i];
           final fileName =
               'search_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}_$i';
-          
+
           print('⬆️ Subiendo imagen $i: $fileName');
-          
+
           // Convertir File a XFile para compatibilidad web
           final xfile = XFile(file.path);
-          
+
           final url = await SupabaseProvider.storageService
               .uploadRoommateSearchImageXFile(fileName, xfile);
           print('✅ URL generada: $url');
@@ -1094,30 +1205,30 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
             'budget': double.tryParse(_budgetController.text.trim()) ??
                 widget.search!.budget,
             'address': _addressController.text.trim(),
-              'gender_preference': genderPref,
-              'habits_preferences': habitsNormalized,
-              'include_alicuota': _includeAlicuota,
-              if (_latitude != null) 'latitude': _latitude,
-              if (_longitude != null) 'longitude': _longitude,
-              if (verificationPdfUrl != null)
-                'verification_pdf_url': verificationPdfUrl,
+            'gender_preference': genderPref,
+            'habits_preferences': habitsNormalized,
+            'include_alicuota': _includeAlicuota,
+            if (_latitude != null) 'latitude': _latitude,
+            if (_longitude != null) 'longitude': _longitude,
+            if (verificationPdfUrl != null)
+              'verification_pdf_url': verificationPdfUrl,
           },
         );
-        
+
         // Eliminar imágenes marcadas
         for (final deletedUrl in _deletedImageUrls) {
-          await SupabaseProvider.databaseService
-              .deleteRoommateSearchImageByUrl(widget.search!.id ?? '', deletedUrl);
+          await SupabaseProvider.databaseService.deleteRoommateSearchImageByUrl(
+              widget.search!.id ?? '', deletedUrl);
           print('🗑️ Imagen eliminada de BD: $deletedUrl');
         }
-        
+
         // Agregar nuevas imágenes
         for (final imageUrl in imageUrls) {
           await SupabaseProvider.databaseService
               .addRoommateSearchImage(widget.search!.id ?? '', imageUrl);
           print('➕ Nueva imagen agregada: $imageUrl');
         }
-        
+
         _showSnackBar('✅ Búsqueda actualizada');
       } else {
         final provider = context.read<RoommateSearchProvider>();
@@ -1176,13 +1287,15 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     // 🆕 Abrir selector de ubicación con dirección legible
     final result = await Navigator.push<Map<String, dynamic>?>(
       context,
-      MaterialPageRoute(builder: (_) => MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
+      MaterialPageRoute(
+          builder: (_) =>
+              MapLocationPicker(initialLat: _latitude, initialLng: _longitude)),
     );
     if (result != null) {
       final lat = result['lat'] as double?;
       final lng = result['lng'] as double?;
       final address = result['address'] as String? ?? 'Ubicación desconocida';
-      
+
       if (lat != null && lng != null) {
         setState(() {
           _latitude = lat;
@@ -1200,8 +1313,7 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 3),
-        backgroundColor:
-            message.startsWith('✅') ? Colors.green : Colors.orange,
+        backgroundColor: message.startsWith('✅') ? Colors.green : Colors.orange,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
@@ -1254,4 +1366,5 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
         ),
       ],
     );
-  }}
+  }
+}
