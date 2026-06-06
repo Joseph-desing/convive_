@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../models/property.dart';
 import '../models/roommate_search.dart';
+import '../models/user.dart' as convive_user;
 import '../providers/auth_provider.dart';
 import '../config/supabase_provider.dart';
 import 'create_property_screen.dart';
@@ -111,8 +112,8 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
 
     try {
       final userId = authProvider.currentUser!.id;
-      final properties = await SupabaseProvider.databaseService
-          .getUserProperties(userId);
+      final properties =
+          await SupabaseProvider.databaseService.getUserProperties(userId);
       final searches = await SupabaseProvider.databaseService
           .getUserRoommateSearches(userId);
 
@@ -125,6 +126,70 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
       print('Error cargando publicaciones: $e');
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Verifica si el usuario actual es estudiante y ya tiene al menos 1 propiedad.
+  bool get _isStudentAtPropertyLimit {
+    final user = context.read<AuthProvider>().currentUser;
+    if (user == null) return false;
+    return user.role == convive_user.UserRole.student && _properties.isNotEmpty;
+  }
+
+  /// Consulta fresca a Supabase para validar el límite antes de navegar.
+  Future<bool> _checkStudentPropertyLimitFresh() async {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+    if (user == null) return false;
+    if (user.role != convive_user.UserRole.student)
+      return false; // no es student → sin límite
+
+    try {
+      final freshProps =
+          await SupabaseProvider.databaseService.getUserProperties(user.id);
+      return freshProps.isNotEmpty; // true = at limit
+    } catch (_) {
+      // Si falla la consulta, usar los datos locales
+      return _properties.isNotEmpty;
+    }
+  }
+
+  void _showStudentLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: Colors.orange, size: 48),
+        title: const Text(
+          'No puedes publicar más departamentos',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Lo sentimos, como estudiante solo puedes publicar un departamento.\n\n'
+          'Para publicar más, comunícate con administración y solicita el cambio de rol a propietario.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Entendido',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteProperty(String propertyId) async {
@@ -334,84 +399,129 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
     );
   }
 
+  /// Banner de alerta para estudiantes que alcanzaron el límite de 1 propiedad.
+  Widget _buildStudentLimitBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.orange.withOpacity(0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              color: Colors.orange, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Como estudiante solo puedes publicar un departamento. '
+              'Si quieres publicar más departamentos, comunícate con '
+              'administración para cambiar tu rol a propietario.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.orange[900],
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPropertiesTab() {
     if (_properties.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.home_outlined,
-                size: 80,
-                color: AppColors.primary.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Aún no has publicado propiedades',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Comparte tu propiedad para alquilar',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => _showPublishMenu(context),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Publicar Propiedad'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
+      return Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.home_outlined,
+                    size: 80,
+                    color: AppColors.primary.withOpacity(0.7),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 24),
+                Text(
+                  'Aún no has publicado propiedades',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  'Comparte tu propiedad para alquilar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => _navigateToCreateProperty(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Publicar Propiedad'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
-        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
-        12,
-        MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
-        24,
-      ),
-      itemCount: _properties.length,
-      itemBuilder: (context, index) {
-        final property = _properties[index];
-        return _PropertyCard(
-          property: property,
-          onDelete: () => _showDeleteConfirmation(
-            context,
-            title: 'esta propiedad',
-            onConfirm: () => _deleteProperty(property.id),
+    return Column(
+      children: [
+        // Banner de alerta si es estudiante con propiedad existente
+        if (_isStudentAtPropertyLimit) _buildStudentLimitBanner(),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+              12,
+              MediaQuery.sizeOf(context).width < 360 ? 8 : 16,
+              24,
+            ),
+            itemCount: _properties.length,
+            itemBuilder: (context, index) {
+              final property = _properties[index];
+              return _PropertyCard(
+                property: property,
+                onDelete: () => _showDeleteConfirmation(
+                  context,
+                  title: 'esta propiedad',
+                  onConfirm: () => _deleteProperty(property.id),
+                ),
+                onEdit: () => _editProperty(property),
+                onToggleRented: () => _togglePropertyRented(property),
+              );
+            },
           ),
-          onEdit: () => _editProperty(property),
-          onToggleRented: () => _togglePropertyRented(property),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -495,6 +605,27 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
     );
   }
 
+  /// Navegar a crear propiedad con validación de límite para estudiantes.
+  Future<void> _navigateToCreateProperty() async {
+    // Consulta fresca al backend para verificar el límite
+    final atLimit = await _checkStudentPropertyLimitFresh();
+    if (!mounted) return;
+    if (atLimit) {
+      _showStudentLimitDialog();
+      return;
+    }
+
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreatePropertyScreen(),
+      ),
+    );
+    if (created == true && mounted) {
+      await _loadPublications();
+    }
+  }
+
   void _showPublishMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -503,8 +634,8 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
-            : Colors.white,
+              ? const Color(0xFF1E1E1E)
+              : Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -538,15 +669,7 @@ class _MyPublicationsScreenState extends State<MyPublicationsScreen>
               ),
               onTap: () async {
                 Navigator.pop(context);
-                final created = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreatePropertyScreen(),
-                  ),
-                );
-                if (created == true && mounted) {
-                  await _loadPublications();
-                }
+                await _navigateToCreateProperty();
               },
             ),
             const SizedBox(height: 12),
@@ -694,14 +817,14 @@ class _PropertyCardState extends State<_PropertyCard> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: Theme.of(context).brightness == Brightness.dark
-                ? [
-                    const Color(0xFF1E1E1E),
-                    const Color(0xFF1A1A1A),
-                  ]
-                : [
-                    Colors.white,
-                    Colors.white.withOpacity(0.98),
-                  ],
+                  ? [
+                      const Color(0xFF1E1E1E),
+                      const Color(0xFF1A1A1A),
+                    ]
+                  : [
+                      Colors.white,
+                      Colors.white.withOpacity(0.98),
+                    ],
             ),
             border: Border.all(
               color: AppColors.primary.withOpacity(0.1),
@@ -1014,14 +1137,14 @@ class _SearchCardState extends State<_SearchCard> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: Theme.of(context).brightness == Brightness.dark
-                ? [
-                    const Color(0xFF1E1E1E),
-                    const Color(0xFF1A1A1A),
-                  ]
-                : [
-                    Colors.white,
-                    Colors.white.withOpacity(0.98),
-                  ],
+                  ? [
+                      const Color(0xFF1E1E1E),
+                      const Color(0xFF1A1A1A),
+                    ]
+                  : [
+                      Colors.white,
+                      Colors.white.withOpacity(0.98),
+                    ],
             ),
             border: Border.all(
               color: AppColors.secondary.withOpacity(0.1),
@@ -1233,4 +1356,3 @@ class _SearchCardState extends State<_SearchCard> {
     );
   }
 }
-

@@ -1330,9 +1330,55 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        final errorStr = e.toString().toLowerCase();
+        // Detectar error del trigger de Supabase que limita propiedades para estudiantes
+        final isStudentLimit = errorStr.contains('student') ||
+            errorStr.contains('solo puedes') ||
+            errorStr.contains('multiple_properties') ||
+            errorStr.contains('prevent_student');
+
+        if (isStudentLimit) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+              title: const Text(
+                'Límite de publicaciones alcanzado',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+              content: const Text(
+                'Como estudiante solo puedes publicar un departamento.\n\n'
+                'Solicita a administración el rol de propietario para publicar más.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.pop(context); // Volver a Mis Publicaciones
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Entendido', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
       }
     } finally {
       if (mounted) {
