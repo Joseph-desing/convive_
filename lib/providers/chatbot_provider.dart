@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/chatbot_message.dart';
+import '../models/property.dart';
 import '../models/user.dart';
 import '../services/chatbot_service.dart';
 import '../services/supabase_database_service.dart';
@@ -223,9 +224,14 @@ class ChatbotProvider extends ChangeNotifier {
         userResponses: userResponses,
         userHabits: habits,
       );
+      final finalResponses = await _withPropertyFallbackIfNeeded(
+        currentUser.id,
+        userResponses,
+        responses,
+      );
 
       // Agregar TODAS las recomendaciones como mensajes
-      for (final response in responses) {
+      for (final response in finalResponses) {
         _messages.add(response);
 
         if (response.type == MessageType.suggestion && response.matchedUserId != null) {
@@ -254,6 +260,74 @@ class ChatbotProvider extends ChangeNotifier {
     _currentRecommendation = null;
     _error = null;
     notifyListeners();
+  }
+
+  Future<List<ChatbotMessage>> _withPropertyFallbackIfNeeded(
+    String currentUserId,
+    List<String> userResponses,
+    List<ChatbotMessage> responses,
+  ) async {
+    final wantsDepartment = userResponses.any(
+      (response) => _normalizeText(response).contains('departamento') ||
+          _normalizeText(response).contains('apartamento') ||
+          _normalizeText(response).contains('depa') ||
+          _normalizeText(response).contains('vivienda'),
+    );
+
+    final isEmptyDepartmentResponse = responses.length == 1 &&
+        responses.first.type == MessageType.assistant &&
+        _normalizeText(responses.first.content).contains('no encontramos') &&
+        _normalizeText(responses.first.content).contains('departamento');
+
+    if (!wantsDepartment || !isEmptyDepartmentResponse) {
+      return responses;
+    }
+
+    try {
+      print('Chatbot fallback: buscando departamentos activos en Supabase');
+      final properties = await _databaseService.getProperties(
+        limit: 3,
+        excludeUserId: currentUserId,
+      );
+      print('Chatbot fallback: propiedades disponibles=${properties.length}');
+
+      if (properties.isEmpty) {
+        return responses;
+      }
+
+      return properties.map(_buildPropertySuggestion).toList();
+    } catch (e) {
+      print('Chatbot fallback: error consultando propiedades: $e');
+      return responses;
+    }
+  }
+
+  ChatbotMessage _buildPropertySuggestion(Property property) {
+    final price = property.price > 0
+        ? ' por \$${property.price.toStringAsFixed(0)}/mes'
+        : '';
+    final address = property.address.trim().isNotEmpty
+        ? ' en ${property.address.trim()}'
+        : '';
+    final bedrooms = property.bedrooms > 0
+        ? '${property.bedrooms} habitacion${property.bedrooms == 1 ? '' : 'es'}'
+        : 'habitaciones disponibles';
+
+    return ChatbotMessage(
+      type: MessageType.suggestion,
+      content:
+          'Hay un departamento publicado disponible: ${property.title}$address$price.\n\n'
+          'Cuenta con $bedrooms y esta disponible desde ${property.availableFrom.day}/${property.availableFrom.month}/${property.availableFrom.year}.\n\n'
+          'No coincide necesariamente al 100% con todos tus criterios, pero es una opcion real disponible que puedes revisar.',
+      matchedUserId: property.ownerId,
+      matchedUserName: property.title,
+      compatibilityScore: 0.55,
+      propertyLocation: {
+        'lat': property.latitude,
+        'lng': property.longitude,
+        'address': property.address,
+      },
+    );
   }
 
   bool _isCompatibilityExplanationRequest(String message) {

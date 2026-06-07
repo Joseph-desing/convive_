@@ -156,6 +156,124 @@ def get_available_properties(exclude_user_id: str) -> list:
 #    El score viene únicamente del algoritmo matemático v2.
 # ════════════════════════════════════════════════════════════════════════════
 
+def _normalize_text(value) -> str:
+    text = str(value or "").strip().lower()
+    replacements = {
+        "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u",
+        "ñ": "n",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    return re.sub(r"\s+", " ", text)
+
+def _normalize_housing_type(value: str) -> str:
+    normalized = _normalize_text(value)
+    if any(word in normalized for word in [
+        "departamento", "departamentos", "apartamento", "apartamentos",
+        "depa", "dpto", "vivienda", "alojamiento", "casa",
+    ]):
+        return "departamento"
+    return normalized
+
+def _is_available_property(prop: dict, exclude_user_id: str) -> bool:
+    status = _normalize_text(prop.get("status"))
+    is_active = prop.get("is_active")
+    is_rented = bool(prop.get("is_rented", False))
+
+    if is_rented:
+        print(f"  Prop descartada (alquilada): {prop.get('title','?')}")
+        return False
+    if status and status != "active":
+        print(f"  Prop descartada (status={status}): {prop.get('title','?')}")
+        return False
+    if not status and is_active is False:
+        print(f"  Prop descartada (inactiva): {prop.get('title','?')}")
+        return False
+    if prop.get("owner_id") == exclude_user_id or prop.get("user_id") == exclude_user_id:
+        print(f"  Prop descartada (propia): {prop.get('title','?')}")
+        return False
+    return True
+
+def _property_matches_housing_type(prop: dict, housing_type: str) -> bool:
+    normalized_type = _normalize_housing_type(housing_type)
+    if normalized_type == "departamento":
+        explicit_type = _normalize_text(
+            prop.get("housing_type") or prop.get("property_type") or prop.get("type")
+        )
+        if explicit_type:
+            return _normalize_housing_type(explicit_type) == "departamento"
+        return True
+
+    searchable = " ".join([
+        _normalize_text(prop.get("title")),
+        _normalize_text(prop.get("description")),
+        _normalize_text(prop.get("address")),
+    ])
+    return normalized_type in searchable
+
+def _dedupe_properties(rows: list) -> list:
+    seen = set()
+    result = []
+    for row in rows:
+        prop_id = row.get("id")
+        if prop_id and prop_id in seen:
+            continue
+        if prop_id:
+            seen.add(prop_id)
+        result.append(row)
+    return result
+
+def get_available_properties(exclude_user_id: str, housing_type: str = "departamento") -> list:
+    normalized_type = _normalize_housing_type(housing_type)
+    print(f"Buscando propiedades | tipo='{housing_type}' -> '{normalized_type}'")
+
+    exact_params = (
+        "status=eq.active&is_rented=eq.false"
+        "&select=*&order=created_at.desc&limit=30"
+    )
+    exact_rows = _sb_get("properties", exact_params)
+    print(f"Filtro exacto enviado: {exact_params}")
+    print(f"Resultados Supabase exactos: {len(exact_rows)}")
+    exact = [
+        p for p in exact_rows
+        if _is_available_property(p, exclude_user_id)
+        and _property_matches_housing_type(p, normalized_type)
+    ]
+    print(f"Resultados exactos/compatibles tras filtro local: {len(exact)}")
+    if exact:
+        return _dedupe_properties(exact)
+
+    ilike_term = "departamento" if normalized_type == "departamento" else normalized_type
+    flexible_params = (
+        "status=eq.active&is_rented=eq.false"
+        f"&or=(title.ilike.*{ilike_term}*,description.ilike.*{ilike_term}*,address.ilike.*{ilike_term}*)"
+        "&select=*&order=created_at.desc&limit=30"
+    )
+    flexible_rows = _sb_get("properties", flexible_params)
+    print(f"Filtro flexible enviado: {flexible_params}")
+    print(f"Resultados Supabase flexible: {len(flexible_rows)}")
+    flexible = [
+        p for p in flexible_rows
+        if _is_available_property(p, exclude_user_id)
+    ]
+    print(f"Resultados flexibles tras filtro local: {len(flexible)}")
+    if flexible:
+        return _dedupe_properties(flexible)
+
+    general_params = (
+        "status=eq.active&is_rented=eq.false"
+        "&select=*&order=created_at.desc&limit=30"
+    )
+    general_rows = _sb_get("properties", general_params)
+    print(f"Fallback general enviado: {general_params}")
+    print(f"Resultados Supabase general: {len(general_rows)}")
+    general = [
+        p for p in general_rows
+        if _is_available_property(p, exclude_user_id)
+    ]
+    print(f"Resultados generales disponibles: {len(general)}")
+    return _dedupe_properties(general)
+
 def groq_describe_roommate_v2(
     name: str, bio: str, score: float,
     breakdown: dict, strong: list, weak: list, penalties: list
@@ -408,13 +526,17 @@ def calculate_property_compatibility(user_h: dict, prop: dict, owner_h: dict = N
     # ── Filtros descalificadores (score = 0 inmediato) ───────────────────────
     # Estas condiciones eliminan la propiedad ANTES de calcular nada.
     # El score devuelto es 0.0 y Flutter nunca la mostrará.
+    prop_status = _normalize_text(prop.get("status"))
     if prop.get("is_rented", False):
         penalties.append("DESCARTADO: propiedad ya alquilada")
         return 0.0, breakdown, penalties
-    if not prop.get("is_approved", True):
+    if prop_status and prop_status != "active":
+        penalties.append(f"DESCARTADO: status {prop_status}")
+        return 0.0, breakdown, penalties
+    if not prop_status and not prop.get("is_approved", True):
         penalties.append("DESCARTADO: no aprobada por admin")
         return 0.0, breakdown, penalties
-    if not prop.get("is_active", True):
+    if not prop_status and not prop.get("is_active", True):
         penalties.append("DESCARTADO: propiedad inactiva")
         return 0.0, breakdown, penalties
 
@@ -456,13 +578,13 @@ def calculate_property_compatibility(user_h: dict, prop: dict, owner_h: dict = N
     breakdown["habitaciones"] = round(c_rooms * 100)
 
     # ── 4. Disponibilidad real (12%) ──────────────────────────────────────────
-    is_active  = prop.get("is_active", True)
+    is_active  = prop_status == "active" if prop_status else prop.get("is_active", True)
     is_rented  = prop.get("is_rented", False)
     c_avail = 1.0 if (is_active and not is_rented) else 0.0
     breakdown["disponibilidad"] = round(c_avail * 100)
 
     # ── 5. Aprobado por admin (10%) ───────────────────────────────────────────
-    is_approved = prop.get("is_approved", True)  # si no tiene campo, asumir aprobado
+    is_approved = True if prop_status == "active" else prop.get("is_approved", True)
     c_approved  = 1.0 if is_approved else 0.0
     breakdown["aprobado"] = round(c_approved * 100)
 
@@ -682,6 +804,7 @@ def recommend(request: RecommendationRequest):
     Usa algoritmo diferenciado: scores 45-95% según hábitos reales.
     """
     responses_text = " ".join(request.responses).lower()
+    normalized_responses_text = _normalize_text(responses_text)
     user_h         = request.habits
 
     print(f"\n{'='*60}")
@@ -699,6 +822,21 @@ def recommend(request: RecommendationRequest):
     ])
 
     print(f"🏷️  Tipo: {'DEPARTAMENTO' if is_dept else 'COMPAÑERO' if is_roommate else 'DESCONOCIDO'}")
+    normalized_wants_dept = any(w in normalized_responses_text for w in [
+        "departamento", "departamentos", "apartamento", "apartamentos",
+        "renta", "arrendar", "alquilar", "alojamiento", "vivienda",
+        "mostrar departamentos", "si mostrar departamentos",
+    ])
+    normalized_wants_roommate = any(w in normalized_responses_text for w in [
+        "companero", "companera", "habitacion", "compartir",
+        "roommate", "mostrar companeros", "si mostrar companeros",
+    ])
+    if normalized_wants_dept:
+        is_dept = True
+        is_roommate = False
+    elif normalized_wants_roommate:
+        is_roommate = True
+
     recommendations = []
     discarded = []
 
@@ -746,7 +884,7 @@ def recommend(request: RecommendationRequest):
 
     # ── DEPARTAMENTO ─────────────────────────────────────────────────────────
     elif is_dept:
-        props = get_available_properties(request.user_id)
+        props = get_available_properties(request.user_id, "departamento")
         print(f"🏠 Propiedades disponibles en Supabase: {len(props)}")
         for prop in props:
             try:
@@ -798,6 +936,36 @@ def recommend(request: RecommendationRequest):
                 print(f"  ⚠️ Error propiedad: {e}")
 
     # ── Ordenar, limitar a top 3 y loguear ───────────────────────────────────
+    if is_dept and not recommendations:
+        fallback_props = props if 'props' in locals() else get_available_properties(request.user_id, "departamento")
+        print(f"🏠 Fallback de sugerencias disponibles por score bajo/excepciones: {len(fallback_props)} props")
+        for prop in fallback_props[:3]:
+            try:
+                prop_id  = prop.get("id")
+                owner_id = prop.get("owner_id") or prop.get("user_id")
+                owner_profile = get_user_profile(owner_id) if owner_id else {}
+                name  = owner_profile.get("full_name") or owner_profile.get("name") or "Propietario"
+                avatar = prop.get("main_image_url") or prop.get("image_url") or owner_profile.get("profile_image_url")
+                title   = prop.get("title") or "Departamento"
+                address = prop.get("address") or prop.get("location") or ""
+                price   = prop.get("price") or prop.get("rent_amount") or prop.get("budget")
+                lat = prop.get("latitude") or prop.get("lat")
+                lng = prop.get("longitude") or prop.get("lng")
+                prop_location = {"lat": float(lat), "lng": float(lng), "address": address} if lat and lng else None
+                content = (
+                    f"Hay una propiedad disponible que podrías revisar: {title}"
+                    f"{' en ' + address if address else ''}"
+                    f"{' por $' + str(int(float(price))) + '/mes' if price else ''}."
+                    " No coincide al 100% con todos tus criterios, pero está publicada y disponible."
+                )
+                recommendations.append({
+                    "content": content, "matched_user_id": owner_id or prop_id,
+                    "matched_user_name": name, "matched_user_avatar": avatar,
+                    "compatibility_score": 0.55, "property_location": prop_location,
+                })
+            except Exception as e:
+                print(f"  Error fallback propiedad: {e}")
+
     recommendations.sort(key=lambda x: x["compatibility_score"], reverse=True)
     top3 = recommendations[:3]
 
