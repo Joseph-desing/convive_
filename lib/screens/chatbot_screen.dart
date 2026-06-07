@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/chatbot_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/chatbot_provider.dart';
 import '../utils/colors.dart';
-import '../utils/theme_helper.dart';
-import '../screens/map_location_picker.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({Key? key}) : super(key: key);
@@ -106,9 +107,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => MapLocationPicker(
-          initialLat: lat,
-          initialLng: lng,
+        builder: (_) => _RecommendationLocationMap(
+          lat: lat,
+          lng: lng,
+          title: message.matchedUserName ?? 'Recomendacion',
+          address: location?['address']?.toString(),
         ),
       ),
     );
@@ -1230,6 +1233,149 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ],
         ),
         ),
+      ),
+    );
+  }
+}
+
+class _RecommendationLocationMap extends StatelessWidget {
+  final double lat;
+  final double lng;
+  final String title;
+  final String? address;
+
+  const _RecommendationLocationMap({
+    required this.lat,
+    required this.lng,
+    required this.title,
+    this.address,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final point = LatLng(lat, lng);
+    final displayAddress = (address ?? '').trim();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ubicación'),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1F2937),
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: point,
+              initialZoom: 15,
+              minZoom: 3,
+              maxZoom: 18,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.convive.app',
+                tileProvider: CancellableNetworkTileProvider(),
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: point,
+                    width: 48,
+                    height: 48,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            left: 18,
+            right: 18,
+            bottom: 24 + MediaQuery.of(context).padding.bottom,
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.primary.withOpacity(0.16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.10),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.primary,
+                          size: 19,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    displayAddress.isNotEmpty
+                        ? displayAddress
+                        : 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

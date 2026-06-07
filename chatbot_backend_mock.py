@@ -111,6 +111,13 @@ def get_user_profile(user_id: str) -> dict:
     rows = _sb_get("profiles", f"user_id=eq.{user_id}&select=*")
     return rows[0] if rows else {}
 
+def get_user_roommate_search(user_id: str) -> dict:
+    rows = _sb_get(
+        "roommate_searches",
+        f"user_id=eq.{user_id}&status=eq.active&select=*&order=created_at.desc&limit=1",
+    )
+    return rows[0] if rows else {}
+
 def get_user_habits(user_id: str) -> dict:
     rows = _sb_get("habits", f"user_id=eq.{user_id}&select=*")
     return rows[0] if rows else {}
@@ -863,12 +870,29 @@ def recommend(request: RecommendationRequest):
                     continue
 
                 profile = get_user_profile(cuid)
+                roommate_search = get_user_roommate_search(cuid)
                 name    = profile.get("full_name") or profile.get("name") or "Usuario"
                 avatar  = profile.get("profile_image_url") or profile.get("avatar_url")
                 bio     = profile.get("bio") or ""
-                lat = profile.get("latitude") or profile.get("lat")
-                lng = profile.get("longitude") or profile.get("lng")
-                prop_location = {"lat": float(lat), "lng": float(lng), "address": profile.get("address") or profile.get("city") or ""} if lat and lng else None
+                lat = (
+                    roommate_search.get("latitude")
+                    or roommate_search.get("lat")
+                    or profile.get("latitude")
+                    or profile.get("lat")
+                )
+                lng = (
+                    roommate_search.get("longitude")
+                    or roommate_search.get("lng")
+                    or profile.get("longitude")
+                    or profile.get("lng")
+                )
+                location_address = (
+                    roommate_search.get("address")
+                    or profile.get("address")
+                    or profile.get("city")
+                    or ""
+                )
+                prop_location = {"lat": float(lat), "lng": float(lng), "address": location_address} if lat and lng else None
 
                 strong = [k for k, v in breakdown.items() if v >= 80]
                 weak   = [k for k, v in breakdown.items() if v < 60]
