@@ -526,6 +526,42 @@ def calculate_roommate_compatibility(user_h: dict, candidate_h: dict) -> tuple:
     score = round(min(max(total, 0.0), 1.0), 4)
     return score, breakdown, penalties
 
+def apply_roommate_search_preferences(score: float, candidate_h: dict, roommate_search: dict, breakdown: dict, penalties: list) -> tuple:
+    preferences = roommate_search.get("habits_preferences") or []
+    if not isinstance(preferences, list) or not preferences:
+        return score, breakdown, penalties
+
+    checks = []
+    for pref in preferences:
+        p = _normalize_text(pref)
+        if "limpieza" in p or "ordenado" in p:
+            checks.append(candidate_h.get("cleanliness", 5) >= 7)
+        elif "silencioso" in p or "tranquilo" in p:
+            checks.append(candidate_h.get("noise_level", 5) <= 4)
+        elif "responsable" in p or "seguridad" in p or "respetuoso" in p:
+            checks.append(candidate_h.get("responsibility", 5) >= 7)
+        elif "social" in p:
+            checks.append(candidate_h.get("guests_frequency", 5) >= 5)
+        elif "mascota" in p:
+            checks.append(candidate_h.get("pets_tolerance", 5) >= 7)
+        elif "madrugador" in p:
+            checks.append(candidate_h.get("sleep_end", 7) <= 8)
+        elif "noctambulo" in p:
+            checks.append(candidate_h.get("sleep_start", 23) >= 23)
+
+    if not checks:
+        return score, breakdown, penalties
+
+    matched = sum(1 for ok in checks if ok)
+    pref_score = matched / len(checks)
+    breakdown["preferencias_publicacion"] = round(pref_score * 100)
+
+    adjusted = score + (pref_score * 0.10) - ((1 - pref_score) * 0.04)
+    if pref_score < 0.35:
+        penalties.append("pocas preferencias de la publicacion coinciden")
+
+    return round(min(max(adjusted, 0.0), 1.0), 4), breakdown, penalties
+
 # ── DEPARTAMENTO ─────────────────────────────────────────────────────────────
 
 def calculate_property_compatibility(user_h: dict, prop: dict, owner_h: dict = None, user_responses_text: str = "") -> tuple:
@@ -863,6 +899,8 @@ def recommend(request: RecommendationRequest):
             search for search in active_searches
             if search.get("user_id") != request.user_id
             and _normalize_text(search.get("status")) == "active"
+            and (search.get("latitude") or search.get("lat"))
+            and (search.get("longitude") or search.get("lng"))
         ]
         searches_by_user = {
             search.get("user_id"): search
@@ -882,6 +920,10 @@ def recommend(request: RecommendationRequest):
                 search_lng = roommate_search.get("longitude") or roommate_search.get("lng") if roommate_search else None
                 candidate_h = _normalize_habits(row)
                 score, breakdown, penalties = calculate_roommate_compatibility(user_h, candidate_h)
+                if roommate_search:
+                    score, breakdown, penalties = apply_roommate_search_preferences(
+                        score, candidate_h, roommate_search, breakdown, penalties
+                    )
 
                 nivel = "🟢" if score>=0.85 else "🟡" if score>=0.75 else "🟠" if score>=0.60 else "🔴"
                 print(f"  {nivel} {cuid[:8]}... {int(score*100)}%")

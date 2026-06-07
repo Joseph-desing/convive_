@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/chatbot_message.dart';
 import '../models/property.dart';
+import '../models/roommate_search.dart';
 import '../models/user.dart';
 import '../services/chatbot_service.dart';
 import '../services/supabase_database_service.dart';
@@ -223,21 +224,28 @@ class ChatbotProvider extends ChangeNotifier {
             _normalizeText(response).contains('roommate') ||
             _normalizeText(response).contains('roomie'),
       );
-      final roommateSearches = wantsRoommate
-          ? await _loadRoommateSearchesForChatbot(currentUser.id)
-          : <Map<String, dynamic>>[];
+      final activeRoommateSearches = wantsRoommate
+          ? await _loadActiveRoommateSearches(currentUser.id)
+          : <RoommateSearch>[];
 
       // Obtener lista de recomendaciones
       final responses = await _chatbotService.getCompatibilityRecommendation(
         userId: currentUser.id,
         userResponses: userResponses,
         userHabits: habits,
-        roommateSearches: roommateSearches,
+        roommateSearches:
+            activeRoommateSearches.map((search) => search.toJson()).toList(),
       );
+      final scopedResponses = wantsRoommate
+          ? _scopeRoommateRecommendationsToSearches(
+              responses,
+              activeRoommateSearches,
+            )
+          : responses;
       final finalResponses = await _withPropertyFallbackIfNeeded(
         currentUser.id,
         userResponses,
-        responses,
+        scopedResponses,
       );
 
       // Agregar TODAS las recomendaciones como mensajes
@@ -272,7 +280,7 @@ class ChatbotProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<Map<String, dynamic>>> _loadRoommateSearchesForChatbot(
+  Future<List<RoommateSearch>> _loadActiveRoommateSearches(
     String currentUserId,
   ) async {
     try {
@@ -280,12 +288,86 @@ class ChatbotProvider extends ChangeNotifier {
         limit: 20,
         excludeUserId: currentUserId,
       );
-      print('Chatbot: roommate_searches activas enviadas=${searches.length}');
-      return searches.map((search) => search.toJson()).toList();
+      final searchesWithLocation = searches
+          .where((search) => search.latitude != null && search.longitude != null)
+          .toList();
+      print(
+        'Chatbot: roommate_searches activas con ubicacion enviadas=${searchesWithLocation.length}',
+      );
+      return searchesWithLocation;
     } catch (e) {
       print('Chatbot: error cargando roommate_searches activas: $e');
       return [];
     }
+  }
+
+  List<ChatbotMessage> _scopeRoommateRecommendationsToSearches(
+    List<ChatbotMessage> responses,
+    List<RoommateSearch> activeSearches,
+  ) {
+    if (activeSearches.isEmpty) return responses;
+
+    final searchesByUser = {
+      for (final search in activeSearches) search.userId: search,
+    };
+
+    final scoped = responses
+        .where((message) =>
+            message.type != MessageType.suggestion ||
+            (message.matchedUserId != null &&
+                searchesByUser.containsKey(message.matchedUserId)))
+        .map((message) {
+      if (message.type != MessageType.suggestion ||
+          message.matchedUserId == null) {
+        return message;
+      }
+
+      final search = searchesByUser[message.matchedUserId];
+      if (search == null) return message;
+
+      return message.copyWith(
+        propertyLocation: {
+          'lat': search.latitude,
+          'lng': search.longitude,
+          'address': search.address,
+        },
+      );
+    }).toList();
+
+    if (scoped.any((message) => message.type == MessageType.suggestion)) {
+      return scoped;
+    }
+
+    return activeSearches
+        .where((search) => search.latitude != null && search.longitude != null)
+        .take(3)
+        .map(_buildRoommateSearchSuggestion)
+        .toList();
+  }
+
+  ChatbotMessage _buildRoommateSearchSuggestion(RoommateSearch search) {
+    final budget = search.budget > 0
+        ? ' con presupuesto de \$${search.budget.toStringAsFixed(0)}/mes'
+        : '';
+    final address =
+        search.address.trim().isNotEmpty ? ' en ${search.address.trim()}' : '';
+    final preferences = search.habitsPreferences.isNotEmpty
+        ? '\n\nBusca: ${search.habitsPreferences.take(4).join(', ')}.'
+        : '';
+
+    return ChatbotMessage(
+      type: MessageType.suggestion,
+      content:
+          'Hay una publicación activa de compañero/a: ${search.title}$address$budget.$preferences',
+      matchedUserId: search.userId,
+      matchedUserName: search.title,
+      compatibilityScore: 0.55,
+      propertyLocation: {
+        'lat': search.latitude,
+        'lng': search.longitude,
+        'address': search.address,
+      },
+    );
   }
 
   Future<List<ChatbotMessage>> _withPropertyFallbackIfNeeded(
