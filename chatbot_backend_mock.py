@@ -876,6 +876,8 @@ def recommend(request: RecommendationRequest):
                 if not cuid:
                     continue
                 roommate_search = searches_by_user.get(cuid)
+                if request.roommate_searches and not roommate_search:
+                    continue
                 search_lat = roommate_search.get("latitude") or roommate_search.get("lat") if roommate_search else None
                 search_lng = roommate_search.get("longitude") or roommate_search.get("lng") if roommate_search else None
                 candidate_h = _normalize_habits(row)
