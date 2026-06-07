@@ -217,12 +217,22 @@ class ChatbotProvider extends ChangeNotifier {
         'responsibility': 7,     // Nivel de responsabilidad: 7/10
         'pets_tolerance': 10,    // Tolerancia a mascotas: 10/10
       };
+      final wantsRoommate = userResponses.any(
+        (response) => _normalizeText(response).contains('companero') ||
+            response.toLowerCase().contains('compa') ||
+            _normalizeText(response).contains('roommate') ||
+            _normalizeText(response).contains('roomie'),
+      );
+      final roommateSearches = wantsRoommate
+          ? await _loadRoommateSearchesForChatbot(currentUser.id)
+          : <Map<String, dynamic>>[];
 
       // Obtener lista de recomendaciones
       final responses = await _chatbotService.getCompatibilityRecommendation(
         userId: currentUser.id,
         userResponses: userResponses,
         userHabits: habits,
+        roommateSearches: roommateSearches,
       );
       final finalResponses = await _withPropertyFallbackIfNeeded(
         currentUser.id,
@@ -260,6 +270,22 @@ class ChatbotProvider extends ChangeNotifier {
     _currentRecommendation = null;
     _error = null;
     notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRoommateSearchesForChatbot(
+    String currentUserId,
+  ) async {
+    try {
+      final searches = await _databaseService.getActiveRoommateSearches(
+        limit: 20,
+        excludeUserId: currentUserId,
+      );
+      print('Chatbot: roommate_searches activas enviadas=${searches.length}');
+      return searches.map((search) => search.toJson()).toList();
+    } catch (e) {
+      print('Chatbot: error cargando roommate_searches activas: $e');
+      return [];
+    }
   }
 
   Future<List<ChatbotMessage>> _withPropertyFallbackIfNeeded(

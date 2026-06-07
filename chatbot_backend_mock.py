@@ -88,6 +88,7 @@ class RecommendationRequest(BaseModel):
     user_id: str
     responses: list
     habits: dict = {}
+    roommate_searches: list = []
 
 # ════════════════════════════════════════════════════════════════════════════
 # SUPABASE — funciones de acceso a datos reales
@@ -857,7 +858,12 @@ def recommend(request: RecommendationRequest):
     # ── COMPAÑERO DE CUARTO ──────────────────────────────────────────────────
     if is_roommate:
         all_habits = get_all_habits(request.user_id)
-        active_searches = get_active_roommate_searches(request.user_id)
+        active_searches = request.roommate_searches or get_active_roommate_searches(request.user_id)
+        active_searches = [
+            search for search in active_searches
+            if search.get("user_id") != request.user_id
+            and _normalize_text(search.get("status")) == "active"
+        ]
         searches_by_user = {
             search.get("user_id"): search
             for search in active_searches

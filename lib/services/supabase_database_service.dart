@@ -247,6 +247,25 @@ class SupabaseDatabaseService {
     return RoommateSearch.fromJson(response);
   }
 
+  Future<List<RoommateSearch>> getActiveRoommateSearches({
+    int limit = 20,
+    String? excludeUserId,
+  }) async {
+    var query = _supabase
+        .from('roommate_searches')
+        .select('*')
+        .eq('status', 'active');
+
+    if (excludeUserId != null && excludeUserId.isNotEmpty) {
+      query = query.neq('user_id', excludeUserId);
+    }
+
+    final response = await query.limit(limit);
+    return (response as List)
+        .map((search) => RoommateSearch.fromJson(search))
+        .toList();
+  }
+
   Future<List<Property>> getUserProperties(String userId) async {
     final response =
         await _supabase.from('properties').select('*').eq('owner_id', userId);

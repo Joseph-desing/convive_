@@ -116,6 +116,7 @@ class ChatbotService {
     required String userId,
     required List<String> userResponses,
     required Map<String, dynamic> userHabits,
+    List<Map<String, dynamic>> roommateSearches = const [],
   }) async {
     if (useMock) {
       try {
@@ -126,6 +127,7 @@ class ChatbotService {
             'user_id': userId,
             'responses': userResponses,
             'habits': userHabits,
+            'roommate_searches': roommateSearches,
           }),
         ).timeout(const Duration(seconds: 10));
 
