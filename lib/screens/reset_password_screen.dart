@@ -10,8 +10,16 @@ import '../utils/deep_link_redirect.dart'
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
+  /// PKCE code (legacy, solo funciona en mismo origen). Se mantiene por
+  /// compatibilidad con deep links Android que aún manden `code`.
   final String resetToken;
+
+  /// Token hash auto-contenido que NO requiere code_verifier PKCE.
+  /// Este es el método principal para web.
+  final String tokenHash;
+
   final String? email;
+
   /// Cuando el deep link trae error_code (ej: otp_expired), se muestra un
   /// mensaje claro en vez del formulario.
   final String errorCode;
@@ -19,6 +27,7 @@ class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({
     Key? key,
     required this.resetToken,
+    this.tokenHash = '',
     this.email,
     this.errorCode = '',
   }) : super(key: key);
@@ -35,34 +44,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
-  bool _isPreparingSession = false;
 
   @override
   void initState() {
     super.initState();
-    
-    // Si tiene un token (code de Supabase), verificarlo automáticamente
-    if (widget.resetToken.isNotEmpty) {
-      _prepareRecoverySession();
-    }
-  }
 
-  Future<void> _prepareRecoverySession() async {
-    if (widget.resetToken.isEmpty) return;
-    if (SupabaseProvider.client.auth.currentSession != null) return;
-
-    setState(() => _isPreparingSession = true);
-
-    try {
-      await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
-      print('✅ Sesión de recuperación preparada correctamente');
-    } catch (e) {
-      print('⚠️ No se pudo intercambiar el code: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isPreparingSession = false);
-      }
-    }
+    // Log de diagnóstico
+    print('🔍 ResetPasswordScreen initState');
+    print('   TokenHash: ${widget.tokenHash.isNotEmpty ? '[present]' : '[empty]'}');
+    print('   Code/resetToken: ${widget.resetToken.isNotEmpty ? '[present]' : '[empty]'}');
+    print('   Email: ${widget.email ?? '[null]'}');
+    print('   ErrorCode: ${widget.errorCode.isNotEmpty ? widget.errorCode : '[none]'}');
   }
 
   @override
@@ -75,8 +67,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validar que el token no esté vacío
-    if (widget.resetToken.isEmpty) {
+    // Validar que haya al menos un token válido
+    if (widget.tokenHash.isEmpty && widget.resetToken.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -92,40 +84,61 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      print('🔄 Procesando cambio de contraseña...');
-      print('📝 Token/Code: ${widget.resetToken}');
-      print('📧 Email: ${widget.email}');
+      final newPassword = _passwordController.text.trim();
 
-      final currentSession = SupabaseProvider.client.auth.currentSession;
-      final email = widget.email?.trim() ?? '';
-      final authProvider = context.read<AuthProvider>();
+      // ─── CASO 1: token_hash presente (método principal, funciona desde cualquier navegador) ───
+      if (widget.tokenHash.isNotEmpty) {
+        print('🔄 Verificando token_hash con verifyOTP...');
 
-      if (currentSession != null) {
+        final response = await SupabaseProvider.client.auth.verifyOTP(
+          tokenHash: widget.tokenHash,
+          type: OtpType.recovery,
+        );
+
+        if (response.session == null) {
+          throw Exception(
+            'No se pudo verificar el enlace de recuperación. '
+            'Es posible que haya expirado.',
+          );
+        }
+
+        print('✅ token_hash verificado, sesión de recuperación activa');
+        print('🔄 Cambiando contraseña...');
+
         await SupabaseProvider.client.auth.updateUser(
-          UserAttributes(password: _passwordController.text.trim()),
+          UserAttributes(password: newPassword),
         );
+
         await SupabaseProvider.client.auth.signOut();
-      } else if (email.isNotEmpty) {
-        await authProvider.resetPasswordWithToken(
-          email: email,
-          resetToken: widget.resetToken,
-          newPassword: _passwordController.text.trim(),
-        );
-      } else {
-        await SupabaseProvider.client.auth.exchangeCodeForSession(widget.resetToken);
-        await SupabaseProvider.client.auth.updateUser(
-          UserAttributes(password: _passwordController.text.trim()),
-        );
-        await SupabaseProvider.client.auth.signOut();
+        print('✅ Contraseña actualizada y sesión cerrada');
       }
-      
-      print('✅ Contraseña actualizada exitosamente');
+      // ─── CASO 2: Sesión ya activa (preexistente o SDK la creó automáticamente) ───
+      else if (SupabaseProvider.client.auth.currentSession != null) {
+        print('🔄 Sesión preexistente detectada, cambiando contraseña...');
+
+        await SupabaseProvider.client.auth.updateUser(
+          UserAttributes(password: newPassword),
+        );
+
+        await SupabaseProvider.client.auth.signOut();
+        print('✅ Contraseña actualizada con sesión preexistente');
+      }
+      // ─── CASO 3: Solo code PKCE sin sesión → ERROR claro ───
+      else {
+        print('❌ Solo code PKCE sin token_hash ni sesión activa');
+        throw Exception(
+          'pkce_verifier_missing: Este enlace de recuperación usa código PKCE '
+          'que solo funciona en el mismo navegador donde se solicitó. '
+          'Solicita un nuevo enlace de recuperación.',
+        );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Contraseña cambiada correctamente. Abriendo la app...'),
+          content:
+              Text('✅ Contraseña cambiada correctamente. Abriendo la app...'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ),
@@ -138,27 +151,33 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       if (kIsWeb) {
         // En web: redirigir el navegador al deep link del APK.
-        // Android Chrome captura 'com.example.convive_://login' y abre la app
-        // si el APK tiene el intent-filter registrado para ese scheme.
         redirectToDeepLink('com.example.convive_://login');
       } else {
-        // En móvil (flujo directo sin pasar por web): ir al login internamente.
+        // En móvil: ir al login internamente.
         context.go('/login');
       }
     } catch (e) {
-      print('❌ Error: $e');
-      
+      print('❌ Error en _resetPassword: $e');
+
       final errorStr = e.toString().toLowerCase();
       String userMessage = 'Ocurrió un error. Por favor intenta de nuevo.';
 
       if (errorStr.contains('otp_expired') || errorStr.contains('expired')) {
-        userMessage = '⏰ El enlace de recuperación ha expirado. Por favor solicita uno nuevo.';
+        userMessage =
+            '⏰ El enlace de recuperación ha expirado. Por favor solicita uno nuevo.';
+      } else if (errorStr.contains('bad_code_verifier') ||
+          errorStr.contains('code challenge') ||
+          errorStr.contains('pkce_verifier_missing')) {
+        userMessage =
+            '🔗 Este enlace no puede usarse desde este navegador. '
+            'Por favor solicita un nuevo enlace de recuperación.';
       } else if (errorStr.contains('invalid') || errorStr.contains('token')) {
         userMessage = '❌ El enlace de recuperación es inválido o ya fue usado.';
       } else if (errorStr.contains('password')) {
-        userMessage = '🔐 La contraseña no cumple los requisitos (mínimo 6 caracteres).';
+        userMessage =
+            '🔐 La contraseña no cumple los requisitos (mínimo 6 caracteres).';
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -168,14 +187,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
         );
       }
-      
+
       setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isTokenValid = widget.resetToken.isNotEmpty;
+    final isTokenValid =
+        widget.tokenHash.isNotEmpty || widget.resetToken.isNotEmpty;
     final hasError = widget.errorCode.isNotEmpty;
 
     // Si viene con error_code (ej: otp_expired), mostrar pantalla de error dedicada
@@ -365,7 +385,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning_outlined, color: Colors.red, size: 20),
+                        Icon(Icons.warning_outlined,
+                            color: Colors.red, size: 20),
                         const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
@@ -389,12 +410,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.green, size: 20),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Link válido. Ingresa tu nueva contraseña.',
-                            style: TextStyle(
+                            widget.tokenHash.isNotEmpty
+                                ? 'Link válido (token_hash). Ingresa tu nueva contraseña.'
+                                : 'Link detectado. Ingresa tu nueva contraseña.',
+                            style: const TextStyle(
                               fontSize: 12,
                               color: Colors.green,
                             ),
@@ -531,9 +555,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: (isTokenValid && !_isLoading && !_isPreparingSession)
-                              ? _resetPassword
-                              : null,
+                          onPressed:
+                              (isTokenValid && !_isLoading)
+                                  ? _resetPassword
+                                  : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -541,11 +566,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+                            disabledBackgroundColor:
+                                Colors.grey.withOpacity(0.5),
                           ),
                           child: Ink(
                             decoration: BoxDecoration(
-                              gradient: isTokenValid && !_isPreparingSession
+                              gradient: isTokenValid
                                   ? AppColors.primaryGradient
                                   : LinearGradient(
                                       colors: [
@@ -557,15 +583,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             ),
                             child: Container(
                               alignment: Alignment.center,
-                              child: _isLoading || _isPreparingSession
+                              child: _isLoading
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                         strokeWidth: 2,
                                       ),
                                     )
@@ -589,11 +615,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         decoration: BoxDecoration(
                           color: Colors.blue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          border:
+                              Border.all(color: Colors.blue.withOpacity(0.3)),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                            Icon(Icons.info_outline,
+                                color: Colors.blue, size: 20),
                             const SizedBox(width: 10),
                             const Expanded(
                               child: Text(

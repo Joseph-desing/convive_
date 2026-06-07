@@ -411,13 +411,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 [Reset] Enviando email de recuperación a: $email');
 
-      // Siempre usar la URL web para reset password.
-      // Flujo móvil → web → APK:
-      //   1. Link del email abre la WEB (funciona en cualquier cliente de correo)
-      //   2. Usuario cambia contraseña en la pantalla web
-      //   3. Tras éxito, la web redirige al APK con com.example.convive_://login
-      //   4. Android captura el deep link y abre la app en /login
-      const redirectTo = 'https://convive-app-6debf.web.app/#/reset-password';
+      // Apuntar directamente a /reset-password para que Supabase agregue
+      // ?token_hash=...&type=recovery como query params al path correcto.
+      // NO usar fragment hash (#) — Supabase lo ignora.
+      const redirectTo = 'https://convive-app-6debf.web.app/reset-password';
 
       debugPrint('🔄 [Reset] redirectTo: $redirectTo');
 

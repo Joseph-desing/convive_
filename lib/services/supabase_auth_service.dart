@@ -51,8 +51,9 @@ class SupabaseAuthService {
   /// NOTA: El flujo principal usa AuthProvider.resetPassword() que tiene kIsWeb.
   /// Este método es helper alternativo, también usa kIsWeb correctamente.
   Future<void> resetPassword(String email) async {
-    // Siempre usar la URL web. Flujo: email → web → cambio exitoso → deep link al APK.
-    const redirectTo = 'https://convive-app-6debf.web.app/#/reset-password';
+    // Apuntar directamente a /reset-password para que Supabase agregue
+    // ?token_hash=...&type=recovery como query params al path correcto.
+    const redirectTo = 'https://convive-app-6debf.web.app/reset-password';
     await _supabase.auth.resetPasswordForEmail(
       email,
       redirectTo: redirectTo,

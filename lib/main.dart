@@ -35,14 +35,14 @@ import 'services/supabase_database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   // Inicializar servicios
   try {
     await SupabaseProvider.initialize();
@@ -51,7 +51,7 @@ void main() async {
   } catch (e) {
     print('❌ Error inicializando servicios: $e');
   }
-  
+
   runApp(const ConViveApp());
 }
 
@@ -108,11 +108,13 @@ class _ConViveAppState extends State<ConViveApp> {
   ///   com.example.convive_://email-confirmed?code=...
   ///   https://convive-app-6debf.web.app/?code=...#/reset-password  (Web fallback)
   void _handleDeepLink(Uri uri) {
-    debugPrint('🔍 [DeepLink] scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
-    debugPrint('🔍 [DeepLink] query=${uri.queryParameters} fragment=${uri.fragment}');
+    debugPrint(
+        '🔍 [DeepLink] scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
+    debugPrint(
+        '🔍 [DeepLink] query=${uri.queryParameters} fragment=${uri.fragment}');
 
-    final host    = uri.host;
-    final path    = uri.path;
+    final host = uri.host;
+    final path = uri.path;
     final fragment = uri.fragment;
 
     // ── Extraer parámetros de query y/o fragment ──────────────────────────
@@ -127,36 +129,42 @@ class _ConViveAppState extends State<ConViveApp> {
       }
     }
 
-    String code         = uri.queryParameters['code']         ?? fParams['code']         ?? '';
-    String token        = uri.queryParameters['access_token'] ?? fParams['access_token'] ?? '';
-    String type         = uri.queryParameters['type']         ?? fParams['type']         ?? '';
-    String email        = uri.queryParameters['email']        ?? fParams['email']        ?? '';
-    String errorCode    = uri.queryParameters['error_code']   ?? fParams['error_code']   ?? '';
+    String code = uri.queryParameters['code'] ?? fParams['code'] ?? '';
+    String tokenHash =
+        uri.queryParameters['token_hash'] ?? fParams['token_hash'] ?? '';
+    String token =
+        uri.queryParameters['access_token'] ?? fParams['access_token'] ?? '';
+    String type = uri.queryParameters['type'] ?? fParams['type'] ?? '';
+    String email = uri.queryParameters['email'] ?? fParams['email'] ?? '';
+    String errorCode =
+        uri.queryParameters['error_code'] ?? fParams['error_code'] ?? '';
 
     // Inferir tipo por el host/path si no viene explícito
-    final isResetPath = host == 'reset-password'
-        || path.contains('reset-password')
-        || fragment.contains('reset-password')
-        || type == 'recovery';
+    final isResetPath = host == 'reset-password' ||
+        path.contains('reset-password') ||
+        fragment.contains('reset-password') ||
+        type == 'recovery';
 
-    final isAuthCallback = host == 'auth-callback'
-        || path.contains('auth-callback');
+    final isAuthCallback =
+        host == 'auth-callback' || path.contains('auth-callback');
 
-    final isLoginCallback = host == 'login-callback'
-        || path.contains('login-callback');
+    final isLoginCallback =
+        host == 'login-callback' || path.contains('login-callback');
 
     // 📧 Email confirmation: type=signup, type=email_change, o host=email-confirmed
     // IMPORTANTE: Esta detección es DISTINTA de Google OAuth (login-callback)
     // para evitar que los usuarios de email confirmation terminen en /complete-profile
     // desde el navegador.
-    final isEmailConfirmed = host == 'email-confirmed'
-        || path.contains('email-confirmed')
-        || fragment.contains('email-confirmed')
-        || type == 'signup'
-        || type == 'email_change';
+    final isEmailConfirmed = host == 'email-confirmed' ||
+        path.contains('email-confirmed') ||
+        fragment.contains('email-confirmed') ||
+        type == 'signup' ||
+        type == 'email_change';
 
-    debugPrint('🔍 [DeepLink] code=$code token=$token type=$type error=$errorCode');
-    debugPrint('🔍 [DeepLink] isReset=$isResetPath isAuth=$isAuthCallback isLogin=$isLoginCallback isEmail=$isEmailConfirmed');
+    debugPrint(
+        '🔍 [DeepLink] code=$code token=$token type=$type error=$errorCode');
+    debugPrint(
+        '🔍 [DeepLink] isReset=$isResetPath isAuth=$isAuthCallback isLogin=$isLoginCallback isEmail=$isEmailConfirmed');
 
     // ── CASO 0: Volver al login desde reset-password web ──────────────────────
     // La web reset-password redirige a com.example.convive_://login tras cambio exitoso.
@@ -175,13 +183,21 @@ class _ConViveAppState extends State<ConViveApp> {
     // ── CASO: Error en el link ─────────────────────────────────────────────
     if (errorCode.isNotEmpty) {
       debugPrint('⚠️ [DeepLink] Error en link: $errorCode');
-      _router.go('/reset-password?error_code=${Uri.encodeComponent(errorCode)}');
+      _router
+          .go('/reset-password?error_code=${Uri.encodeComponent(errorCode)}');
       return;
     }
 
     // ── CASO 1: Reset password ─────────────────────────────────────────────
-    if (isResetPath || (isAuthCallback && (type == 'recovery' || code.isNotEmpty && type.isEmpty))) {
-      if (code.isNotEmpty) {
+    if (isResetPath ||
+        (isAuthCallback &&
+            (type == 'recovery' || code.isNotEmpty && type.isEmpty))) {
+      if (tokenHash.isNotEmpty) {
+        debugPrint('🔑 [DeepLink] → /reset-password con token_hash');
+        _router.push(
+          '/reset-password?token_hash=${Uri.encodeComponent(tokenHash)}&email=${Uri.encodeComponent(email)}',
+        );
+      } else if (code.isNotEmpty) {
         debugPrint('🔑 [DeepLink] → /reset-password con code PKCE');
         // Guardamos el code para que ResetPasswordScreen lo use
         _router.push(
@@ -209,14 +225,15 @@ class _ConViveAppState extends State<ConViveApp> {
     if (isLoginCallback) {
       debugPrint('🔵 [DeepLink] → Google OAuth callback');
       Future.microtask(() async {
-        final authProvider = _router.routerDelegate.navigatorKey
-            .currentContext
+        final authProvider = _router.routerDelegate.navigatorKey.currentContext
             ?.read<AuthProvider>();
         if (authProvider != null) {
           await authProvider.handleGoogleCallback();
           // Siempre ir a home (o admin si es admin)
           // El redirect guard se encargará de /complete-profile si es necesario
-          final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+          final role =
+              authProvider.currentUser?.role.toString().split('.').last ??
+                  'student';
           _router.go(role == 'admin' ? '/admin' : '/home');
         } else {
           _router.go('/home');
@@ -253,7 +270,8 @@ class _ConViveAppState extends State<ConViveApp> {
       // Si llegamos aquí y no fue recovery, probablemente sea un email confirmation
       // que no fue detectado correctamente. Redirigir a /email-confirmed por seguridad.
       if (type == 'signup' || type == 'email_change') {
-        EmailConfirmedRedirectScreen.pendingCode = code.isNotEmpty ? code : token;
+        EmailConfirmedRedirectScreen.pendingCode =
+            code.isNotEmpty ? code : token;
         _router.go('/email-confirmed');
       } else {
         // Si no sabemos qué es, asumir que no es email confirmation
@@ -282,11 +300,11 @@ class _ConViveAppState extends State<ConViveApp> {
         if (location.startsWith('/error=')) {
           return '/reset-password?error_code=otp_expired';
         }
-        
+
         // 🚨 PRIORIDAD 1: Si es /email-confirmed, PERMITIR INCONDICIONALMENTE
         // SIN verificar perfil, sin redirigir, nada.
         // Esta es una ruta de confirmación que NO debe ser interceptada.
-        if (location == '/email-confirmed' || 
+        if (location == '/email-confirmed' ||
             location.startsWith('/email-confirmed?') ||
             location.startsWith('/email-confirmed#')) {
           return null;
@@ -298,13 +316,14 @@ class _ConViveAppState extends State<ConViveApp> {
         if (location.startsWith('/complete-profile')) {
           final code = state.uri.queryParameters['code'] ?? '';
           final userId = state.uri.queryParameters['userId'] ?? '';
-          
+
           // Si hay code pero no hay userId = es un intento de email confirmation
           if (code.isNotEmpty && userId.isEmpty) {
-            debugPrint('🚨 EMERGENCIA: /complete-profile con code de email → redirigiendo a /email-confirmed');
+            debugPrint(
+                '🚨 EMERGENCIA: /complete-profile con code de email → redirigiendo a /email-confirmed');
             return '/email-confirmed?code=${Uri.encodeComponent(code)}';
           }
-          
+
           // Si hay userId = es un flujo legítimo de complete-profile
           // Proteger: requiere sesión
           if (session == null) {
@@ -312,7 +331,7 @@ class _ConViveAppState extends State<ConViveApp> {
           }
           return null;
         }
-        
+
         // Si es una ruta de recuperación de contraseña, forgot password, permitir (sin redirigir)
         if (location == '/auth-callback' ||
             location == '/suspended' ||
@@ -325,7 +344,7 @@ class _ConViveAppState extends State<ConViveApp> {
             location.startsWith('/email-verification?')) {
           return null;
         }
-        
+
         // Proteger rutas de admin (solo para usuarios con rol admin)
         if (location.startsWith('/admin')) {
           if (session == null) {
@@ -333,7 +352,7 @@ class _ConViveAppState extends State<ConViveApp> {
           }
           return null;
         }
-        
+
         // Si viene de Supabase con parámetros de recovery (en fragment o query), redirigir a /auth-callback
         if (location == '/') {
           final uriBaseParams = Uri.base.queryParameters;
@@ -350,58 +369,81 @@ class _ConViveAppState extends State<ConViveApp> {
             return '/reset-password?error_code=$errorCode';
           }
 
-          // Detectar si es recovery SOLO cuando type=recovery está explícito
-          // (NO basar en la presencia de 'code' ya que email confirmation también usa 'code')
-          bool isRecovery = state.uri.fragment.contains('type=recovery') || 
-                            state.uri.queryParameters['type'] == 'recovery' ||
-                            uriBaseParams['type'] == 'recovery';
-          
-          if (isRecovery) {
-            print('🔐 Detectado recovery en URI, redirigiendo a /reset-password');
-            
-            String token = state.uri.queryParameters['access_token'] ??
-                fragmentParams['access_token'] ??
-                uriBaseParams['access_token'] ??
-                '';
-            String code = state.uri.queryParameters['code'] ??
-                uriBaseParams['code'] ??
-                fragmentParams['code'] ??
-                '';
-            String type = state.uri.queryParameters['type'] ??
+          // ── Extraer token_hash y code de cualquier fuente ──
+          String tokenHash = state.uri.queryParameters['token_hash'] ??
+              uriBaseParams['token_hash'] ??
+              fragmentParams['token_hash'] ??
+              '';
+          String code = state.uri.queryParameters['code'] ??
+              uriBaseParams['code'] ??
+              fragmentParams['code'] ??
+              '';
+
+          // ── Detectar si es recovery ──
+          bool isRecovery = state.uri.fragment.contains('type=recovery') ||
+              state.uri.queryParameters['type'] == 'recovery' ||
+              uriBaseParams['type'] == 'recovery';
+
+          // token_hash SIEMPRE es recovery
+          if (tokenHash.isNotEmpty && !isRecovery) {
+            isRecovery = true;
+            print('🔐 token_hash detectado → recovery');
+          }
+
+          // code sin type explícito → asumir recovery
+          // (email confirmation siempre viene con type=signup)
+          if (code.isNotEmpty && !isRecovery) {
+            final typeParam = state.uri.queryParameters['type'] ??
                 uriBaseParams['type'] ??
                 fragmentParams['type'] ??
-                'recovery';
+                '';
+            if (typeParam.isEmpty) {
+              isRecovery = true;
+              print('🔐 Código sin type explícito → asumiendo recovery');
+            }
+          }
+
+          if (isRecovery && (tokenHash.isNotEmpty || code.isNotEmpty)) {
+            print('🔐 Recovery detectado en /, redirigiendo a /reset-password');
+
             String email = state.uri.queryParameters['email'] ??
                 uriBaseParams['email'] ??
                 fragmentParams['email'] ??
                 '';
-            
-            if (code.isNotEmpty) {
-              return '/reset-password?code=$code&type=$type&email=$email';
-            } else if (token.isNotEmpty) {
-              return '/reset-password?token=$token&type=$type&email=$email';
+            if (email.isEmpty) {
+              email = SupabaseProvider.client.auth.currentUser?.email ?? '';
+            }
+
+            // Priorizar token_hash sobre code
+            if (tokenHash.isNotEmpty) {
+              return '/reset-password?token_hash=${Uri.encodeComponent(tokenHash)}&type=recovery&email=${Uri.encodeComponent(email)}';
+            } else if (code.isNotEmpty) {
+              return '/reset-password?code=$code&type=recovery&email=${Uri.encodeComponent(email)}';
             }
           }
 
           // Si hay code pero NO es recovery → es confirmación de email
-          // Dejar que /email-confirmed lo maneje
           final hasCode = uriBaseParams.containsKey('code') ||
               state.uri.queryParameters.containsKey('code');
           if (hasCode && !isRecovery) {
             print('📧 Código de confirmación de email detectado → /email-confirmed');
-            final code = uriBaseParams['code'] ?? state.uri.queryParameters['code'] ?? '';
-            return '/email-confirmed?code=${Uri.encodeComponent(code)}';
+            final emailCode = uriBaseParams['code'] ??
+                state.uri.queryParameters['code'] ??
+                '';
+            return '/email-confirmed?code=${Uri.encodeComponent(emailCode)}';
           }
         }
-        
+
         // Si es perfil público o chat, permitir si hay sesión
-        if (location.startsWith('/user-profile') || location.startsWith('/chat')) {
+        if (location.startsWith('/user-profile') ||
+            location.startsWith('/chat')) {
           return null;
         }
 
         // Si no hay sesión, ir a login (pero excepto en reset/forgot password/email-confirmed)
-        if (session == null && !location.startsWith('/login') && 
-            !location.startsWith('/reset-password') && 
+        if (session == null &&
+            !location.startsWith('/login') &&
+            !location.startsWith('/reset-password') &&
             !location.startsWith('/forgot-password') &&
             !location.startsWith('/email-verification') &&
             !location.startsWith('/auth-callback') &&
@@ -418,16 +460,27 @@ class _ConViveAppState extends State<ConViveApp> {
         // verificar que tenga perfil completo en public.profiles.
         // Rutas protegidas = cualquier ruta que requiere estar logueado y tener perfil.
         final protectedRoutes = [
-          '/home', '/matches', '/profile', '/notifications',
-          '/map', '/my-publications', '/settings', '/help',
-          '/user-profile', '/chat', '/chatbot', '/complaints',
+          '/home',
+          '/matches',
+          '/profile',
+          '/notifications',
+          '/map',
+          '/my-publications',
+          '/settings',
+          '/help',
+          '/user-profile',
+          '/chat',
+          '/chatbot',
+          '/complaints',
         ];
-        final isProtectedRoute = protectedRoutes.any((r) => location.startsWith(r));
+        final isProtectedRoute =
+            protectedRoutes.any((r) => location.startsWith(r));
 
         if (session != null && isProtectedRoute) {
           try {
             final userId = session.user.id;
-            final profile = await SupabaseProvider.databaseService.getProfile(userId);
+            final profile =
+                await SupabaseProvider.databaseService.getProfile(userId);
             if (profile == null) {
               print('⚠️ Router guard: usuario sin perfil → /complete-profile');
               final email = Uri.encodeComponent(session.user.email ?? '');
@@ -527,12 +580,26 @@ class _ConViveAppState extends State<ConViveApp> {
             print('🔍 URI Completa: ${state.uri}');
             print('🔍 Query Parameters: ${state.uri.queryParameters}');
             print('🔍 Fragment: ${state.uri.fragment}');
-            
+
             // Capturar parámetros de la URL
             String token = '';
             String code = '';
+            String tokenHash = '';
             String type = '';
             String email = '';
+
+            tokenHash = state.uri.queryParameters['token_hash'] ?? '';
+            if (tokenHash.isNotEmpty) {
+              type = state.uri.queryParameters['type'] ?? 'recovery';
+              email = state.uri.queryParameters['email'] ?? '';
+              print('📝 Token Hash (Supabase recovery): $tokenHash');
+
+              return ResetPasswordScreen(
+                resetToken: '',
+                tokenHash: tokenHash,
+                email: email.isNotEmpty ? email : null,
+              );
+            }
 
             // Si hay code (nuevo flujo de Supabase), usarlo
             if (state.uri.queryParameters.containsKey('code')) {
@@ -540,7 +607,7 @@ class _ConViveAppState extends State<ConViveApp> {
               type = state.uri.queryParameters['type'] ?? 'recovery';
               print('📝 Code (Supabase recovery): $code');
               print('📝 Type: $type');
-              
+
               // Retornar ResetPasswordScreen con el code
               // El code será procesado por verifyOtp() en el provider
               return ResetPasswordScreen(
@@ -557,10 +624,21 @@ class _ConViveAppState extends State<ConViveApp> {
             }
             // Si no, buscar en el fragment
             else if (state.uri.fragment.isNotEmpty) {
-              final fragmentParams = Uri.parse('http://example.com?${state.uri.fragment}').queryParameters;
+              final fragmentParams =
+                  Uri.parse('http://example.com?${state.uri.fragment}')
+                      .queryParameters;
+              tokenHash = fragmentParams['token_hash'] ?? '';
               token = fragmentParams['access_token'] ?? '';
               type = fragmentParams['type'] ?? '';
               email = fragmentParams['email'] ?? '';
+            }
+
+            if (tokenHash.isNotEmpty) {
+              return ResetPasswordScreen(
+                resetToken: '',
+                tokenHash: tokenHash,
+                email: email.isNotEmpty ? email : null,
+              );
             }
 
             print('📝 Token: $token');
@@ -588,51 +666,61 @@ class _ConViveAppState extends State<ConViveApp> {
             // Leer error_code primero — si viene, mostrar pantalla de error
             final errorCode = state.uri.queryParameters['error_code'] ?? '';
 
-            // Buscar token/code en query params
-            String token = state.uri.queryParameters['code'] ?? ''; // Primero buscar 'code' (lo que envía Supabase)
-            String email = state.uri.queryParameters['email'] ?? '';
+            // ── 1. Extraer token_hash (método principal, NO requiere PKCE) ──
+            String tokenHash = state.uri.queryParameters['token_hash'] ?? '';
+            if (tokenHash.isEmpty) {
+              tokenHash = Uri.base.queryParameters['token_hash'] ?? '';
+            }
+
+            // ── 2. Extraer code PKCE (legacy/fallback) ──
+            String token = state.uri.queryParameters['code'] ?? '';
             if (token.isEmpty) {
               token = Uri.base.queryParameters['code'] ?? '';
             }
-            if (email.isEmpty) {
-              email = Uri.base.queryParameters['email'] ?? '';
-            }
-
-            // Limpiar la barra inicial si existe
             if (token.startsWith('/')) {
               token = token.substring(1);
             }
-
             if (token.isEmpty) {
-              token = state.uri.queryParameters['token'] ?? ''; // Fallback a 'token'
+              token = state.uri.queryParameters['token'] ?? '';
             }
             if (token.isEmpty) {
               token = Uri.base.queryParameters['token'] ?? '';
             }
 
-            // Si no hay en query, buscar en fragment
-            if (token.isEmpty && state.uri.fragment.isNotEmpty) {
-              final fragmentParams = Uri.parse('http://example.com?${state.uri.fragment}').queryParameters;
-              token = fragmentParams['code'] ?? ''; // Buscar 'code' en fragment
+            // ── 3. Extraer email ──
+            String email = state.uri.queryParameters['email'] ?? '';
+            if (email.isEmpty) {
+              email = Uri.base.queryParameters['email'] ?? '';
+            }
 
+            // ── 4. Buscar en fragment como último recurso ──
+            if (tokenHash.isEmpty && token.isEmpty && state.uri.fragment.isNotEmpty) {
+              final fragmentParams =
+                  Uri.parse('http://example.com?${state.uri.fragment}')
+                      .queryParameters;
+              tokenHash = fragmentParams['token_hash'] ?? '';
+              token = fragmentParams['code'] ?? '';
               if (token.startsWith('/')) {
                 token = token.substring(1);
               }
-
               if (token.isEmpty) {
-                token = fragmentParams['access_token'] ?? ''; // Fallback a 'access_token'
+                token = fragmentParams['access_token'] ?? '';
               }
-              email = fragmentParams['email'] ?? '';
+              if (email.isEmpty) {
+                email = fragmentParams['email'] ?? '';
+              }
             }
 
             print('🔍 Reset Password Route');
-            print('📝 Token/Code: $token');
+            print('📝 TokenHash: ${tokenHash.isNotEmpty ? '[present]' : '[empty]'}');
+            print('📝 Code/Token: ${token.isNotEmpty ? '[present]' : '[empty]'}');
             print('📧 Email: $email');
             print('⚠️ Error Code: $errorCode');
 
             return ResetPasswordScreen(
               resetToken: token,
-              email: email,
+              tokenHash: tokenHash,
+              email: email.isNotEmpty ? email : null,
               errorCode: errorCode,
             );
           },
@@ -692,7 +780,8 @@ class _ConViveAppState extends State<ConViveApp> {
         ChangeNotifierProvider(
           create: (_) => ChatbotProvider(
             chatbotService: ChatbotService(),
-            databaseService: SupabaseDatabaseService(supabase: SupabaseProvider.client),
+            databaseService:
+                SupabaseDatabaseService(supabase: SupabaseProvider.client),
           ),
         ),
       ],
@@ -709,13 +798,14 @@ class _ConViveAppState extends State<ConViveApp> {
               }
             });
           });
-          
+
           return MaterialApp.router(
             title: 'ConVive',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.lightTheme,
             darkTheme: themeProvider.darkTheme,
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             locale: localeProvider.locale,
             supportedLocales: const [
               Locale('es'),
@@ -762,9 +852,9 @@ class _EmailConfirmedRedirectScreenState
       // 1️⃣ Leer el code:
       //    - En Android: viene del pendingCode que llenó _handleDeepLink()
       //    - En Web:     viene de Uri.base.queryParameters (el navegador tiene la URL completa)
-      final String code = EmailConfirmedRedirectScreen.pendingCode
-          ?? Uri.base.queryParameters['code']
-          ?? '';
+      final String code = EmailConfirmedRedirectScreen.pendingCode ??
+          Uri.base.queryParameters['code'] ??
+          '';
 
       // Limpiar el pendingCode para evitar que se reutilice
       EmailConfirmedRedirectScreen.pendingCode = null;
@@ -810,7 +900,7 @@ class _EmailConfirmedRedirectScreenState
         await SupabaseProvider.client.auth
             .exchangeCodeForSession(code)
             .timeout(const Duration(seconds: 10));
-        
+
         final user = SupabaseProvider.client.auth.currentUser;
         if (user != null) {
           sessionCreated = true;
@@ -868,7 +958,8 @@ class _EmailConfirmedRedirectScreenState
       //
       // NO hacer: context.go('/home') o context.go('/login')
       // porque eso dispara el redirect guard que envía a /complete-profile en la web
-      print('✅ Email confirmado correctamente. Usuario debe volver a la app para continuar.');
+      print(
+          '✅ Email confirmado correctamente. Usuario debe volver a la app para continuar.');
     } catch (e) {
       print('❌ Error en _confirmEmailAndRedirect: $e');
       // Aun con error, el email probablemente ya fue confirmado
@@ -879,7 +970,8 @@ class _EmailConfirmedRedirectScreenState
         });
       }
       // No redirigir automáticamente - dejar que el usuario decida volver a la app
-      print('✅ Email confirmado. Usuario debe volver a la app para completar registro.');
+      print(
+          '✅ Email confirmado. Usuario debe volver a la app para completar registro.');
     }
   }
 
