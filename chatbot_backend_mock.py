@@ -118,6 +118,13 @@ def get_user_roommate_search(user_id: str) -> dict:
     )
     return rows[0] if rows else {}
 
+def get_active_roommate_searches(exclude_user_id: str) -> list:
+    rows = _sb_get(
+        "roommate_searches",
+        "status=eq.active&select=*&order=created_at.desc&limit=50",
+    )
+    return [r for r in rows if r.get("user_id") != exclude_user_id]
+
 def get_user_habits(user_id: str) -> dict:
     rows = _sb_get("habits", f"user_id=eq.{user_id}&select=*")
     return rows[0] if rows else {}
@@ -850,11 +857,26 @@ def recommend(request: RecommendationRequest):
     # ── COMPAÑERO DE CUARTO ──────────────────────────────────────────────────
     if is_roommate:
         all_habits = get_all_habits(request.user_id)
+        active_searches = get_active_roommate_searches(request.user_id)
+        searches_by_user = {
+            search.get("user_id"): search
+            for search in active_searches
+            if search.get("user_id")
+        }
         print(f"👥 Candidatos encontrados en Supabase: {len(all_habits)}")
         for row in all_habits:
             try:
                 cuid = row.get("user_id")
                 if not cuid:
+                    continue
+                roommate_search = searches_by_user.get(cuid)
+                if not roommate_search:
+                    discarded.append(f"{cuid[:8]} - sin busqueda de roomie activa")
+                    continue
+                search_lat = roommate_search.get("latitude") or roommate_search.get("lat")
+                search_lng = roommate_search.get("longitude") or roommate_search.get("lng")
+                if not search_lat or not search_lng:
+                    discarded.append(f"{cuid[:8]} - busqueda de roomie sin ubicacion")
                     continue
                 candidate_h = _normalize_habits(row)
                 score, breakdown, penalties = calculate_roommate_compatibility(user_h, candidate_h)
@@ -870,19 +892,16 @@ def recommend(request: RecommendationRequest):
                     continue
 
                 profile = get_user_profile(cuid)
-                roommate_search = get_user_roommate_search(cuid)
                 name    = profile.get("full_name") or profile.get("name") or "Usuario"
                 avatar  = profile.get("profile_image_url") or profile.get("avatar_url")
                 bio     = profile.get("bio") or ""
                 lat = (
-                    roommate_search.get("latitude")
-                    or roommate_search.get("lat")
+                    search_lat
                     or profile.get("latitude")
                     or profile.get("lat")
                 )
                 lng = (
-                    roommate_search.get("longitude")
-                    or roommate_search.get("lng")
+                    search_lng
                     or profile.get("longitude")
                     or profile.get("lng")
                 )
