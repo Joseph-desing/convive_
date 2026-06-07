@@ -870,14 +870,8 @@ def recommend(request: RecommendationRequest):
                 if not cuid:
                     continue
                 roommate_search = searches_by_user.get(cuid)
-                if not roommate_search:
-                    discarded.append(f"{cuid[:8]} - sin busqueda de roomie activa")
-                    continue
-                search_lat = roommate_search.get("latitude") or roommate_search.get("lat")
-                search_lng = roommate_search.get("longitude") or roommate_search.get("lng")
-                if not search_lat or not search_lng:
-                    discarded.append(f"{cuid[:8]} - busqueda de roomie sin ubicacion")
-                    continue
+                search_lat = roommate_search.get("latitude") or roommate_search.get("lat") if roommate_search else None
+                search_lng = roommate_search.get("longitude") or roommate_search.get("lng") if roommate_search else None
                 candidate_h = _normalize_habits(row)
                 score, breakdown, penalties = calculate_roommate_compatibility(user_h, candidate_h)
 
@@ -906,7 +900,7 @@ def recommend(request: RecommendationRequest):
                     or profile.get("lng")
                 )
                 location_address = (
-                    roommate_search.get("address")
+                    (roommate_search.get("address") if roommate_search else None)
                     or profile.get("address")
                     or profile.get("city")
                     or ""
