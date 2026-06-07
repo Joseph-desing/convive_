@@ -343,7 +343,17 @@ class _NotificationMatchScreenState extends State<NotificationMatchScreen> {
           );
         }
 
+        final hasExistingMatch = snapshot.data?[0] ?? false;
         final hasIncomingLike = snapshot.data?[1] ?? false;
+
+        if (hasExistingMatch) {
+          return _actionBtn(
+            label: 'Enviar mensaje',
+            icon: Icons.chat_bubble_rounded,
+            color: AppColors.primary,
+            onTap: _openChat,
+          );
+        }
 
         // Solo mostrar "Devolver match" si hay un like entrante sin confirmar
         if (hasIncomingLike) {
