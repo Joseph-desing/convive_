@@ -1009,6 +1009,40 @@ def recommend(request: RecommendationRequest):
             except Exception as e:
                 print(f"  Error fallback propiedad: {e}")
 
+    if is_roommate and not recommendations:
+        fallback_searches = active_searches if 'active_searches' in locals() else get_active_roommate_searches(request.user_id)
+        fallback_searches = [
+            search for search in fallback_searches
+            if (search.get("latitude") or search.get("lat"))
+            and (search.get("longitude") or search.get("lng"))
+        ]
+        print(f"Fallback roomie con ubicacion: {len(fallback_searches)} busquedas")
+        for search in fallback_searches[:3]:
+            try:
+                user_id = search.get("user_id")
+                profile = get_user_profile(user_id) if user_id else {}
+                name = profile.get("full_name") or profile.get("name") or "Roomie"
+                avatar = profile.get("profile_image_url") or profile.get("avatar_url")
+                title = search.get("title") or "Busqueda de roomie"
+                address = search.get("address") or ""
+                budget = search.get("budget")
+                lat = search.get("latitude") or search.get("lat")
+                lng = search.get("longitude") or search.get("lng")
+                location = {"lat": float(lat), "lng": float(lng), "address": address}
+                content = (
+                    f"Hay una busqueda de roomie disponible: {title}"
+                    f"{' en ' + address if address else ''}"
+                    f"{' con presupuesto de $' + str(int(float(budget))) if budget else ''}."
+                    " No coincide necesariamente al 100% con todos tus criterios, pero tiene una ubicacion registrada y puedes revisarla."
+                )
+                recommendations.append({
+                    "content": content, "matched_user_id": user_id or search.get("id"),
+                    "matched_user_name": name, "matched_user_avatar": avatar,
+                    "compatibility_score": 0.55, "property_location": location,
+                })
+            except Exception as e:
+                print(f"  Error fallback roomie: {e}")
+
     recommendations.sort(key=lambda x: x["compatibility_score"], reverse=True)
     top3 = recommendations[:3]
 
