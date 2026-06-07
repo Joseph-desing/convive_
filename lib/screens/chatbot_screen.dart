@@ -8,6 +8,7 @@ import '../models/chatbot_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/chatbot_provider.dart';
+import '../config/supabase_provider.dart';
 import '../utils/colors.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -87,8 +88,44 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return null;
   }
 
-  void _openRecommendationLocation(ChatbotMessage message) {
+  Future<Map<String, dynamic>?> _resolveRecommendationLocation(
+    ChatbotMessage message,
+  ) async {
     final location = message.propertyLocation;
+    if (location != null &&
+        _readCoordinate(location, ['lat', 'latitude']) != null &&
+        _readCoordinate(location, ['lng', 'lon', 'long', 'longitude']) != null) {
+      return location;
+    }
+
+    final userId = message.matchedUserId;
+    if (userId == null || userId.isEmpty) return null;
+
+    try {
+      final response = await SupabaseProvider.client
+          .from('roommate_searches')
+          .select('address, latitude, longitude')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        final row = Map<String, dynamic>.from(response.first as Map);
+        if (_readCoordinate(row, ['lat', 'latitude']) != null &&
+            _readCoordinate(row, ['lng', 'lon', 'long', 'longitude']) != null) {
+          return row;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando ubicacion de roomie recomendado: $e');
+    }
+
+    return null;
+  }
+
+  Future<void> _openRecommendationLocation(ChatbotMessage message) async {
+    final location = await _resolveRecommendationLocation(message);
+    if (!mounted) return;
     final lat = location == null
         ? null
         : _readCoordinate(location, ['lat', 'latitude']);
