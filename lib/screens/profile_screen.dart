@@ -11,7 +11,6 @@ import 'privacy_screen.dart';
 import 'edit_habits_screen.dart';
 import 'my_publications_screen.dart';
 
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
@@ -83,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -92,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       // Obtener usuario actual autenticado
       final authUser = SupabaseProvider.authService.getCurrentUser();
-      
+
       if (authUser == null) {
         if (mounted) {
           setState(() {
@@ -105,8 +104,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Cargar datos del usuario desde Supabase
       final user = await SupabaseProvider.databaseService.getUser(authUser.id);
-      final profile = await SupabaseProvider.databaseService.getProfile(authUser.id);
-      final habits = await SupabaseProvider.databaseService.getHabits(authUser.id);
+      final profile =
+          await SupabaseProvider.databaseService.getProfile(authUser.id);
+      final habits =
+          await SupabaseProvider.databaseService.getHabits(authUser.id);
 
       if (mounted) {
         setState(() {
@@ -125,8 +126,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-
-
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
@@ -296,7 +295,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _loadUserData,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -341,7 +341,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return SliverAppBar(
       expandedHeight: 260,
       pinned: true,
-      backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Colors.white,
+      backgroundColor:
+          Theme.of(context).appBarTheme.backgroundColor ?? Colors.white,
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
@@ -399,7 +400,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         IconButton(
-          icon: const Icon(Icons.camera_alt_outlined, size: 22, color: Colors.black87),
+          icon: const Icon(Icons.camera_alt_outlined,
+              size: 22, color: Colors.black87),
           tooltip: 'Cambiar foto',
           onPressed: _uploadingImage ? null : _pickAndUploadProfileImage,
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -437,12 +439,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final width = MediaQuery.of(context).size.width;
     final avatarSize = width * 0.40; // Avatar agrandado
     final clampedSize = avatarSize.clamp(140.0, 220.0);
-    
+
     // Agregar timestamp para evitar caché de imagen
-    final imageUrl = hasImage 
+    final imageUrl = hasImage
         ? '${profile.profileImageUrl!}?t=${DateTime.now().millisecondsSinceEpoch}'
         : null;
-    
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(6),
@@ -687,6 +689,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const Divider(),
           _buildSettingsTile(
+            icon: Icons.info_outline_rounded,
+            title: 'Acerca de',
+            onTap: _showAboutConViveDialog,
+          ),
+          const Divider(),
+          _buildSettingsTile(
             icon: Icons.logout,
             title: 'Cerrar sesión',
             onTap: () => _handleLogout(),
@@ -811,6 +819,217 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showAboutConViveDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.28),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.home_work_outlined,
+                        color: Colors.white,
+                        size: 38,
+                      ),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Acerca de ConVive',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tu espacio para encontrar hogar y convivencia ideal',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                height: 1.25,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'ConVive es una aplicación pensada para conectar personas que buscan departamentos, habitaciones o compañeros de vivienda de una forma más clara, segura y organizada.',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 14,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                _buildAboutFeatureCard(
+                  icon: Icons.apartment_rounded,
+                  title: 'Departamentos',
+                  description:
+                      'Explora publicaciones aprobadas, precios, ubicación, disponibilidad y detalles importantes antes de elegir.',
+                  color: const Color(0xFF1E88E5),
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.favorite_rounded,
+                  title: 'Compatibilidad',
+                  description:
+                      'Encuentra roomies con hábitos similares mediante coincidencias basadas en limpieza, ruido, visitas y estilo de vida.',
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.verified_user_rounded,
+                  title: 'Publicaciones verificadas',
+                  description:
+                      'Las publicaciones pasan por revisión administrativa para ofrecer una experiencia más confiable dentro de la comunidad.',
+                  color: const Color(0xFF2F9E44),
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.smart_toy_rounded,
+                  title: 'Asistente ConVive',
+                  description:
+                      'El chatbot te guía paso a paso para buscar departamentos o compañeros según tus preferencias.',
+                  color: const Color(0xFF9C27B0),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Nuestra meta es ayudarte a tomar mejores decisiones para convivir con tranquilidad, seguridad y confianza.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Entendido',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSupportContactRow({
     required IconData icon,
     required String label,
@@ -902,7 +1121,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoCard(IconData icon, String label, String value, Color color) {
+  Widget _buildInfoCard(
+      IconData icon, String label, String value, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -965,7 +1185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
 
   Widget _buildSettingsTile({
     required IconData icon,
@@ -1041,7 +1260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _navigateToCompleteProfile() {
     final authUser = SupabaseProvider.authService.getCurrentUser();
-    
+
     if (authUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1052,14 +1271,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => CompleteProfileScreen(
           userId: authUser.id,
           email: authUser.email ?? '',
         ),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // Recargar los datos después de completar el perfil
       _loadUserData();
     });

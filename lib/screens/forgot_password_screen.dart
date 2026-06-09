@@ -280,370 +280,377 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           gradient: AppColors.backgroundGradient,
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
 
-                // --- LOGO ---
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/images/logo2.jpeg',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // --- TÍTULO ---
-                if (!_emailSent) ...[
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AppColors.primaryGradient.createShader(bounds),
-                    child: const Text(
-                      'Recuperar Contraseña',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
+                    // --- LOGO ---
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
                         color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ] else ...[
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AppColors.primaryGradient.createShader(bounds),
-                    child: const Text(
-                      '¡Correo Enviado!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 40),
-
-                // --- FORM O SUCCESS MESSAGE ---
-                if (!_emailSent) ...[
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // --- EMAIL FIELD ---
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                          ],
-                          validator: (value) {
-                            final email = value?.trim() ?? '';
-                            if ((value ?? '').contains(RegExp(r'\s'))) {
-                              return 'El correo no puede tener espacios';
-                            }
-                            final emailRegex = RegExp(
-                              r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                            );
-                            if (email.isNotEmpty && !emailRegex.hasMatch(email)) {
-                              return 'Por favor ingresa un email válido';
-                            }
-                            if (value == null || value.isEmpty) {
-                              return 'El email es requerido';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Por favor ingresa un email válido';
-                            }
-                            return null;
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'tu@email.com',
-                            hintStyle: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 14,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.email_outlined,
-                              color: AppColors.primary,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            errorStyle: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // --- ENVIAR BOTÓN ---
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _sendResetEmail,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                gradient: AppColors.primaryGradient,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Container(
-                                alignment: Alignment.center,
-                                child: _isLoading
-                                    ? const CircularProgressIndicator(
-                                        color: Colors.white)
-                                    : const Text(
-                                        'Enviar Enlace de Recuperación',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  // --- SUCCESS MESSAGE ---
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border:
-                          Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(32),
-                          ),
-                          child: const Icon(
-                            Icons.check_circle_outline,
-                            color: Colors.green,
-                            size: 40,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Revisa tu correo',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Se ha enviado un enlace de recuperación a:\n${_emailController.text}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.green,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Por favor revisa tu bandeja de entrada y sigue las instrucciones. Si no ves el email, verifica tu carpeta de spam.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // --- BOTÓN VOLVER AL LOGIN ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      child: const Text(
-                        'Volver al Login',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 24),
-
-                // --- VOLVER AL LOGIN & ¿NO RECUERDAS TU EMAIL? (Mejorados) ---
-                if (!_emailSent)
-                  Column(
-                    children: [
-                      // --- BOTÓN 1: VOLVER AL LOGIN ---
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
                             color: AppColors.primary.withOpacity(0.3),
-                            width: 1.5,
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/images/logo2.jpeg',
+                            fit: BoxFit.contain,
                           ),
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(14),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.arrow_back_ios_new,
-                                    size: 16,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Volver al Login',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // --- TÍTULO ---
+                    if (!_emailSent) ...[
+                      ShaderMask(
+                        shaderCallback: (bounds) =>
+                            AppColors.primaryGradient.createShader(bounds),
+                        child: const Text(
+                          'Recuperar Contraseña',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // --- BOTÓN 2: ¿NO RECUERDAS TU EMAIL? ---
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color: AppColors.primary.withOpacity(0.08),
-                          border: Border.all(
-                            color: AppColors.primary.withOpacity(0.2),
-                            width: 1.5,
-                          ),
+                      const Text(
+                        'Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          height: 1.5,
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _showSupportOptions,
-                            borderRadius: BorderRadius.circular(14),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      ShaderMask(
+                        shaderCallback: (bounds) =>
+                            AppColors.primaryGradient.createShader(bounds),
+                        child: const Text(
+                          '¡Correo Enviado!',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 40),
+
+                    // --- FORM O SUCCESS MESSAGE ---
+                    if (!_emailSent) ...[
+                      Form(
+                        key: _formKey,
+                        child: Column(
+                          children: [
+                            // --- EMAIL FIELD ---
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                              ],
+                              validator: (value) {
+                                final email = value?.trim() ?? '';
+                                if ((value ?? '').contains(RegExp(r'\s'))) {
+                                  return 'El correo no puede tener espacios';
+                                }
+                                final emailRegex = RegExp(
+                                  r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                                );
+                                if (email.isNotEmpty &&
+                                    !emailRegex.hasMatch(email)) {
+                                  return 'Por favor ingresa un email válido';
+                                }
+                                if (value == null || value.isEmpty) {
+                                  return 'El email es requerido';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Por favor ingresa un email válido';
+                                }
+                                return null;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'tu@email.com',
+                                hintStyle: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.email_outlined,
+                                  color: AppColors.primary,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                errorStyle: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.help_outline_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
+                            ),
+                            const SizedBox(height: 24),
+
+                            // --- ENVIAR BOTÓN ---
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _sendResetEmail,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    '¿No recuerdas tu email?',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
-                                    ),
+                                ),
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    gradient: AppColors.primaryGradient,
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                ],
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    child: _isLoading
+                                        ? const CircularProgressIndicator(
+                                            color: Colors.white)
+                                        : const Text(
+                                            'Enviar Enlace de Recuperación',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                  ),
+                                ),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // --- SUCCESS MESSAGE ---
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: Colors.green.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(32),
+                              ),
+                              child: const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green,
+                                size: 40,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Revisa tu correo',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Se ha enviado un enlace de recuperación a:\n${_emailController.text}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.green,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Por favor revisa tu bandeja de entrada y sigue las instrucciones. Si no ves el email, verifica tu carpeta de spam.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // --- BOTÓN VOLVER AL LOGIN ---
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(
+                                color: AppColors.primary,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          child: const Text(
+                            'Volver al Login',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
                       ),
                     ],
-                  ),
 
-                const SizedBox(height: 40),
-              ],
+                    const SizedBox(height: 24),
+
+                    // --- VOLVER AL LOGIN & ¿NO RECUERDAS TU EMAIL? (Mejorados) ---
+                    if (!_emailSent)
+                      Column(
+                        children: [
+                          // --- BOTÓN 1: VOLVER AL LOGIN ---
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => Navigator.pop(context),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_back_ios_new,
+                                        size: 16,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Volver al Login',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // --- BOTÓN 2: ¿NO RECUERDAS TU EMAIL? ---
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: AppColors.primary.withOpacity(0.08),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.2),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _showSupportOptions,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.help_outline_rounded,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        '¿No recuerdas tu email?',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

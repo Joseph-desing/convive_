@@ -46,20 +46,21 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       debugPrint('🔵 [Google] Iniciando OAuth...');
+      debugPrint('🔵 [Google] Platform: ${kIsWeb ? "Web" : "Android"}');
+      // Web → Flutter hash route
+      // Android → URL web intermedia que detecta móvil y redirige al APK
+      // Chrome en Android BLOQUEA redirects HTTP a custom schemes,
+      // por eso usamos una URL web + login-callback.html
+      final redirectUrl = kIsWeb
+          ? 'https://convive-app-6debf.web.app/#/login-callback'
+          : 'https://convive-app-6debf.web.app/login-callback';
+      debugPrint('🔵 [Google] redirectTo: $redirectUrl');
       await SupabaseProvider.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // Web → redirige directamente a la app en Firebase Hosting
-        // Android → usa deep link custom scheme para volver al APK
-        // IMPORTANTE: usar externalApplication (Chrome normal) en Android.
-        // Chrome Custom Tab (inAppWebView) está sandboxeado y NO puede disparar
-        // intent-filters con custom scheme.
-        // Chrome externo sí puede redirigir a custom schemes y Android captura el intent.
-        redirectTo: kIsWeb
-            ? 'https://convive-app-6debf.web.app/#/login-callback'
-            : 'com.example.convive_://login-callback',
+        redirectTo: redirectUrl,
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication, // ← Chrome externo en Android
+            : LaunchMode.externalApplication,
       );
       debugPrint('🔵 [Google] signInWithOAuth lanzado');
     } catch (e) {
@@ -242,16 +243,18 @@ class AuthProvider extends ChangeNotifier {
       final authResponse = await SupabaseProvider.authService.signUp(
         email: email,
         password: password,
-        // Web → abre la página de confirmación en Firebase Hosting
-        // Android → deep link 'auth-callback' (distinto de login-callback para no confundir con Google OAuth)
+        // Web → Flutter hash route para email-confirmed
+        // Android → URL web intermedia que detecta móvil y redirige al APK
+        // Chrome en Android BLOQUEA redirects HTTP a custom schemes
         emailRedirectTo: kIsWeb
             ? 'https://convive-app-6debf.web.app/#/email-confirmed'
-            : 'com.example.convive_://auth-callback',
+            : 'https://convive-app-6debf.web.app/auth-callback',
         data: {
           'full_name': fullName,
           'role': role.name,
         },
       );
+      debugPrint('📧 [SignUp] emailRedirectTo: ${kIsWeb ? "web URL" : "com.example.convive_://auth-callback"}');
 
       if (authResponse.user != null) {
         _currentUser = null;
@@ -411,12 +414,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 [Reset] Enviando email de recuperación a: $email');
 
-      // Apuntar directamente a /reset-password para que Supabase agregue
-      // ?token_hash=...&type=recovery como query params al path correcto.
-      // NO usar fragment hash (#) — Supabase lo ignora.
-      const redirectTo = 'https://convive-app-6debf.web.app/reset-password';
+      // En web → URL de Firebase Hosting (reset-password.html o Flutter catch-all)
+      // En Android → misma URL web (el email se abre en navegador, no en el APK)
+      // El template de Supabase tiene la URL hardcodeada con {{ .TokenHash }}
+      final redirectTo = kIsWeb
+          ? 'https://convive-app-6debf.web.app/reset-password'
+          : 'https://convive-app-6debf.web.app/reset-password';
 
       debugPrint('🔄 [Reset] redirectTo: $redirectTo');
+      debugPrint('🔄 [Reset] Platform: ${kIsWeb ? "Web" : "Android"}');
 
       await SupabaseProvider.client.auth.resetPasswordForEmail(
         email,

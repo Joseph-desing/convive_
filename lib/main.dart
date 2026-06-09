@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:app_links/app_links.dart';
@@ -66,7 +68,9 @@ class _ConViveAppState extends State<ConViveApp> {
   late final GoRouter _router;
   late final AppLinks _appLinks;
   late final StreamSubscription<Uri> _deepLinkSubscription;
+  StreamSubscription<AuthState>? _authStateSubscription;
   bool? _didInitializeAuth = false;
+  bool _waitingForGoogleSession = false;
 
   @override
   void initState() {
@@ -99,6 +103,39 @@ class _ConViveAppState extends State<ConViveApp> {
         debugPrint('❌ [DeepLink] Error en stream: $err');
       },
     );
+
+    // ── LISTENER de AuthState para detectar sesión Google OAuth en Android ──
+    // Cuando Chrome redirige al deep link, supabase_flutter intercepta
+    // el code PKCE y lo intercambia automáticamente. onAuthStateChange
+    // notifica cuando la sesión está lista.
+    if (!kIsWeb) {
+      _authStateSubscription = SupabaseProvider.client.auth.onAuthStateChange.listen(
+        (data) {
+          final event = data.event;
+          final session = data.session;
+          debugPrint('🔔 [AuthState] event=$event session=${session != null ? "[active]" : "[null]"}');
+
+          if (event == AuthChangeEvent.signedIn && session != null && _waitingForGoogleSession) {
+            _waitingForGoogleSession = false;
+            debugPrint('🔔 [AuthState] Sesión Google detectada via onAuthStateChange → navegando a /home');
+            Future.microtask(() async {
+              final ctx = _router.routerDelegate.navigatorKey.currentContext;
+              if (ctx != null) {
+                final authProvider = ctx.read<AuthProvider>();
+                await authProvider.handleGoogleCallback();
+                final role = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+                _router.go(role == 'admin' ? '/admin' : '/home');
+              } else {
+                _router.go('/home');
+              }
+            });
+          }
+        },
+        onError: (err) {
+          debugPrint('❌ [AuthState] Error en stream: $err');
+        },
+      );
+    }
   }
 
   /// Manejo centralizado de deep links. Soporta:
@@ -216,27 +253,50 @@ class _ConViveAppState extends State<ConViveApp> {
     }
 
     // ── CASO 2: Google OAuth callback ─────────────────────────────────────
-    // IMPORTANTE: NO redirigir directamente a /complete-profile desde deep link.
-    // Dejar que el redirect guard maneje la lógica de perfil incompleto.
-    // Flujo correcto:
-    // 1. Google OAuth completa → va a /home
-    // 2. Redirect guard detecta: ¿usuario nuevo sin perfil? → va a /complete-profile
-    // 3. Usuario completa perfil dentro de la app
+    // En Android, supabase_flutter procesa el deep link automáticamente y
+    // dispara onAuthStateChange cuando la sesión está lista.
+    // Pero puede haber un delay → intentar esperar la sesión antes de navegar.
     if (isLoginCallback) {
       debugPrint('🔵 [DeepLink] → Google OAuth callback');
+      debugPrint('🔵 [DeepLink] Platform: ${kIsWeb ? "Web" : "Android"}');
+
       Future.microtask(() async {
-        final authProvider = _router.routerDelegate.navigatorKey.currentContext
-            ?.read<AuthProvider>();
-        if (authProvider != null) {
-          await authProvider.handleGoogleCallback();
-          // Siempre ir a home (o admin si es admin)
-          // El redirect guard se encargará de /complete-profile si es necesario
-          final role =
-              authProvider.currentUser?.role.toString().split('.').last ??
-                  'student';
-          _router.go(role == 'admin' ? '/admin' : '/home');
+        // Esperar hasta 5 segundos a que supabase_flutter procese el código
+        // y establezca la sesión automáticamente
+        var session = SupabaseProvider.client.auth.currentSession;
+        if (session == null) {
+          debugPrint('🔵 [DeepLink] Sesión no disponible aún, esperando...');
+          _waitingForGoogleSession = true;
+
+          // Intentar hasta 10 veces con 500ms entre cada intento
+          for (var i = 0; i < 10; i++) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            session = SupabaseProvider.client.auth.currentSession;
+            if (session != null) {
+              debugPrint('🔵 [DeepLink] Sesión detectada después de ${(i + 1) * 500}ms');
+              _waitingForGoogleSession = false;
+              break;
+            }
+          }
+        }
+
+        if (session != null) {
+          debugPrint('🔵 [DeepLink] Sesión activa, procesando callback...');
+          final authProvider = _router.routerDelegate.navigatorKey.currentContext
+              ?.read<AuthProvider>();
+          if (authProvider != null) {
+            await authProvider.handleGoogleCallback();
+            final role =
+                authProvider.currentUser?.role.toString().split('.').last ??
+                    'student';
+            _router.go(role == 'admin' ? '/admin' : '/home');
+          } else {
+            _router.go('/home');
+          }
         } else {
-          _router.go('/home');
+          // Si después de 5s no hay sesión, dejar que onAuthStateChange lo maneje
+          debugPrint('⚠️ [DeepLink] Sin sesión después de 5s, esperando onAuthStateChange...');
+          // _waitingForGoogleSession ya está true → onAuthStateChange navegará
         }
       });
       return;
@@ -287,6 +347,7 @@ class _ConViveAppState extends State<ConViveApp> {
   @override
   void dispose() {
     _deepLinkSubscription.cancel();
+    _authStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -390,16 +451,26 @@ class _ConViveAppState extends State<ConViveApp> {
             print('🔐 token_hash detectado → recovery');
           }
 
-          // code sin type explícito → asumir recovery
-          // (email confirmation siempre viene con type=signup)
+          // code sin type explícito → NO asumir recovery.
+          // Antes asumíamos recovery, pero eso hace que email verification
+          // y Google OAuth muestren la pantalla de Reset Password.
+          // Recovery SIEMPRE viene con token_hash (template nuevo) o type=recovery.
+          // Code sin type = email confirmation o Google OAuth.
           if (code.isNotEmpty && !isRecovery) {
             final typeParam = state.uri.queryParameters['type'] ??
                 uriBaseParams['type'] ??
                 fragmentParams['type'] ??
                 '';
-            if (typeParam.isEmpty) {
+            if (typeParam == 'recovery') {
               isRecovery = true;
-              print('🔐 Código sin type explícito → asumiendo recovery');
+              print('🔐 type=recovery explícito → recovery');
+            } else if (typeParam == 'signup' || typeParam == 'email_change') {
+              // Es email confirmation, NO recovery
+              print('📧 type=$typeParam → email confirmation');
+            } else {
+              // Sin type: tratar como email confirmation (NO recovery)
+              // Recovery usa token_hash ahora, no code sin type
+              print('📧 Code sin type → tratando como email confirmation (NO recovery)');
             }
           }
 
@@ -947,19 +1018,22 @@ class _EmailConfirmedRedirectScreenState
         });
       }
 
-      // 🎯 IMPORTANTE: NO redirigir automáticamente a /home en el navegador
-      // porque el redirect guard enviará al usuario a /complete-profile
-      // si no tiene perfil, lo cual no es deseado en la web.
-      //
-      // El flujo correcto es:
-      // 1. Usuario abre el link → ve esta pantalla de éxito
-      // 2. Usuario vuelve manualmente a la app
-      // 3. En la app, cuando inicia sesión, el redirect guard lo lleva a /complete-profile si es necesario
-      //
-      // NO hacer: context.go('/home') o context.go('/login')
-      // porque eso dispara el redirect guard que envía a /complete-profile en la web
-      print(
-          '✅ Email confirmado correctamente. Usuario debe volver a la app para continuar.');
+      // 📱 En Android APK: auto-redirigir a /login después de 2 segundos
+      // porque el usuario YA está en la app (deep link abrió el APK).
+      // 🌐 En Web: NO redirigir — el usuario debe volver manualmente a la app.
+      if (!kIsWeb) {
+        debugPrint('📱 [EmailConfirmed] Android → auto-redirect a /login en 2s');
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          // Cerrar sesión de confirmación (si existe) para que haga login limpio
+          try {
+            await SupabaseProvider.client.auth.signOut();
+          } catch (_) {}
+          GoRouter.of(context).go('/login');
+        }
+      } else {
+        debugPrint('🌐 [EmailConfirmed] Web → usuario debe volver a la app manualmente');
+      }
     } catch (e) {
       print('❌ Error en _confirmEmailAndRedirect: $e');
       // Aun con error, el email probablemente ya fue confirmado
@@ -969,9 +1043,11 @@ class _EmailConfirmedRedirectScreenState
           _message = '¡Correo confirmado! Inicia sesión para continuar.';
         });
       }
-      // No redirigir automáticamente - dejar que el usuario decida volver a la app
-      print(
-          '✅ Email confirmado. Usuario debe volver a la app para completar registro.');
+      // 📱 Android: auto-redirect incluso con error
+      if (!kIsWeb && mounted) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) GoRouter.of(context).go('/login');
+      }
     }
   }
 
@@ -1052,10 +1128,12 @@ class _EmailConfirmedRedirectScreenState
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Por favor, regresa a la app para completar tu registro.',
+                      Text(
+                        kIsWeb
+                            ? 'Por favor, regresa a la app para completar tu registro.'
+                            : 'Redirigiendo al login...',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF9CA3AF),
                           fontStyle: FontStyle.italic,
