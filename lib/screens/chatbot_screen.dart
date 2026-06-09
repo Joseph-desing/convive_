@@ -21,8 +21,8 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen> {
   late TextEditingController _messageController;
   late ScrollController _scrollController;
-  String? _selectedOption;  // Track selected option
-  bool _optionsUsed = false;  // Track si opciones ya fueron usadas
+  String? _selectedOption; // Track selected option
+  bool _optionsUsed = false; // Track si opciones ya fueron usadas
 
   @override
   void initState() {
@@ -35,7 +35,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       final authProvider = context.read<AuthProvider>();
       final userProvider = context.read<UserProvider>();
       final chatbotProvider = context.read<ChatbotProvider>();
-      
+
       if (authProvider.currentUser != null) {
         final fullName = userProvider.profile?.fullName;
         chatbotProvider.initializeChatbot(
@@ -94,7 +94,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final location = message.propertyLocation;
     if (location != null &&
         _readCoordinate(location, ['lat', 'latitude']) != null &&
-        _readCoordinate(location, ['lng', 'lon', 'long', 'longitude']) != null) {
+        _readCoordinate(location, ['lng', 'lon', 'long', 'longitude']) !=
+            null) {
       return location;
     }
 
@@ -188,8 +189,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ],
         ),
         backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF1E1E1E)
-          : Colors.white,
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
         elevation: 1,
         actions: [
           Tooltip(
@@ -198,10 +199,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               onPressed: () {
                 final chatbotProvider = context.read<ChatbotProvider>();
                 final authProvider = context.read<AuthProvider>();
-                
+
                 // Limpiar mensajes y reiniciar
                 chatbotProvider.clearMessages();
-                
+
                 // Reinicializar con bienvenida
                 if (authProvider.currentUser != null) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -227,8 +228,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             if (last.type == MessageType.assistant &&
                 (last.options?.isNotEmpty ?? false) &&
                 _optionsUsed) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => setState(() => _optionsUsed = false));
+              WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => setState(() => _optionsUsed = false));
             }
           }
           return Container(
@@ -237,18 +238,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: Theme.of(context).brightness == Brightness.dark
-                  ? [
-                      const Color(0xFF121212),
-                      const Color(0xFF1E1E1E),
-                      const Color(0xFF242424),
-                      const Color(0xFF1A1A1A),
-                    ]
-                  : [
-                      Colors.white,
-                      AppColors.primary.withOpacity(0.04),
-                      AppColors.secondary.withOpacity(0.03),
-                      Colors.grey.shade50,
-                    ],
+                    ? [
+                        const Color(0xFF121212),
+                        const Color(0xFF1E1E1E),
+                        const Color(0xFF242424),
+                        const Color(0xFF1A1A1A),
+                      ]
+                    : [
+                        Colors.white,
+                        AppColors.primary.withOpacity(0.04),
+                        AppColors.secondary.withOpacity(0.03),
+                        Colors.grey.shade50,
+                      ],
                 stops: const [0.0, 0.4, 0.7, 1.0],
               ),
             ),
@@ -285,9 +286,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFFF5F5F5)
-                                    : Colors.black87,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? const Color(0xFFF5F5F5)
+                                      : Colors.black87,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -384,17 +386,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 vertical: hasMarkdown ? 18 : 16,
               ),
               decoration: BoxDecoration(
-                color: isUserMessage 
-                  ? AppColors.primary 
-                  : (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF1E1E1E)
-                      : Colors.white),
+                color: isUserMessage
+                    ? AppColors.primary
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF1E1E1E)
+                        : Colors.white),
                 boxShadow: [
                   BoxShadow(
                     color: isUserMessage
                         ? AppColors.primary.withOpacity(0.15)
                         : Colors.black.withOpacity(
-                            Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.06),
+                            Theme.of(context).brightness == Brightness.dark
+                                ? 0.2
+                                : 0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -403,8 +407,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 border: !isUserMessage
                     ? Border.all(
                         color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF333333)
-                          : Colors.grey.shade100,
+                            ? const Color(0xFF333333)
+                            : Colors.grey.shade100,
                         width: 1.2)
                     : null,
               ),
@@ -430,21 +434,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                             height: 32,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [AppColors.primary, AppColors.secondary],
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.secondary
+                                ],
                               ),
                               borderRadius: BorderRadius.circular(50),
                             ),
-                            child: const Icon(Icons.smart_toy, 
-                              color: Colors.white, 
-                              size: 16),
+                            child: const Icon(Icons.smart_toy,
+                                color: Colors.white, size: 16),
                           ),
                         ),
                         Flexible(
                           child: _buildFormattedContent(
                             message.content,
-                            baseColor: Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFFF5F5F5)
-                              : Colors.black87,
+                            baseColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFF5F5F5)
+                                    : Colors.black87,
                           ),
                         ),
                       ],
@@ -476,8 +483,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       padding: EdgeInsets.all(compact ? 14 : 16),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF1E1E1E)
-          : Colors.white,
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
         border: Border.all(
           color: AppColors.primary.withOpacity(0.18),
           width: 1.2,
@@ -711,27 +718,22 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     // Input de texto normal
     Widget textInputWidget = Container(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        12,
-        12,
-        12 + MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF1E1E1E)
-          : Colors.white,
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
         border: Border(
           top: BorderSide(
             color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF333333)
-              : Colors.grey.shade100,
+                ? const Color(0xFF333333)
+                : Colors.grey.shade100,
           ),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(
-              Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+                Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -809,50 +811,51 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: lastMessage.options!.map((option) {
-                return GestureDetector(
-                  onTap: chatbotProvider.isLoading
-                      ? null
-                      : () {
-                          setState(() => _optionsUsed = true);
-                          final authProvider = context.read<AuthProvider>();
-                          if (authProvider.currentUser != null) {
-                            context.read<ChatbotProvider>().sendMessage(
-                                  option,
-                                  authProvider.currentUser!,
-                                );
-                            _scrollToBottom();
-                          }
-                        },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.12),
-                          AppColors.secondary.withOpacity(0.08),
-                        ],
+                  return GestureDetector(
+                    onTap: chatbotProvider.isLoading
+                        ? null
+                        : () {
+                            setState(() => _optionsUsed = true);
+                            final authProvider = context.read<AuthProvider>();
+                            if (authProvider.currentUser != null) {
+                              context.read<ChatbotProvider>().sendMessage(
+                                    option,
+                                    authProvider.currentUser!,
+                                  );
+                              _scrollToBottom();
+                            }
+                          },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary.withOpacity(0.12),
+                            AppColors.secondary.withOpacity(0.08),
+                          ],
+                        ),
+                        border: Border.all(
+                            color: AppColors.primary.withOpacity(0.35),
+                            width: 1.2),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.35), width: 1.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      option,
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      child: Text(
+                        option,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-          textInputWidget,
-        ],
-      ),
+            textInputWidget,
+          ],
+        ),
       );
     }
 
@@ -875,7 +878,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final lines = text.split('\n');
     final widgets = <Widget>[];
     for (final line in lines) {
-      widgets.add(_buildFormattedLine(line, baseColor: baseColor, baseFontSize: baseFontSize));
+      widgets.add(_buildFormattedLine(line,
+          baseColor: baseColor, baseFontSize: baseFontSize));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1033,8 +1037,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         .toList();
     final isProperty = message.propertyLocation != null;
     final keywords = isProperty
-        ? ['precio', 'presupuesto', 'ubic', 'habitaci', 'alicuota', 'servicio', 'amobl', 'mascota']
-        : ['respons', 'sue', 'visita', 'limpieza', 'ruido', 'fiesta', 'calmad', 'respet'];
+        ? [
+            'precio',
+            'presupuesto',
+            'ubic',
+            'habitaci',
+            'alicuota',
+            'servicio',
+            'amobl',
+            'mascota'
+          ]
+        : [
+            'respons',
+            'sue',
+            'visita',
+            'limpieza',
+            'ruido',
+            'fiesta',
+            'calmad',
+            'respet'
+          ];
     final prioritized = sentences.where((sentence) {
       final lower = sentence.toLowerCase();
       return keywords.any(lower.contains);
@@ -1056,20 +1078,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
 
     if (isProperty) {
-      addIf(content.contains('alicuota') && !content.contains('sin alicuota'), Icons.receipt_long_rounded, 'Incluye alícuota');
+      addIf(content.contains('alicuota') && !content.contains('sin alicuota'),
+          Icons.receipt_long_rounded, 'Incluye alícuota');
       addIf(content.contains('amobl'), Icons.chair_rounded, 'Amoblado');
-      addIf(content.contains('servicio') || content.contains('suministro'), Icons.home_repair_service_rounded, 'Servicios');
+      addIf(content.contains('servicio') || content.contains('suministro'),
+          Icons.home_repair_service_rounded, 'Servicios');
       addIf(content.contains('mascota'), Icons.pets_rounded, 'Mascotas');
-      addIf(content.contains('habitaci') || content.contains('dormitorio'), Icons.bed_rounded, 'Habitación');
-      addIf(message.propertyLocation != null || content.contains('ubic'), Icons.location_on_rounded, 'Ubicación');
+      addIf(content.contains('habitaci') || content.contains('dormitorio'),
+          Icons.bed_rounded, 'Habitación');
+      addIf(message.propertyLocation != null || content.contains('ubic'),
+          Icons.location_on_rounded, 'Ubicación');
     } else {
-      addIf(content.contains('respons'), Icons.verified_user_rounded, 'Responsable');
-      addIf(content.contains('limpieza'), Icons.cleaning_services_rounded, 'Limpieza');
+      addIf(content.contains('respons'), Icons.verified_user_rounded,
+          'Responsable');
+      addIf(content.contains('limpieza'), Icons.cleaning_services_rounded,
+          'Limpieza');
       addIf(content.contains('sue'), Icons.bedtime_rounded, 'Sueño');
       addIf(content.contains('visita'), Icons.group_rounded, 'Visitas');
       addIf(content.contains('fiesta'), Icons.celebration_rounded, 'Fiestas');
-      addIf(content.contains('calmad') || content.contains('tranquil'), Icons.self_improvement_rounded, 'Tranquilo/a');
-      addIf(content.contains('respet'), Icons.handshake_rounded, 'Respetuoso/a');
+      addIf(content.contains('calmad') || content.contains('tranquil'),
+          Icons.self_improvement_rounded, 'Tranquilo/a');
+      addIf(
+          content.contains('respet'), Icons.handshake_rounded, 'Respetuoso/a');
     }
 
     if (chips.isEmpty) {
@@ -1178,97 +1208,97 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
-                  child: message.matchedUserAvatar != null
-                      ? CachedNetworkImage(
-                          imageUrl: message.matchedUserAvatar!,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 70,
-                          height: 70,
-                          color: AppColors.primary,
-                          child: const Icon(Icons.person,
-                              color: Colors.white, size: 40),
-                        ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        message.matchedUserName ?? 'Usuario',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.10),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: AppColors.primary.withOpacity(0.22),
-                          ),
-                        ),
-                        child: Text(
-                          message.propertyLocation != null
-                              ? 'Departamento recomendado'
-                              : 'Roomie recomendado',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: message.matchedUserAvatar != null
+                        ? CachedNetworkImage(
+                            imageUrl: message.matchedUserAvatar!,
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 70,
+                            height: 70,
                             color: AppColors.primary,
+                            child: const Icon(Icons.person,
+                                color: Colors.white, size: 40),
+                          ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          message.matchedUserName ?? 'Usuario',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.primary.withOpacity(0.22),
+                            ),
+                          ),
+                          child: Text(
+                            message.propertyLocation != null
+                                ? 'Departamento recomendado'
+                                : 'Roomie recomendado',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              message.propertyLocation != null
-                  ? 'Detalles de la publicación'
-                  : 'Detalles del perfil',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _buildQualityChips(message),
-            ),
-            const SizedBox(height: 14),
-            _buildDetailsPanel(message),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              const SizedBox(height: 24),
+              Text(
+                message.propertyLocation != null
+                    ? 'Detalles de la publicación'
+                    : 'Detalles del perfil',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-                child: const Text('Cerrar'),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _buildQualityChips(message),
+              ),
+              const SizedBox(height: 14),
+              _buildDetailsPanel(message),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

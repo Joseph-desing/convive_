@@ -226,9 +226,13 @@ class _ConViveAppState extends State<ConViveApp> {
     }
 
     // ── CASO 1: Reset password ─────────────────────────────────────────────
+    // SOLO tratar como recovery si:
+    //   - Es ruta explícita de reset-password, O
+    //   - auth-callback con type=recovery explícito
+    // NO tratar auth-callback con code sin type como recovery
+    // (eso es email confirmation, no recovery!)
     if (isResetPath ||
-        (isAuthCallback &&
-            (type == 'recovery' || code.isNotEmpty && type.isEmpty))) {
+        (isAuthCallback && type == 'recovery')) {
       if (tokenHash.isNotEmpty) {
         debugPrint('🔑 [DeepLink] → /reset-password con token_hash');
         _router.push(
@@ -236,7 +240,6 @@ class _ConViveAppState extends State<ConViveApp> {
         );
       } else if (code.isNotEmpty) {
         debugPrint('🔑 [DeepLink] → /reset-password con code PKCE');
-        // Guardamos el code para que ResetPasswordScreen lo use
         _router.push(
           '/reset-password?code=${Uri.encodeComponent(code)}&email=${Uri.encodeComponent(email)}',
         );

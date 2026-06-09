@@ -51,10 +51,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     // Log de diagnóstico
     print('🔍 ResetPasswordScreen initState');
-    print('   TokenHash: ${widget.tokenHash.isNotEmpty ? '[present]' : '[empty]'}');
-    print('   Code/resetToken: ${widget.resetToken.isNotEmpty ? '[present]' : '[empty]'}');
+    print(
+        '   TokenHash: ${widget.tokenHash.isNotEmpty ? '[present]' : '[empty]'}');
+    print(
+        '   Code/resetToken: ${widget.resetToken.isNotEmpty ? '[present]' : '[empty]'}');
     print('   Email: ${widget.email ?? '[null]'}');
-    print('   ErrorCode: ${widget.errorCode.isNotEmpty ? widget.errorCode : '[none]'}');
+    print(
+        '   ErrorCode: ${widget.errorCode.isNotEmpty ? widget.errorCode : '[none]'}');
   }
 
   @override
@@ -168,8 +171,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       } else if (errorStr.contains('bad_code_verifier') ||
           errorStr.contains('code challenge') ||
           errorStr.contains('pkce_verifier_missing')) {
-        userMessage =
-            '🔗 Este enlace no puede usarse desde este navegador. '
+        userMessage = '🔗 Este enlace no puede usarse desde este navegador. '
             'Por favor solicita un nuevo enlace de recuperación.';
       } else if (errorStr.contains('invalid') || errorStr.contains('token')) {
         userMessage = '❌ El enlace de recuperación es inválido o ya fue usado.';
@@ -220,6 +222,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           centerTitle: true,
         ),
         body: Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: const BoxDecoration(
             gradient: AppColors.backgroundGradient,
           ),
@@ -339,6 +343,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         centerTitle: true,
       ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
@@ -555,10 +561,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed:
-                              (isTokenValid && !_isLoading)
-                                  ? _resetPassword
-                                  : null,
+                          onPressed: (isTokenValid && !_isLoading)
+                              ? _resetPassword
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,

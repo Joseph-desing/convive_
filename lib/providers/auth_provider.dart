@@ -254,7 +254,7 @@ class AuthProvider extends ChangeNotifier {
           'role': role.name,
         },
       );
-      debugPrint('📧 [SignUp] emailRedirectTo: ${kIsWeb ? "web URL" : "com.example.convive_://auth-callback"}');
+      debugPrint('📧 [SignUp] emailRedirectTo: ${kIsWeb ? "web /#/email-confirmed" : "web /auth-callback (intermedia)"}');
 
       if (authResponse.user != null) {
         _currentUser = null;
