@@ -160,16 +160,16 @@ void main() {
 
         final resultado = envioQuejaSugerenciaValido(
           tipo: 'Queja',
-          titulo: 'Error de carga',
+          titulo: 'Comportamiento inapropiado',
           descripcion:
           'La pantalla tarda demasiado en cargar los departamentos disponibles.',
           correoUsuario: 'changoluizajoseph0@gmail.com',
         );
 
-        print('Usuario: changoluizajoseph0@gmail.com');
+        print('Usuario: Byron Loarte');
         print('Tipo: Queja');
-        print('Título: Error de carga');
-        print('Descripción: La pantalla tarda demasiado en cargar los departamentos disponibles.');
+
+        print('Comportamiento inapropiado');
         print('Resultado esperado: true');
         print('Resultado obtenido: $resultado');
 

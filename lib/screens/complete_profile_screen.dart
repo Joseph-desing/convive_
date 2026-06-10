@@ -14,7 +14,7 @@ class CompleteProfileScreen extends StatefulWidget {
   final Profile? existingProfile;
   final Habits? existingHabits;
   final bool isEdit;
-  
+
   const CompleteProfileScreen({
     Key? key,
     required this.userId,
@@ -31,7 +31,7 @@ class CompleteProfileScreen extends StatefulWidget {
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
-  
+
   // Datos del perfil
   final _fullNameController = TextEditingController();
   final _bioController = TextEditingController();
@@ -40,8 +40,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   XFile? _selectedImage;
   String? _currentImageUrl;
   bool _uploadingImage = false;
-  UserRole? _selectedRole;  // ✅ NUEVO: Para editar tipo de usuario
-  
+  UserRole? _selectedRole; // ✅ NUEVO: Para editar tipo de usuario
+
   // Datos de hábitos
   int _cleanlinessLevel = 5;
   int _noiseTolerance = 5;
@@ -54,7 +54,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   int _sleepEndHour = 7;
   int _timeAtHome = 5;
   int _responsibilityLevel = 5;
-  
+
   bool _isLoading = false;
   late final bool _isEdit;
   static const bool _showRoleSelectorInEdit = false;
@@ -92,7 +92,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _timeAtHome = habits.timeAtHome;
       _responsibilityLevel = habits.responsibilityLevel;
     }
-    
+
     // ✅ NUEVO: Cargar el rol actual del usuario
     if (_isEdit) {
       _loadUserRole();
@@ -102,7 +102,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   /// Pre-rellena el nombre desde public.users (para usuarios nuevos)
   Future<void> _loadFullNameFromUser() async {
     try {
-      final user = await SupabaseProvider.databaseService.getUser(widget.userId);
+      final user =
+          await SupabaseProvider.databaseService.getUser(widget.userId);
       if (user != null && (user.fullName?.isNotEmpty ?? false)) {
         if (mounted) setState(() => _fullNameController.text = user.fullName!);
       }
@@ -117,7 +118,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _loadUserRole() async {
     try {
-      final user = await SupabaseProvider.databaseService.getUser(widget.userId);
+      final user =
+          await SupabaseProvider.databaseService.getUser(widget.userId);
       if (user != null) {
         setState(() {
           _selectedRole = user.role;
@@ -223,7 +225,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               value: (_currentStep + 1) / 2,
               minHeight: 6,
               backgroundColor: AppColors.background,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
         ],
@@ -244,7 +247,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -252,17 +255,16 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               'Ayúdanos a conocerte mejor para encontrar tu match perfecto',
               style: TextStyle(
                 fontSize: 15,
-                color: Colors.white70,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 32),
-            
             _buildWhiteCard(
               child: Column(
                 children: [
                   _buildProfileImagePicker(),
                   const SizedBox(height: 24),
-                  
+
                   _buildTextField(
                     controller: _fullNameController,
                     label: 'Nombre completo',
@@ -276,13 +278,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  
+
                   _buildDateField(),
                   const SizedBox(height: 20),
-                  
+
                   _buildGenderField(),
                   const SizedBox(height: 20),
-                  
+
                   _buildTextField(
                     controller: _bioController,
                     label: 'Sobre ti',
@@ -291,7 +293,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     maxLines: 4,
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // ✅ NUEVO: Selector de tipo de usuario (solo en edición)
                   if (_isEdit && _showRoleSelectorInEdit)
                     Column(
@@ -313,7 +315,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                               child: _buildRoleButtonInForm(
                                 label: 'Estudiante',
                                 isSelected: _selectedRole == UserRole.student,
-                                onTap: () => setState(() => _selectedRole = UserRole.student),
+                                onTap: () => setState(
+                                    () => _selectedRole = UserRole.student),
                                 color: AppColors.primary,
                               ),
                             ),
@@ -321,8 +324,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                             Expanded(
                               child: _buildRoleButtonInForm(
                                 label: 'Propietario',
-                                isSelected: _selectedRole == UserRole.non_student,
-                                onTap: () => setState(() => _selectedRole = UserRole.non_student),
+                                isSelected:
+                                    _selectedRole == UserRole.non_student,
+                                onTap: () => setState(
+                                    () => _selectedRole = UserRole.non_student),
                                 color: Colors.blue,
                               ),
                             ),
@@ -362,7 +367,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
           _buildWhiteCard(
             child: Column(
               children: [
@@ -373,7 +377,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _cleanlinessLevel = value),
                 ),
                 const SizedBox(height: 24),
-                
                 _buildSlider(
                   'Tolerancia al ruido',
                   _noiseTolerance,
@@ -381,7 +384,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _noiseTolerance = value),
                 ),
                 const SizedBox(height: 24),
-                
                 _buildSlider(
                   'Fiestas por semana',
                   _partyFrequency,
@@ -390,7 +392,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   max: 7,
                 ),
                 const SizedBox(height: 24),
-                
                 _buildSlider(
                   'Tolerancia a invitados',
                   _guestsTolerance,
@@ -398,7 +399,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _guestsTolerance = value),
                 ),
                 const SizedBox(height: 24),
-                
                 _buildSwitchTile(
                   '¿Tienes mascotas?',
                   _pets,
@@ -406,7 +406,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _pets = value),
                 ),
                 const SizedBox(height: 16),
-                
                 _buildSlider(
                   'Tolerancia a mascotas',
                   _petTolerance,
@@ -414,13 +413,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _petTolerance = value),
                 ),
                 const SizedBox(height: 24),
-                
                 _buildWorkModeField(),
                 const SizedBox(height: 24),
-                
                 _buildSleepSchedule(),
                 const SizedBox(height: 24),
-                
                 _buildSlider(
                   'Tiempo en casa (horas/día)',
                   _timeAtHome,
@@ -428,7 +424,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   (value) => setState(() => _timeAtHome = value),
                 ),
                 const SizedBox(height: 24),
-                
                 _buildSlider(
                   'Nivel de responsabilidad',
                   _responsibilityLevel,
@@ -481,7 +476,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               child: _uploadingImage
                   ? const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
                     )
                   : _selectedImage != null
@@ -607,7 +603,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: validator,
         ),
@@ -661,7 +658,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         : AppColors.textSecondary,
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18, color: AppColors.textSecondary),
+                const Icon(Icons.calendar_today,
+                    size: 18, color: AppColors.textSecondary),
               ],
             ),
           ),
@@ -673,7 +671,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   Future<DateTime?> _showBirthDatePicker() {
     final firstDate = DateTime(1950);
     final lastDate = DateTime.now().subtract(const Duration(days: 365 * 18));
-    var selectedDate = _birthDate ?? DateTime(lastDate.year - 2, lastDate.month, lastDate.day);
+    var selectedDate =
+        _birthDate ?? DateTime(lastDate.year - 2, lastDate.month, lastDate.day);
 
     if (selectedDate.isBefore(firstDate)) selectedDate = firstDate;
     if (selectedDate.isAfter(lastDate)) selectedDate = lastDate;
@@ -684,7 +683,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -720,7 +720,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF6FA),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                        border: Border.all(
+                            color: AppColors.primary.withOpacity(0.12)),
                       ),
                       child: Theme(
                         data: Theme.of(context).copyWith(
@@ -750,7 +751,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context, selectedDate),
+                            onPressed: () =>
+                                Navigator.pop(context, selectedDate),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -1159,7 +1161,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       if (mounted) {
         // Forzar actualización del UserProvider
         try {
-          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          final userProvider =
+              Provider.of<UserProvider>(context, listen: false);
           final authUser = SupabaseProvider.authService.getCurrentUser();
           if (authUser != null) {
             await userProvider.loadUser(authUser.id);
@@ -1206,8 +1209,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (_selectedImage != null) {
       setState(() => _uploadingImage = true);
       try {
-        profileImageUrl = await SupabaseProvider.storageService
-            .uploadProfileImageXFile(
+        profileImageUrl =
+            await SupabaseProvider.storageService.uploadProfileImageXFile(
           userId: widget.userId,
           file: _selectedImage!,
         );
@@ -1270,8 +1273,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (_selectedImage != null) {
       setState(() => _uploadingImage = true);
       try {
-        final imageUrl = await SupabaseProvider.storageService
-            .uploadProfileImageXFile(
+        final imageUrl =
+            await SupabaseProvider.storageService.uploadProfileImageXFile(
           userId: widget.userId,
           file: _selectedImage!,
         );
@@ -1296,7 +1299,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     // ✅ NUEVO: Actualizar rol del usuario si fue cambiado
     if (_selectedRole != null) {
-      final roleString = _selectedRole == UserRole.student ? 'student' : 'non_student';
+      final roleString =
+          _selectedRole == UserRole.student ? 'student' : 'non_student';
       await SupabaseProvider.databaseService.updateUser(
         widget.userId,
         {'role': roleString},
