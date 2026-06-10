@@ -155,7 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ForgotPasswordScreen(),
+                                builder: (context) =>
+                                    const ForgotPasswordScreen(),
                               ),
                             );
                           },
@@ -330,12 +331,220 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
+                    if (_isLogin) ...[
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: _showAboutConViveDialog,
+                        icon: const Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Acerca de ConVive'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          textStyle: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAboutConViveDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.28),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.home_work_outlined,
+                        color: Colors.white,
+                        size: 38,
+                      ),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Acerca de ConVive',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tu espacio para encontrar hogar y convivencia ideal',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                height: 1.25,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'ConVive conecta personas que buscan departamentos, habitaciones o compañeros de vivienda de una forma clara, segura y organizada.',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 14,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                _buildAboutFeatureCard(
+                  icon: Icons.apartment_rounded,
+                  title: 'Departamentos',
+                  description:
+                      'Explora publicaciones aprobadas, precios, ubicación y disponibilidad antes de elegir.',
+                  color: const Color(0xFF1E88E5),
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.favorite_rounded,
+                  title: 'Compatibilidad',
+                  description:
+                      'Encuentra roomies con hábitos similares según limpieza, ruido, visitas y estilo de vida.',
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.verified_user_rounded,
+                  title: 'Publicaciones verificadas',
+                  description:
+                      'Las publicaciones pasan por revisión administrativa para dar más confianza a la comunidad.',
+                  color: const Color(0xFF2F9E44),
+                ),
+                const SizedBox(height: 10),
+                _buildAboutFeatureCard(
+                  icon: Icons.smart_toy_rounded,
+                  title: 'Asistente ConVive',
+                  description:
+                      'El chatbot te guía paso a paso para buscar departamentos o compañeros según tus preferencias.',
+                  color: const Color(0xFF9C27B0),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Entendido',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -496,20 +705,25 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (!authProvider.isEmailVerified) {
-          context.go('/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
+          context.go(
+              '/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
           return;
         }
-        
+
         // Si es usuario nuevo (sin perfil), redirigir a completar perfil
         if (authProvider.isNewUser) {
           final userId = authProvider.currentUser?.id ?? '';
-          final userEmail = authProvider.currentUser?.email ?? _emailController.text.trim();
-          context.go('/complete-profile?userId=$userId&email=${Uri.encodeComponent(userEmail)}');
+          final userEmail =
+              authProvider.currentUser?.email ?? _emailController.text.trim();
+          context.go(
+              '/complete-profile?userId=$userId&email=${Uri.encodeComponent(userEmail)}');
           return;
         }
 
         // Redirigir según el rol del usuario (cargado desde BD)
-        final userRole = authProvider.currentUser?.role.toString().split('.').last ?? 'student';
+        final userRole =
+            authProvider.currentUser?.role.toString().split('.').last ??
+                'student';
         if (userRole == 'admin') {
           context.go('/admin');
         } else {
@@ -534,7 +748,8 @@ class _LoginScreenState extends State<LoginScreen> {
           throw Exception(authProvider.error);
         }
 
-        context.go('/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
+        context.go(
+            '/email-verification?email=${Uri.encodeComponent(_emailController.text.trim())}');
       }
     } catch (e) {
       if (!mounted) return;
@@ -566,8 +781,7 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = '👤 Usuario no encontrado';
       } else if (errorStr.contains('already exists')) {
         errorMessage = '⚠️ Este email ya está registrado';
-      } else if (authProvider.error != null &&
-          authProvider.error!.isNotEmpty) {
+      } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {
         errorMessage = authProvider.error!;
       }
 
@@ -599,7 +813,8 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 // --- HEADER CON GRADIENTE (SIN PADDING HORIZONTAL) ---
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
                   child: Column(
                     children: [
                       const Icon(
@@ -740,7 +955,8 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 // --- HEADER CON GRADIENTE (SIN PADDING HORIZONTAL) ---
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 0, vertical: 28),
                   child: Column(
                     children: [
                       const Icon(
@@ -934,4 +1150,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

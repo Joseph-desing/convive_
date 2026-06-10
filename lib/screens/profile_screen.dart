@@ -689,12 +689,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const Divider(),
           _buildSettingsTile(
-            icon: Icons.info_outline_rounded,
-            title: 'Acerca de',
-            onTap: _showAboutConViveDialog,
-          ),
-          const Divider(),
-          _buildSettingsTile(
             icon: Icons.logout,
             title: 'Cerrar sesión',
             onTap: () => _handleLogout(),
@@ -819,6 +813,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ignore: unused_element
   void _showAboutConViveDialog() {
     showDialog(
       context: context,
