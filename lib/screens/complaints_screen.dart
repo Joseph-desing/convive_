@@ -265,9 +265,27 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   Future<void> _submitComplaint() async {
-    if (_selectedPropertyId == null || _selectedUserId == null || _complaintController.text.isEmpty) {
+    final complaintText = _complaintController.text.trim();
+    final complaintWordCount =
+        RegExp(r'\S+').allMatches(complaintText).length;
+
+    if (_selectedPropertyId == null || _selectedUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un usuario, propiedad y escribe tu queja')),
+        const SnackBar(content: Text('Selecciona un usuario y una propiedad')),
+      );
+      return;
+    }
+
+    if (complaintText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escribe la descripcion de tu queja')),
+      );
+      return;
+    }
+
+    if (complaintWordCount < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La queja debe tener minimo 5 palabras')),
       );
       return;
     }
@@ -304,7 +322,7 @@ Propiedad/Búsqueda: $title
 Usuario reportado: $reportedUserName
 
 Descripción de la queja:
-${_complaintController.text}
+$complaintText
       '''.trim();
 
       await SupabaseProvider.client.from('feedback').insert({
