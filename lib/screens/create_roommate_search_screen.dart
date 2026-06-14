@@ -995,6 +995,9 @@ class _CreateRoommateSearchScreenState extends State<CreateRoommateSearchScreen>
     if (budget == null || budget <= 0) {
       return 'El presupuesto debe ser mayor a 0';
     }
+    if (budget > 9999) {
+      return 'El presupuesto no puede ser mayor a 9999';
+    }
     return null;
   }
 

@@ -49,7 +49,26 @@ class _EditHabitsScreenState extends State<EditHabitsScreen> {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
+  bool _hasZeroHabitValue() {
+    return _cleanlinessLevel == 0 ||
+        _noiseTolerance == 0 ||
+        _partyFrequency == 0 ||
+        _guestsTolerance == 0 ||
+        _timeAtHome == 0 ||
+        _responsibilityLevel == 0 ||
+        _petTolerance == 0;
+  }
+
   Future<void> _saveHabits() async {
+    if (_hasZeroHabitValue()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cada habito debe tener minimo 1 punto'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {

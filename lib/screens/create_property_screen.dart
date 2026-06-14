@@ -271,6 +271,9 @@ class _CreatePropertyScreenState extends State<CreatePropertyScreen> {
                 if (price == null || price <= 0) {
                   return 'El precio debe ser mayor a 0';
                 }
+                if (price > 9999) {
+                  return 'El precio no puede ser mayor a 9999';
+                }
                 return null;
               },
             ),

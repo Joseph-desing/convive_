@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.convive_"
+    namespace = "com.convive.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

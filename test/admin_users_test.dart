@@ -151,16 +151,16 @@ void main() {
         print('Validando usuario propietario válido desde administración...');
 
         final resultado = usuarioAdministrativoValido(
-          nombre: 'Propietario ConVive',
-          correo: 'propietario@convive.com',
-          rol: 'Propietario',
+          nombre: 'Estudiante ConVive',
+          correo: 'changoluizajoseph0@gmail.com',
+          rol: 'Estudiante',
           estado: 'Activo',
         );
 
         print('Administrador: changoluizajoseph@gmail.com');
-        print('Usuario evaluado: propietario@convive.com');
-        print('Nombre: Propietario ConVive');
-        print('Rol: Propietario');
+        print('Usuario evaluado: changoluizajoseph0@gmail.com');
+        print('Nombre: Joseph Changoluiza');
+        print('Rol: Estudiante');
         print('Estado: Activo');
         print('Resultado esperado: true');
         print('Resultado obtenido: $resultado');
