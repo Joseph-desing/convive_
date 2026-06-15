@@ -198,6 +198,8 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
       if (_filterRadiusKm != null) await prefs.setDouble('map_filter_radius_km', _filterRadiusKm!); else await prefs.remove('map_filter_radius_km');
       if (_filterPriceMin != null) await prefs.setInt('map_filter_price_min', _filterPriceMin!); else await prefs.remove('map_filter_price_min');
       if (_filterPriceMax != null) await prefs.setInt('map_filter_price_max', _filterPriceMax!); else await prefs.remove('map_filter_price_max');
+      if (_filterMinBedrooms != null) await prefs.setInt('map_filter_min_bedrooms', _filterMinBedrooms!); else await prefs.remove('map_filter_min_bedrooms');
+      await prefs.setString('map_filter_order_by', _filterOrderBy);
     } catch (e) {
       debugPrint('No se pudo guardar cache local de geocoding: $e');
     }
@@ -242,11 +244,19 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
 
       if (_filterRadiusKm != null) {
         searches = searches.where((s) {
-          final lat = s.latitude;
-          final lng = s.longitude;
-          if (!_isValidLatLng(lat, lng)) return false;
+          LatLng? point;
+          if (_isValidLatLng(s.latitude, s.longitude)) {
+            point = LatLng(s.latitude!, s.longitude!);
+          } else {
+            final cached = _geocodeCache[s.id ?? s.address];
+            if (cached != null &&
+                _isValidLatLng(cached.latitude, cached.longitude)) {
+              point = cached;
+            }
+          }
+          if (point == null) return false;
           final dkm =
-              dist.as(LengthUnit.Kilometer, center, LatLng(lat!, lng!));
+              dist.as(LengthUnit.Kilometer, center, point);
           return dkm <= _filterRadiusKm!;
         }).toList();
         props = props.where((p) {
@@ -387,6 +397,7 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                     initialPriceMin: _filterPriceMin,
                     initialPriceMax: _filterPriceMax,
                     initialMinBedrooms: _filterMinBedrooms,
+                    initialOrderBy: _filterOrderBy,
                   ),
                 );
                 if (result != null) {
@@ -397,6 +408,8 @@ class _MapPostsScreenState extends State<MapPostsScreen> {
                     _filterRadiusKm = result.radiusKm;
                     _filterPriceMin = result.priceMin;
                     _filterPriceMax = result.priceMax;
+                    _filterMinBedrooms = result.minBedrooms;
+                    _filterOrderBy = result.orderBy;
                   });
                   await _saveLocalGeocodeCache();
                   await _loadData();

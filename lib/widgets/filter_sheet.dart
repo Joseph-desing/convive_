@@ -10,14 +10,18 @@ class FilterSheetResult {
   final double? radiusKm;
   final int? priceMin;
   final int? priceMax;
+  final int? minBedrooms;
+  final String orderBy;
 
   FilterSheetResult({
     required this.showProperties,
     required this.showSearches,
     required this.onlyMatches,
+    required this.orderBy,
     this.radiusKm,
     this.priceMin,
     this.priceMax,
+    this.minBedrooms,
   });
 }
 
@@ -29,6 +33,7 @@ class FilterSheet extends StatefulWidget {
   final int? initialPriceMin;
   final int? initialPriceMax;
   final int? initialMinBedrooms;
+  final String initialOrderBy;
 
   const FilterSheet({
     Key? key,
@@ -39,6 +44,7 @@ class FilterSheet extends StatefulWidget {
     this.initialPriceMin,
     this.initialPriceMax,
     this.initialMinBedrooms,
+    this.initialOrderBy = 'recent',
   }) : super(key: key);
 
   @override
@@ -64,6 +70,7 @@ class _FilterSheetState extends State<FilterSheet> {
     _radiusKm = widget.initialRadiusKm;
     _priceMin = widget.initialPriceMin;
     _priceMax = widget.initialPriceMax;
+    _orderBy = widget.initialOrderBy;
     final initBedrooms = widget.initialMinBedrooms;
     _minBedrooms =
         initBedrooms != null && initBedrooms >= 1 && initBedrooms <= 6
@@ -72,9 +79,36 @@ class _FilterSheetState extends State<FilterSheet> {
   }
 
   Future<void> _saveAndClose() async {
+    if (_priceMin != null && (_priceMin! <= 0 || _priceMin! > 9999)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El precio minimo debe estar entre 1 y 9999'),
+        ),
+      );
+      return;
+    }
+
+    if (_priceMax != null && (_priceMax! <= 0 || _priceMax! > 9999)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El precio maximo debe estar entre 1 y 9999'),
+        ),
+      );
+      return;
+    }
+
+    if (_priceMin != null && _priceMax != null && _priceMin! > _priceMax!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El precio minimo no puede ser mayor al maximo'),
+        ),
+      );
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('map_filter_show_properties', _showProperties);
-    await prefs.setBool('map_filter_show_searches', _showSearches);
+    await prefs.setBool('map_show_properties', _showProperties);
+    await prefs.setBool('map_show_searches', _showSearches);
     await prefs.setBool('map_filter_only_matches', _onlyMatches);
 
     if (_radiusKm != null) {
@@ -112,6 +146,8 @@ class _FilterSheetState extends State<FilterSheet> {
         radiusKm: _radiusKm,
         priceMin: _priceMin,
         priceMax: _priceMax,
+        minBedrooms: _minBedrooms,
+        orderBy: _orderBy,
       ),
     );
   }
@@ -393,19 +429,23 @@ class _FilterSheetState extends State<FilterSheet> {
                                 ),
                                 const SizedBox(height: 6),
                                 _dropdownShell(
-                                  child: DropdownButton<int>(
+                                  child: DropdownButton<int?>(
                                     value: _minBedrooms,
-                                    hint: const Text('1+'),
+                                    hint: const Text('Todas'),
                                     isExpanded: true,
                                     underline: const SizedBox.shrink(),
-                                    items: List.generate(6, (i) => i + 1)
-                                        .map(
-                                          (n) => DropdownMenuItem(
-                                            value: n,
-                                            child: Text(n.toString()),
-                                          ),
-                                        )
-                                        .toList(),
+                                    items: [
+                                      const DropdownMenuItem<int?>(
+                                        value: null,
+                                        child: Text('Todas'),
+                                      ),
+                                      ...List.generate(6, (i) => i + 1).map(
+                                        (n) => DropdownMenuItem<int?>(
+                                          value: n,
+                                          child: Text('$n+'),
+                                        ),
+                                      ),
+                                    ],
                                     onChanged: (v) =>
                                         setState(() => _minBedrooms = v),
                                   ),
