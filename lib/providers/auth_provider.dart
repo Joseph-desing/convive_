@@ -374,7 +374,7 @@ class AuthProvider extends ChangeNotifier {
       if (errorStr.contains('invalid login') ||
           errorStr.contains('invalid_credentials') ||
           errorStr.contains('invalid credentials')) {
-        _error = 'Contraseña incorrecta o email no registrado';
+        _error = 'Usuario o contraseña incorrectos';
       } else if (errorStr.contains('network') || errorStr.contains('connection')) {
         _error = 'Error de conexión. Verifica tu internet';
       } else if (errorStr.contains('already exists')) {

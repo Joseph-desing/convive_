@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../utils/theme_helper.dart';
 import '../models/index.dart';
+import '../providers/auth_provider.dart';
 import '../config/supabase_provider.dart';
 import 'complete_profile_screen.dart';
 import 'settings_screen.dart';
@@ -235,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirm == true && mounted) {
       try {
-        await SupabaseProvider.authService.signOut();
+        await context.read<AuthProvider>().signOut();
         if (mounted) {
           // Navegar a la pantalla de login usando GoRouter
           context.go('/login');

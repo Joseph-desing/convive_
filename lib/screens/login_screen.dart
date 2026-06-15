@@ -701,7 +701,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (!authProvider.isAuthenticated) {
-          throw Exception("Error de autenticación");
+          throw Exception(
+            authProvider.error ?? 'Usuario o contraseña incorrectos',
+          );
         }
 
         if (!authProvider.isEmailVerified) {
@@ -766,11 +768,15 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // Detectar errores específicos
-      if (errorStr.contains('invalid login') ||
+      if (authProvider.error != null && authProvider.error!.isNotEmpty) {
+        errorMessage = authProvider.error!;
+      } else if (errorStr.contains('invalid login') ||
           errorStr.contains('invalid password') ||
           errorStr.contains('invalid_credentials') ||
-          errorStr.contains('invalid credentials')) {
-        errorMessage = '❌ Contraseña incorrecta o email no registrado';
+          errorStr.contains('invalid credentials') ||
+          errorStr.contains('error de autenticación') ||
+          errorStr.contains('error de autenticacion')) {
+        errorMessage = '❌ Usuario o contraseña incorrectos';
       } else if (errorStr.contains('email') && errorStr.contains('already')) {
         errorMessage = '⚠️ Este email ya está registrado';
       } else if (errorStr.contains('password')) {
@@ -781,8 +787,6 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = '👤 Usuario no encontrado';
       } else if (errorStr.contains('already exists')) {
         errorMessage = '⚠️ Este email ya está registrado';
-      } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {
-        errorMessage = authProvider.error!;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
