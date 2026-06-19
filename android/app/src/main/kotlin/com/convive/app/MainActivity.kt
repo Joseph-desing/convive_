@@ -1,4 +1,4 @@
-package com.example.convive_
+package com.convive.app
 
 import io.flutter.embedding.android.FlutterActivity
 
