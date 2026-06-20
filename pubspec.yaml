@@ -2,7 +2,7 @@ name: convive
 description: App de compañeros/as de vivienda con IA para encontrar tu hogar perfecto
 
 publish_to: 'none'
-version: 1.0.2+4
+version: 1.0.5+5
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
