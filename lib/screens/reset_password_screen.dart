@@ -154,7 +154,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       if (kIsWeb) {
         // En web: redirigir el navegador al deep link del APK.
-        redirectToDeepLink('com.example.convive_://login');
+        redirectToDeepLink('com.convive.app://login');
       } else {
         // En móvil: ir al login internamente.
         context.go('/login');

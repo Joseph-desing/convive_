@@ -55,34 +55,65 @@
 
     <script>
         (function() {
-            var params = window.location.search;
-            var hash = window.location.hash;
+            var search = window.location.search;   // ?code=xxx&type=signup
+            var hash   = window.location.hash;     // #access_token=xxx... (implicit flow)
             var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-            console.log('📧 [auth-callback] params:', params);
+            console.log('📧 [auth-callback] search:', search);
+            console.log('📧 [auth-callback] hash:',   hash);
             console.log('📧 [auth-callback] isMobile:', isMobile);
 
-            if (isMobile) {
-                // En móvil: intentar abrir el APK con intent deep link
-                var deepLink = 'com.example.convive_://auth-callback' + params;
-                var intentUrl = 'intent://auth-callback' + params +
-                    '#Intent;scheme=com.example.convive_;package=com.example.convive;end';
+            // ── Fusionar hash params como query params ──────────────────────
+            // Supabase a veces envía access_token/refresh_token en el hash (#).
+            // Los intent URIs de Android usan # para la sintaxis #Intent;...
+            // así que convertimos el hash a parámetros ?query para pasarlos a la app.
+            var params = search;
+            if (hash && hash.length > 1 && !hash.startsWith('#Intent')) {
+                var hashContent = hash.substring(1); // Quitar el #
+                if (hashContent.length > 0) {
+                    params = params.length > 0
+                        ? params + '&' + hashContent
+                        : '?' + hashContent;
+                }
+            }
 
-                console.log('📧 [auth-callback] Intentando deep link:', deepLink);
+            // ── Detectar error_code en los parámetros ───────────────────────
+            var urlParams = new URLSearchParams(params.replace(/^\?/, ''));
+            var errorCode = urlParams.get('error_code') || '';
+            var isOtpExpired = errorCode === 'otp_expired' || errorCode === 'otp_disabled';
+
+            console.log('📧 [auth-callback] params finales:', params);
+            console.log('📧 [auth-callback] errorCode:', errorCode);
+
+            if (isMobile) {
+                // ✅ Si el OTP expiró (email ya verificado en web) → abrir app en email-confirmed
+                // ✅ Si hay código válido → pasar a la app para que intercambie la sesión
+                var intentUrl;
+                if (isOtpExpired) {
+                    // Email ya estaba verificado — simplemente llevar al login
+                    console.log('📧 [auth-callback] OTP expirado = email ya confirmado → /email-confirmed');
+                    intentUrl = 'intent://email-confirmed' +
+                        '#Intent;scheme=com.convive.app;package=com.convive.app;end';
+                } else {
+                    intentUrl = 'intent://auth-callback' + params +
+                        '#Intent;scheme=com.convive.app;package=com.convive.app;end';
+                }
+
                 console.log('📧 [auth-callback] Intent URL:', intentUrl);
 
-                // Mostrar éxito después de un delay
+                // Mostrar pantalla de éxito 1.5 s y luego abrir la app
                 setTimeout(function() {
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('success').classList.remove('hidden');
                     document.getElementById('openAppBtn').href = intentUrl;
+
+                    // Intentar abrir la app automáticamente
+                    window.location.href = intentUrl;
                 }, 1500);
 
-                // Intentar abrir con intent primero (más confiable en Android)
-                window.location.href = intentUrl;
             } else {
-                // En web: redirigir a la app Flutter
-                var flutterUrl = '/#/email-confirmed' + params;
+                // En web: redirigir a la app Flutter (hash route)
+                var flutterUrl = '/#/email-confirmed' + search;
                 console.log('📧 [auth-callback] Redirigiendo a Flutter:', flutterUrl);
                 window.location.href = flutterUrl;
             }

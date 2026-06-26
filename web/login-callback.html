@@ -62,13 +62,12 @@
             console.log('🔵 [login-callback] isMobile:', isMobile);
 
             if (isMobile) {
-                // En móvil: intentar abrir el APK con intent deep link
-                var deepLink = 'com.example.convive_://login-callback' + params;
+                // ✅ CORRECCIÓN: scheme y package deben coincidir con el applicationId del APK
+                // applicationId real = com.convive.app  (build.gradle.kts)
                 var intentUrl = 'intent://login-callback' + params +
-                    '#Intent;scheme=com.example.convive_;package=com.example.convive;end';
+                    '#Intent;scheme=com.convive.app;package=com.convive.app;end';
 
-                console.log('🔵 [login-callback] Deep link:', deepLink);
-                console.log('🔵 [login-callback] Intent URL:', intentUrl);
+                console.log('🔵 [login-callback] Intent URL (corregido):', intentUrl);
 
                 // Mostrar botón fallback después de un delay
                 setTimeout(function() {

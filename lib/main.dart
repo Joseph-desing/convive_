@@ -139,10 +139,10 @@ class _ConViveAppState extends State<ConViveApp> {
   }
 
   /// Manejo centralizado de deep links. Soporta:
-  ///   com.example.convive_://reset-password?code=...
-  ///   com.example.convive_://auth-callback?code=...&type=recovery
-  ///   com.example.convive_://login-callback          (Google OAuth)
-  ///   com.example.convive_://email-confirmed?code=...
+  ///   com.convive.app://reset-password?code=...
+  ///   com.convive.app://auth-callback?code=...&type=recovery
+  ///   com.convive.app://login-callback          (Google OAuth)
+  ///   com.convive.app://email-confirmed?code=...
   ///   https://convive-app-6debf.web.app/?code=...#/reset-password  (Web fallback)
   void _handleDeepLink(Uri uri) {
     debugPrint(
@@ -204,8 +204,8 @@ class _ConViveAppState extends State<ConViveApp> {
         '🔍 [DeepLink] isReset=$isResetPath isAuth=$isAuthCallback isLogin=$isLoginCallback isEmail=$isEmailConfirmed');
 
     // ── CASO 0: Volver al login desde reset-password web ──────────────────────
-    // La web reset-password redirige a com.example.convive_://login tras cambio exitoso.
-    if (host == 'login' && uri.scheme == 'com.example.convive_') {
+    // La web reset-password redirige a com.convive.app://login tras cambio exitoso.
+    if (host == 'login' && uri.scheme == 'com.convive.app') {
       debugPrint('🏠 [DeepLink] → Reset-password web completado, ir a /login');
       Future.microtask(() async {
         // Cerrar sesión de recuperación si existe (sesión temporal de Supabase)
@@ -219,9 +219,16 @@ class _ConViveAppState extends State<ConViveApp> {
 
     // ── CASO: Error en el link ─────────────────────────────────────────────
     if (errorCode.isNotEmpty) {
-      debugPrint('⚠️ [DeepLink] Error en link: $errorCode');
-      _router
-          .go('/reset-password?error_code=${Uri.encodeComponent(errorCode)}');
+      debugPrint('⚠️ [DeepLink] Error en link: $errorCode, isAuthCallback=$isAuthCallback');
+      if (isAuthCallback) {
+        // Error en auth-callback = el email YA fue confirmado antes (otp_expired = link ya usado).
+        // No mostrar "Enlace Expirado" — simplemente ir a email-confirmed que redirige al login.
+        debugPrint('📧 [DeepLink] Error en auth-callback → email ya confirmado → /email-confirmed');
+        _router.go('/email-confirmed');
+      } else {
+        // Error en reset-password: mostrar pantalla de enlace expirado
+        _router.go('/reset-password?error_code=${Uri.encodeComponent(errorCode)}');
+      }
       return;
     }
 
@@ -951,14 +958,19 @@ class _EmailConfirmedRedirectScreenState
 
       if (code.isEmpty) {
         // Sin code en la URL — posiblemente ya se procesó o es acceso directo
-        print('⚠️ No se encontró code en la URL');
+        print('⚠️ No se encontró code en la URL (email ya confirmado server-side)');
         if (mounted) {
           setState(() {
             _emailConfirmed = true;
             _message = '¡Tu correo ha sido confirmado!';
           });
         }
-        // No redirigir automáticamente - el usuario debe volver a la app manualmente
+        // 📱 Android: auto-redirect a /login después de 2 segundos
+        // (el usuario está en la app gracias al deep link → llevar al login)
+        if (!kIsWeb && mounted) {
+          await Future.delayed(const Duration(seconds: 2));
+          if (mounted) GoRouter.of(context).go('/login');
+        }
         return;
       }
 
