@@ -1,6 +1,6 @@
 # ConVive
+<img width="759" height="752" alt="image" src="https://github.com/user-attachments/assets/289fd1b9-7f5b-4e1b-b3b1-3959c5c3ba55" />
 
-![Logo de ConVive](assets/images/logo1.png)
 
 Aplicacion movil y web para conectar personas que buscan vivienda compartida,
 departamentos y companeros compatibles. El sistema combina Flutter, Supabase,
