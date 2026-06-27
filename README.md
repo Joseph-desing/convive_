@@ -1084,12 +1084,4 @@ Implementado:
 - Temas claro/oscuro.
 - Localizacion base ES/EN.
 
-Pendiente para produccion:
 
-- Seguridad de claves.
-- RLS auditado.
-- Menos permisos Android.
-- Configuracion por ambiente.
-- Tests reales.
-- Monitoreo estable del backend IA en Hugging Face.
-- Limpieza final de logs `print`/`debugPrint`.
