@@ -2,7 +2,7 @@
 <img width="759" height="752" alt="image" src="https://github.com/user-attachments/assets/289fd1b9-7f5b-4e1b-b3b1-3959c5c3ba55" />
 
 
-Aplicacion movil y web para conectar personas que buscan vivienda compartida,
+Aplicacion movil para conectar personas que buscan vivienda compartida,
 departamentos y companeros compatibles. El sistema combina Flutter, Supabase,
 mapas, chat en tiempo real, panel administrativo, verificacion de publicaciones
 y un asistente conversacional apoyado por IA.
